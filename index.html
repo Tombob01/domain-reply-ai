@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>DomainReply AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink:      #1a1a18;
+      --ink-2:    #4a4a44;
+      --ink-3:    #9a9a90;
+      --paper:    #f5f3ee;
+      --cream:    #ede9e0;
+      --gold:     #c9a84c;
+      --gold-lt:  #f0d98a;
+      --green:    #2d6a4f;
+      --green-lt: #e8f4ee;
+      --red-lt:   #fce8e8;
+      --red:      #c0392b;
+      --border:   #ddd8cc;
+      --shadow:   0 2px 16px rgba(26,26,24,.08);
+      --radius:   6px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-size: 16px; -webkit-text-size-adjust: 100%; }
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      display: flex;
+      flex-direction: column;
+      overscroll-behavior: none;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--ink);
+      color: var(--paper);
+      padding: 0 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 52px;
+      border-bottom: 2px solid var(--gold);
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo { font-family: 'DM Serif Display', serif; font-size: 1.2rem; letter-spacing: -.5px; display: flex; align-items: center; gap: .4rem; }
+    .logo span { color: var(--gold); font-style: italic; }
+    .kb-badge { font-family: 'DM Mono', monospace; font-size: .7rem; color: var(--ink-3); display: flex; align-items: center; gap: .4rem; }
+    .kb-dot { width:6px; height:6px; border-radius:50%; background:var(--green); animation:pulse 2s infinite; flex-shrink:0; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── WAKE-UP BANNER ── */
+    #wakeBanner {
+      display: none;
+      background: #fffbea;
+      border-bottom: 1px solid #f0d98a;
+      padding: .55rem 1rem;
+      font-size: .8rem;
+      color: #7a5c00;
+      font-family: 'DM Mono', monospace;
+      align-items: center;
+      gap: .6rem;
+      flex-shrink: 0;
+    }
+    #wakeBanner.show { display: flex; }
+    .wake-spinner { width:12px; height:12px; border:2px solid #f0d98a; border-top-color:#c9a84c; border-radius:50%; animation:spin .7s linear infinite; flex-shrink:0; }
+    #wakeProgress { flex:1; height:3px; background:#f0d98a; border-radius:2px; overflow:hidden; }
+    #wakeProgressFill { height:100%; background:var(--gold); border-radius:2px; transition:width .9s linear; width:0%; }
+
+    /* ── LAYOUT ── */
+    main { flex:1; width:100%; padding:1rem; display:flex; flex-direction:column; gap:1rem; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+
+    /* ── API STRIP ── */
+    .api-strip { background:var(--cream); border:1px solid var(--border); border-left:3px solid var(--gold); border-radius:var(--radius); padding:.8rem 1rem; display:flex; flex-direction:column; gap:.5rem; }
+    .api-strip label { font-size:.75rem; font-weight:500; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-2); }
+    .api-strip input { width:100%; font-family:'DM Mono',monospace; font-size:.82rem; background:white; border:1px solid var(--border); border-radius:4px; padding:.55rem .75rem; color:var(--ink); outline:none; transition:border-color .2s; -webkit-appearance:none; }
+    .api-strip input:focus { border-color:var(--gold); }
+    .api-strip .hint { font-size:.72rem; color:var(--ink-3); }
+
+    /* ── TABS ── */
+    .tabs { display:flex; gap:.3rem; border-bottom:1px solid var(--border); }
+    .tab { font-size:.78rem; font-weight:500; letter-spacing:.04em; text-transform:uppercase; padding:.55rem .9rem; border-radius:var(--radius) var(--radius) 0 0; border:1px solid transparent; border-bottom:none; cursor:pointer; color:var(--ink-3); background:transparent; transition:all .15s; position:relative; bottom:-1px; -webkit-tap-highlight-color:transparent; }
+    .tab.active { color:var(--ink); background:white; border-color:var(--border); border-bottom-color:white; }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+
+    /* ── CARD ── */
+    .card { background:white; border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+    .card-header { background:var(--cream); border-bottom:1px solid var(--border); padding:.75rem 1rem; display:flex; align-items:center; gap:.5rem; }
+    .card-icon { font-size:.95rem; }
+    .card-title { font-size:.75rem; font-weight:500; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-2); }
+    .card-body { padding:1rem; }
+
+    /* ── FORM ELEMENTS ── */
+    textarea, input[type="text"], select { width:100%; font-family:'DM Sans',sans-serif; font-size:.93rem; font-weight:300; background:var(--paper); border:1px solid var(--border); border-radius:var(--radius); padding:.7rem .9rem; color:var(--ink); resize:vertical; outline:none; transition:border-color .2s,box-shadow .2s; -webkit-appearance:none; appearance:none; }
+    textarea:focus, input[type="text"]:focus, select:focus { border-color:var(--ink-2); box-shadow:0 0 0 3px rgba(26,26,24,.06); }
+    textarea { min-height:100px; line-height:1.6; }
+    .inline-row { display:flex; gap:.75rem; margin-top:.9rem; flex-wrap:wrap; }
+    .inline-row .field { flex:1; min-width:130px; }
+    .field-label { display:block; font-size:.72rem; font-weight:500; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-2); margin-bottom:.3rem; }
+    .form-row { display:flex; gap:.75rem; margin-top:.9rem; align-items:center; flex-wrap:wrap; }
+    .form-row label { font-size:.75rem; font-weight:500; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-2); white-space:nowrap; }
+    .form-row select { flex:1; min-width:150px; }
+
+    /* ── QUICK-PICK ── */
+    .quick-pick { display:flex; flex-wrap:wrap; gap:.35rem; margin-bottom:.9rem; }
+    .qp-btn { font-size:.72rem; font-family:'DM Sans',sans-serif; padding:.3rem .65rem; border:1px solid var(--border); border-radius:20px; background:var(--cream); color:var(--ink-2); cursor:pointer; transition:all .15s; -webkit-tap-highlight-color:transparent; }
+    .qp-btn:active { background:var(--gold-lt); border-color:var(--gold); color:var(--ink); }
+
+    /* ── BUTTONS ── */
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; padding:.65rem 1.2rem; border:none; border-radius:var(--radius); font-family:'DM Sans',sans-serif; font-size:.88rem; font-weight:500; cursor:pointer; transition:all .18s; white-space:nowrap; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+    .btn-primary { background:var(--ink); color:var(--paper); }
+    .btn-primary:active:not(:disabled) { background:#333; }
+    .btn-primary:disabled { opacity:.45; cursor:not-allowed; }
+    .btn-secondary { background:transparent; color:var(--ink-2); border:1px solid var(--border); }
+    .btn-secondary:active { background:var(--cream); }
+    .btn-sm { padding:.38rem .85rem; font-size:.78rem; }
+    .btn-danger { background:var(--red); color:white; }
+    .btn-full { width:100%; }
+
+    /* ── SPINNER ── */
+    .spinner { width:14px; height:14px; border:2px solid rgba(255,255,255,.3); border-top-color:white; border-radius:50%; animation:spin .7s linear infinite; display:none; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ── OUTPUT ── */
+    .output-box { min-height:100px; background:var(--paper); border:1px solid var(--border); border-radius:var(--radius); padding:.9rem 1rem; font-size:.9rem; line-height:1.8; color:var(--ink); white-space:pre-wrap; word-break:break-word; }
+    .output-box.empty { color:var(--ink-3); font-style:italic; display:flex; align-items:center; }
+    .output-box.generating { background:var(--cream); animation:breathe 1.5s ease-in-out infinite; }
+    @keyframes breathe { 0%,100%{opacity:1} 50%{opacity:.6} }
+    .output-actions { margin-top:.7rem; display:none; align-items:center; gap:.5rem; flex-wrap:wrap; }
+    .model-tag { font-family:'DM Mono',monospace; font-size:.68rem; color:var(--ink-3); margin-left:auto; }
+    .intent-badge { display:none; font-size:.7rem; font-weight:500; padding:.2rem .6rem; background:#eef2ff; color:#3730a3; border-radius:12px; border:1px solid #c7d2fe; }
+    .retrieval-badge { display:none; font-size:.7rem; font-weight:500; padding:.2rem .6rem; border-radius:12px; }
+    .retrieval-badge.semantic { background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; }
+    .retrieval-badge.keyword  { background:#fefce8; color:#854d0e; border:1px solid #fde68a; }
+    .alt-card { background:var(--paper); border:1px solid var(--border); border-radius:var(--radius); padding:.75rem .9rem; margin-bottom:.6rem; cursor:pointer; transition:border-color .15s; }
+    .alt-card:active { border-color:var(--gold); }
+    .alt-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:.3rem; }
+    .alt-label { font-size:.75rem; font-weight:500; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-2); }
+    .alt-score { font-family:'DM Mono',monospace; font-size:.78rem; font-weight:500; }
+    .alt-preview { font-size:.83rem; color:var(--ink); line-height:1.5; }
+    .examples-pills { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.5rem; }
+    .pill { font-size:.7rem; padding:.18rem .55rem; background:var(--green-lt); color:var(--green); border-radius:12px; font-weight:500; }
+
+    /* ── NOTIFICATIONS ── */
+    .notif { font-size:.82rem; padding:.55rem .9rem; border-radius:var(--radius); margin-bottom:.9rem; display:none; }
+    .notif.show { display:block; }
+    .notif.error { background:var(--red-lt); color:var(--red); border:1px solid #f5c6c6; }
+    .notif.success { background:var(--green-lt); color:var(--green); border:1px solid #b7dfca; }
+
+    /* ── KB GRID ── */
+    .kb-grid { display:flex; flex-direction:column; gap:.7rem; }
+    .kb-item { display:grid; grid-template-columns:1fr auto; gap:.3rem .7rem; padding:.8rem .9rem; background:var(--paper); border:1px solid var(--border); border-radius:var(--radius); font-size:.83rem; }
+    .kb-item-cat  { font-size:.68rem; font-weight:500; text-transform:uppercase; letter-spacing:.05em; color:var(--gold); grid-column:1; }
+    .kb-item-msg  { color:var(--ink-2); grid-column:1; font-style:italic; }
+    .kb-item-reply{ color:var(--ink-3); grid-column:1/-1; font-size:.78rem; line-height:1.5; }
+    .add-form { display:flex; flex-direction:column; gap:.75rem; }
+
+    footer { text-align:center; padding:.9rem 1rem; font-size:.72rem; color:var(--ink-3); font-family:'DM Mono',monospace; border-top:1px solid var(--border); flex-shrink:0; }
+    footer code { background:var(--cream); padding:.1rem .3rem; border-radius:3px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Domain<span>Reply</span> AI</div>
+  <div class="kb-badge">
+    <span class="kb-dot"></span>
+    <span id="kbCount">loading…</span>
+  </div>
+</header>
+
+<!-- Shown while Render cold-starts (~30 s) — retries automatically -->
+<div id="wakeBanner">
+  <div class="wake-spinner"></div>
+  <span>Server waking up…</span>
+  <div id="wakeProgress"><div id="wakeProgressFill"></div></div>
+  <span id="wakeSecs"></span>
+</div>
+
+<main>
+
+  <div class="api-strip">
+    <label>Anthropic API Key</label>
+    <input type="password" id="apiKey" placeholder="sk-ant-…" autocomplete="off" />
+    <span class="hint">Never stored · console.anthropic.com</span>
+  </div>
+
+  <div>
+    <div class="tabs">
+      <button class="tab active" data-tab="generate">✉ Generate</button>
+      <button class="tab" data-tab="knowledge">📚 KB</button>
+    </div>
+
+    <!-- TAB: GENERATE -->
+    <div class="tab-panel active" id="tab-generate">
+      <div class="card" style="margin-top:1px;border-top-left-radius:0">
+        <div class="card-header"><span class="card-icon">✉</span><span class="card-title">Describe the Situation</span></div>
+        <div class="card-body">
+          <div id="notifGenerate" class="notif"></div>
+          <div class="quick-pick">
+            <button class="qp-btn" onclick="fillSituation('Prospect replied: No thanks, not interested.')">No Thanks</button>
+            <button class="qp-btn" onclick="fillSituation('Prospect asked: How much are you selling it for?')">Price Inquiry</button>
+            <button class="qp-btn" onclick="fillSituation('Prospect said: That price is too high.')">Too Expensive</button>
+            <button class="qp-btn" onclick="fillSituation('Prospect said: We already have a website.')">Have One</button>
+            <button class="qp-btn" onclick="fillSituation('Prospect said: This looks like a scam.')">Scam Concern</button>
+            <button class="qp-btn" onclick="fillSituation('No reply after initial pitch — sending follow-up.')">Follow Up</button>
+            <button class="qp-btn" onclick="fillSituation('Prospect said: I need to discuss with my partner first.')">Need to Discuss</button>
+            <button class="qp-btn" onclick="fillSituation('We agreed on a price but the buyer has not made payment yet.')">Agreed, No Payment</button>
+          </div>
+          <textarea id="customerMessage" placeholder="Describe the situation or paste what the prospect said…
+
+Examples:
+• 'Prospect replied: No thanks, not interested.'
+• 'Prospect asked how much. We want $499.'
+• 'No reply after 7 days — need a follow-up.'"></textarea>
+          <div class="inline-row">
+            <div class="field">
+              <label class="field-label">Domain Name (optional)</label>
+              <input type="text" id="domainName" placeholder="e.g. ChicagoPlumber.com" />
+            </div>
+            <div class="field">
+              <label class="field-label">Asking Price (optional)</label>
+              <input type="text" id="askingPrice" placeholder="e.g. $499" />
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Tone</label>
+            <select id="tone">
+              <option value="professional and persuasive">Professional & Persuasive</option>
+              <option value="warm and friendly">Warm & Friendly</option>
+              <option value="firm but respectful">Firm but Respectful</option>
+              <option value="concise and direct">Concise & Direct</option>
+              <option value="empathetic and understanding">Empathetic</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:.6rem;margin-top:.9rem">
+            <button class="btn btn-primary" id="generateBtn" onclick="generateReply()" style="flex:1">
+              <span id="btnText">Generate Reply</span>
+              <span class="spinner" id="btnSpinner"></span>
+            </button>
+            <button class="btn btn-secondary" id="altBtn" onclick="generateAlternatives()">
+              <span id="altBtnText">3 Angles</span>
+              <span class="spinner" id="altSpinner" style="border-top-color:var(--ink-2)"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-icon">💬</span><span class="card-title">Generated Reply</span></div>
+        <div class="card-body">
+          <div id="outputBox" class="output-box empty">Your generated reply will appear here…</div>
+          <div id="confidenceBar" style="display:none;margin-top:.8rem">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.25rem">
+              <span style="font-size:.72rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2)">Confidence</span>
+              <span id="confidenceScore" style="font-family:'DM Mono',monospace;font-size:.78rem;color:var(--ink)"></span>
+            </div>
+            <div style="height:6px;background:var(--cream);border-radius:3px;overflow:hidden">
+              <div id="confidenceFill" style="height:100%;border-radius:3px;transition:width .6s ease"></div>
+            </div>
+            <div id="confidenceReason" style="font-size:.76rem;color:var(--ink-3);margin-top:.3rem;font-style:italic"></div>
+          </div>
+          <div id="alternativesPanel" style="display:none;margin-top:.9rem"></div>
+          <div id="outputActions" class="output-actions">
+            <button class="btn btn-secondary btn-sm" onclick="copyReply()">⎘ Copy</button>
+            <button class="btn btn-secondary btn-sm" onclick="clearAll()">↺ Clear</button>
+            <span class="intent-badge" id="intentBadge"></span>
+            <span class="retrieval-badge" id="retrievalBadge"></span>
+            <span class="model-tag" id="modelTag"></span>
+          </div>
+          <div id="examplesUsed" class="examples-pills"></div>
+        </div>
+      </div>
+    </div><!-- /tab-generate -->
+
+    <!-- TAB: KNOWLEDGE BASE -->
+    <div class="tab-panel" id="tab-knowledge">
+      <div class="card" style="margin-top:1px;margin-bottom:1rem;border-top-left-radius:0">
+        <div class="card-header"><span class="card-icon">+</span><span class="card-title">Add Example Reply</span></div>
+        <div class="card-body">
+          <div id="notifAdd" class="notif"></div>
+          <div class="add-form">
+            <div>
+              <label class="field-label">Category</label>
+              <input type="text" id="addCategory" placeholder="e.g. no_thanks, follow_up" />
+            </div>
+            <div>
+              <label class="field-label">Situation / Customer Message</label>
+              <textarea id="addCustomerMsg" placeholder="What the prospect said…" style="min-height:70px"></textarea>
+            </div>
+            <div>
+              <label class="field-label">Your Reply</label>
+              <textarea id="addReply" placeholder="The reply to use as a future example…"></textarea>
+            </div>
+            <button class="btn btn-primary btn-full" onclick="addReply()">Add to Knowledge Base</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-icon">≡</span><span class="card-title">Existing Examples (<span id="kbCountInner">…</span>)</span></div>
+        <div class="card-body">
+          <div id="kbList" class="kb-grid">
+            <p style="color:var(--ink-3);font-size:.88rem">Loading…</p>
+          </div>
+        </div>
+      </div>
+    </div><!-- /tab-knowledge -->
+  </div>
+
+</main>
+
+<footer>FastAPI + Anthropic <code>claude-sonnet-4-6</code></footer>
+
+<script>
+  // Since the HTML is served directly from the FastAPI server,
+  // API calls go to the same origin — no CORS, no file:// issues.
+  const API_BASE = window.location.origin;
+
+  /* ── TABS ── */
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab, .tab-panel').forEach(el => el.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+      if (tab.dataset.tab === 'knowledge') loadKB();
+    });
+  });
+
+  /* ── WAKE-UP BANNER ── */
+  const WAKE_TIMEOUT_MS = 60000;
+  const RETRY_INTERVAL  = 3000;
+  let _wakeTimer = null;
+  let _wakeStart = 0;
+
+  function showWakeBanner() {
+    if (_wakeTimer) return;
+    _wakeStart = Date.now();
+    document.getElementById('wakeBanner').classList.add('show');
+    document.getElementById('kbCount').textContent = 'waking up…';
+    _wakeTimer = setInterval(function() {
+      var elapsed   = Date.now() - _wakeStart;
+      var remaining = Math.max(0, Math.ceil((WAKE_TIMEOUT_MS - elapsed) / 1000));
+      var pct       = Math.min(100, (elapsed / WAKE_TIMEOUT_MS) * 100);
+      document.getElementById('wakeProgressFill').style.width = pct + '%';
+      document.getElementById('wakeSecs').textContent = remaining + 's';
+      if (elapsed >= WAKE_TIMEOUT_MS) hideWakeBanner('timed out');
+    }, 1000);
+  }
+
+  function hideWakeBanner(reason) {
+    if (_wakeTimer) { clearInterval(_wakeTimer); _wakeTimer = null; }
+    document.getElementById('wakeBanner').classList.remove('show');
+    if (reason === 'timed out') document.getElementById('kbCount').textContent = 'offline';
+  }
+
+  // No AbortSignal — use Promise.race to avoid Android WebView cloning bug
+  function fetchWithTimeout(url, opts, ms) {
+    var timeout = new Promise(function(_, reject) {
+      setTimeout(function() { reject(new Error('timeout')); }, ms || 10000);
+    });
+    return Promise.race([fetch(url, opts || {}), timeout]);
+  }
+
+  // Retries every 3 s for up to 60 s while server cold-starts
+  async function fetchWithWake(url, opts) {
+    var deadline = Date.now() + WAKE_TIMEOUT_MS;
+    var lastErr;
+    while (Date.now() < deadline) {
+      try {
+        var res = await fetchWithTimeout(url, opts, 10000);
+        if (res.ok) { hideWakeBanner('ok'); return res; }
+        lastErr = new Error('HTTP ' + res.status);
+      } catch(e) {
+        lastErr = e;
+      }
+      showWakeBanner();
+      await new Promise(function(r) { setTimeout(r, RETRY_INTERVAL); });
+    }
+    hideWakeBanner('timed out');
+    throw lastErr || new Error('Server did not respond in time.');
+  }
+
+  /* ── HEALTH CHECK ── */
+  async function loadHealth() {
+    try {
+      var res  = await fetchWithWake(API_BASE + '/health');
+      var data = await res.json();
+      var method = data.semantic_ready ? '🔍 semantic' : '🔤 keyword';
+      document.getElementById('kbCount').textContent      = data.kb_size + ' · ' + method;
+      document.getElementById('kbCountInner').textContent = data.kb_size;
+    } catch(e) {
+      document.getElementById('kbCount').textContent = 'offline';
+    }
+  }
+  loadHealth();
+
+  /* ── QUICK-PICK ── */
+  function fillSituation(text) {
+    document.getElementById('customerMessage').value = text;
+    document.getElementById('customerMessage').focus();
+  }
+
+  /* ── GENERATE REPLY ── */
+  async function generateReply() {
+    var message     = document.getElementById('customerMessage').value.trim();
+    var tone        = document.getElementById('tone').value;
+    var apiKey      = document.getElementById('apiKey').value.trim();
+    var domainName  = document.getElementById('domainName').value.trim();
+    var askingPrice = document.getElementById('askingPrice').value.trim();
+
+    if (!message) return showNotif('notifGenerate', 'Please describe the situation first.', 'error');
+    if (!apiKey)  return showNotif('notifGenerate', 'Please enter your Anthropic API key.', 'error');
+
+    clearNotif('notifGenerate');
+    setLoading(true);
+
+    var box = document.getElementById('outputBox');
+    box.textContent = '';
+    box.classList.remove('empty');
+    box.classList.add('generating');
+    document.getElementById('outputActions').style.display  = 'none';
+    document.getElementById('examplesUsed').innerHTML       = '';
+    document.getElementById('intentBadge').style.display    = 'none';
+    document.getElementById('retrievalBadge').style.display = 'none';
+    document.getElementById('confidenceBar').style.display  = 'none';
+
+    var body = { customer_message: message, tone: tone, api_key: apiKey };
+    if (domainName)  body.domain_name  = domainName;
+    if (askingPrice) body.asking_price = askingPrice;
+
+    try {
+      var res = await fetch(API_BASE + '/generate-reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (!res.ok) {
+        var err = await res.json();
+        throw new Error(err.detail || 'HTTP ' + res.status);
+      }
+
+      var contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('text/event-stream') || contentType.includes('text/plain')) {
+        var reader  = res.body.getReader();
+        var decoder = new TextDecoder();
+        box.classList.remove('generating');
+        var fullText = '';
+        while (true) {
+          var chunk = await reader.read();
+          if (chunk.done) break;
+          var lines = decoder.decode(chunk.value, { stream: true }).split('\n');
+          for (var line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            var payload = line.slice(6).trim();
+            if (!payload || payload === '[DONE]') continue;
+            try {
+              var parsed = JSON.parse(payload);
+              if (parsed.chunk)   { fullText += parsed.chunk; box.textContent = fullText; }
+              if (parsed.intent)  { document.getElementById('intentBadge').textContent = parsed.intent; document.getElementById('intentBadge').style.display = 'inline-block'; }
+              if (parsed.retrieval_method) showRetrievalBadge(parsed.retrieval_method);
+              if (parsed.examples_used && parsed.examples_used.length) {
+                document.getElementById('examplesUsed').innerHTML = parsed.examples_used.map(function(e) { return '<span class="pill">' + e + '</span>'; }).join('');
+              }
+              if (parsed.confidence_score != null) showConfidence(parsed.confidence_score, parsed.confidence_reason);
+              if (parsed.model) document.getElementById('modelTag').textContent = parsed.model;
+            } catch(e) {}
+          }
+        }
+      } else {
+        var data   = await res.json();
+        var result = data.result || data;
+        box.textContent = result.reply || result.generated_reply || JSON.stringify(result);
+        box.classList.remove('generating');
+        if (result.intent)           { document.getElementById('intentBadge').textContent = result.intent; document.getElementById('intentBadge').style.display = 'inline-block'; }
+        if (result.retrieval_method)  showRetrievalBadge(result.retrieval_method);
+        if (result.examples_used && result.examples_used.length) {
+          document.getElementById('examplesUsed').innerHTML = result.examples_used.map(function(e) { return '<span class="pill">' + e + '</span>'; }).join('');
+        }
+        if (result.confidence_score != null) showConfidence(result.confidence_score, result.confidence_reason);
+        document.getElementById('modelTag').textContent = result.model || 'claude-sonnet-4-6';
+      }
+      document.getElementById('outputActions').style.display = 'flex';
+    } catch(err) {
+      box.textContent = '';
+      box.classList.add('empty');
+      box.classList.remove('generating');
+      showNotif('notifGenerate', 'Error: ' + err.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /* ── CONFIDENCE METER ── */
+  function showConfidence(score, reason) {
+    document.getElementById('confidenceBar').style.display = 'block';
+    document.getElementById('confidenceScore').textContent = score + '/100';
+    document.getElementById('confidenceReason').textContent = reason || '';
+    var fill = document.getElementById('confidenceFill');
+    fill.style.width = score + '%';
+    fill.style.background = score >= 80 ? '#16a34a' : score >= 60 ? '#ca8a04' : '#dc2626';
+  }
+
+  /* ── 3 ALTERNATIVES ── */
+  async function generateAlternatives() {
+    var message     = document.getElementById('customerMessage').value.trim();
+    var tone        = document.getElementById('tone').value;
+    var apiKey      = document.getElementById('apiKey').value.trim();
+    var domainName  = document.getElementById('domainName').value.trim();
+    var askingPrice = document.getElementById('askingPrice').value.trim();
+
+    if (!message) return showNotif('notifGenerate', 'Please describe the situation first.', 'error');
+    if (!apiKey)  return showNotif('notifGenerate', 'Please enter your Anthropic API key.', 'error');
+
+    clearNotif('notifGenerate');
+    setAltLoading(true);
+    var panel = document.getElementById('alternativesPanel');
+    panel.style.display = 'block';
+    panel.innerHTML = '<div style="font-size:.78rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2);margin-bottom:.7rem">⟳ Generating 3 alternatives…</div>';
+
+    var body = { customer_message: message, tone: tone, api_key: apiKey };
+    if (domainName)  body.domain_name  = domainName;
+    if (askingPrice) body.asking_price = askingPrice;
+
+    try {
+      var res  = await fetch(API_BASE + '/generate-reply/alternatives', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Unknown error');
+
+      panel.innerHTML = '<div style="font-size:.78rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2);margin-bottom:.7rem">3 Alternative Angles — tap to use</div>' +
+        data.alternatives.map(function(alt, i) {
+          var color = alt.confidence_score >= 80 ? '#16a34a' : alt.confidence_score >= 60 ? '#ca8a04' : '#dc2626';
+          return '<div class="alt-card" onclick="useAlternative(' + i + ')" data-reply="' + encodeURIComponent(alt.reply) + '" data-score="' + alt.confidence_score + '" data-reason="' + encodeURIComponent(alt.confidence_reason) + '">' +
+            '<div class="alt-card-header"><span class="alt-label">' + (alt.angle || 'Alternative ' + (i+1)) + '</span><span class="alt-score" style="color:' + color + '">' + alt.confidence_score + '/100</span></div>' +
+            '<div class="alt-preview">' + alt.reply.substring(0, 120) + '…</div>' +
+            '<div style="color:var(--ink-3);font-size:.72rem;font-style:italic;margin-top:.25rem">' + alt.confidence_reason + '</div>' +
+            '</div>';
+        }).join('');
+    } catch(err) {
+      panel.innerHTML = '<div style="color:var(--red);font-size:.83rem">Error: ' + err.message + '</div>';
+    } finally {
+      setAltLoading(false);
+    }
+  }
+
+  function useAlternative(index) {
+    var cards  = document.querySelectorAll('.alt-card');
+    var card   = cards[index];
+    var reply  = decodeURIComponent(card.dataset.reply);
+    var score  = parseInt(card.dataset.score);
+    var reason = decodeURIComponent(card.dataset.reason);
+    var box    = document.getElementById('outputBox');
+    box.textContent = reply;
+    box.classList.remove('empty', 'generating');
+    showConfidence(score, reason);
+    document.getElementById('outputActions').style.display = 'flex';
+    document.getElementById('modelTag').textContent = 'claude-sonnet-4-6';
+    cards.forEach(function(c) { c.style.opacity = '0.5'; });
+    card.style.opacity = '1';
+    card.style.borderColor = 'var(--gold)';
+  }
+
+  /* ── LOADING STATES ── */
+  function setLoading(on) {
+    document.getElementById('generateBtn').disabled = on;
+    document.getElementById('btnText').textContent      = on ? 'Generating…' : 'Generate Reply';
+    document.getElementById('btnSpinner').style.display = on ? 'inline-block' : 'none';
+  }
+  function setAltLoading(on) {
+    document.getElementById('altBtn').disabled = on;
+    document.getElementById('altBtnText').textContent    = on ? '…' : '3 Angles';
+    document.getElementById('altSpinner').style.display  = on ? 'inline-block' : 'none';
+  }
+  function showRetrievalBadge(method) {
+    var badge = document.getElementById('retrievalBadge');
+    badge.classList.remove('semantic', 'keyword');
+    if (method === 'semantic') { badge.textContent = '🔍 Semantic'; badge.classList.add('semantic'); }
+    else                       { badge.textContent = '🔤 Keyword';  badge.classList.add('keyword'); }
+    badge.style.display = 'inline-block';
+  }
+
+  /* ── COPY / CLEAR ── */
+  function copyReply() {
+    var text = document.getElementById('outputBox').textContent;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() {
+        var btn = event.target;
+        btn.textContent = '✓ Copied!';
+        setTimeout(function() { btn.textContent = '⎘ Copy'; }, 1800);
+      });
+    } else {
+      try { Android.copyToClipboard(text); } catch(e) {}
+    }
+  }
+
+  function clearAll() {
+    document.getElementById('customerMessage').value = '';
+    document.getElementById('domainName').value      = '';
+    document.getElementById('askingPrice').value     = '';
+    var box = document.getElementById('outputBox');
+    box.textContent = 'Your generated reply will appear here…';
+    box.className   = 'output-box empty';
+    document.getElementById('outputActions').style.display     = 'none';
+    document.getElementById('examplesUsed').innerHTML          = '';
+    document.getElementById('intentBadge').style.display       = 'none';
+    document.getElementById('retrievalBadge').style.display    = 'none';
+    document.getElementById('confidenceBar').style.display     = 'none';
+    document.getElementById('alternativesPanel').style.display = 'none';
+    document.getElementById('alternativesPanel').innerHTML     = '';
+    clearNotif('notifGenerate');
+  }
+
+  /* ── KNOWLEDGE BASE ── */
+  async function loadKB() {
+    var list = document.getElementById('kbList');
+    list.innerHTML = '<p style="color:var(--ink-3);font-size:.88rem">Loading…</p>';
+    try {
+      var res  = await fetchWithWake(API_BASE + '/replies');
+      var data = await res.json();
+      if (!data.length) { list.innerHTML = '<p style="color:var(--ink-3);font-size:.88rem">No examples yet.</p>'; return; }
+      list.innerHTML = data.map(function(item) {
+        return '<div class="kb-item">' +
+          '<span class="kb-item-cat">' + item.category + '</span>' +
+          '<button class="btn btn-sm btn-danger" style="grid-row:1/3" onclick="deleteReply(' + item.id + ')">✕</button>' +
+          '<span class="kb-item-msg">❝ ' + item.customer_message + '</span>' +
+          '<span class="kb-item-reply">' + item.reply.substring(0, 140) + '…</span>' +
+          '</div>';
+      }).join('');
+      document.getElementById('kbCountInner').textContent = data.length;
+    } catch(e) {
+      list.innerHTML = '<p style="color:var(--red);font-size:.83rem">Failed: ' + (e && e.message ? e.message : 'unknown') + '</p>';
+    }
+  }
+
+  async function addReply() {
+    var category    = document.getElementById('addCategory').value.trim();
+    var customerMsg = document.getElementById('addCustomerMsg').value.trim();
+    var reply       = document.getElementById('addReply').value.trim();
+    if (!category || !customerMsg || !reply)
+      return showNotif('notifAdd', 'Please fill in all three fields.', 'error');
+    try {
+      var res = await fetch(API_BASE + '/replies', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: category, customer_message: customerMsg, reply: reply }),
+      });
+      if (!res.ok) { var e = await res.json(); throw new Error(e.detail || 'Failed'); }
+      document.getElementById('addCategory').value    = '';
+      document.getElementById('addCustomerMsg').value = '';
+      document.getElementById('addReply').value       = '';
+      showNotif('notifAdd', 'Example added!', 'success');
+      loadKB(); loadHealth();
+    } catch(err) {
+      showNotif('notifAdd', 'Error: ' + err.message, 'error');
+    }
+  }
+
+  async function deleteReply(id) {
+    if (!confirm('Delete this example?')) return;
+    await fetch(API_BASE + '/replies/' + id, { method: 'DELETE' });
+    loadKB(); loadHealth();
+  }
+
+  /* ── UTILS ── */
+  function showNotif(id, msg, type) {
+    var el = document.getElementById(id);
+    el.textContent = msg;
+    el.className   = 'notif ' + type + ' show';
+    setTimeout(function() { el.classList.remove('show'); }, 5000);
+  }
+  function clearNotif(id) { document.getElementById(id).className = 'notif'; }
+</script>
+</body>
+</html>
