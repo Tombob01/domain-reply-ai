@@ -682,7 +682,8 @@ async def generate_reply_stream(req: GenerateRequest):
             ) as s:
                 for chunk in s.text_stream:
                     full_text += chunk
-                    yield f"data: {chunk.replace(chr(10), '\\n')}\n\n"
+                    newline = "\n"
+                    yield f"data: {chunk.replace(newline, '<br>')}\n\n"
 
             # Score after streaming completes
             score, reason = score_reply(client, req.customer_message, full_text)
