@@ -3,4 +3,3 @@ uvicorn[standard]==0.30.0
 anthropic==0.40.0
 pydantic==2.9.0
 aiofiles==24.1.0
-voyageai==0.3.2
