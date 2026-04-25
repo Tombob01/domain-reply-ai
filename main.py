@@ -3,7 +3,6 @@ Domain Email Reply Generator — FastAPI + Anthropic Claude API
 =============================================================
 Stack:  FastAPI           (web framework)
         Anthropic SDK     (claude-sonnet-4-6)
-        voyageai          (voyage-3 embeddings)
         Pydantic v2       (validation)
         Uvicorn           (ASGI server)
 
@@ -46,7 +45,7 @@ from pydantic import BaseModel, field_validator
 # ─────────────────────────────────────────────────────────────────────────────
 
 MODEL        = "claude-sonnet-4-6"
-EMBED_MODEL  = "voyage-3"
+
 MAX_TOKENS   = 700
 TOP_K        = 4
 DATA_FILE    = Path(__file__).parent / "past_replies.json"
@@ -257,25 +256,14 @@ class EmbeddingIndex:
             json.dump({"built_at": self.built_at, "kb_size": self.kb_size, "entries": self.entries}, f, indent=2)
 
     def build(self, replies: list[dict], api_key: str) -> None:
-        import voyageai
-        print(f"[Embed] Building for {len(replies)} replies…")
-        vo    = voyageai.Client(api_key=api_key)
-        texts = [f"{r.get('category','')} | {r['customer_message']} | {r['reply']}" for r in replies]
-        embs: list[list[float]] = []
-        for i in range(0, len(texts), 50):
-            embs.extend(vo.embed(texts[i:i+50], model=EMBED_MODEL, input_type="document").embeddings)
-        self.entries  = [{**r, "embedding": e} for r, e in zip(replies, embs)]
-        self.built_at = time.time()
+        # Semantic embeddings removed — using keyword retrieval instead
+        print("[Embed] Skipping semantic build — keyword retrieval active.")
         self.kb_size  = len(replies)
-        self.ready    = True
-        self.save_cache()
-        print(f"[Embed] Done — {len(self.entries)} entries saved")
+        self.ready    = False
 
     def query(self, text: str, api_key: str, top_k: int) -> list[dict]:
-        import voyageai
-        vo  = voyageai.Client(api_key=api_key)
-        vec = vo.embed([text], model=EMBED_MODEL, input_type="query").embeddings[0]
-        return sorted(self.entries, key=lambda e: _cosine(vec, e["embedding"]), reverse=True)[:top_k]
+        # Not used — keyword retrieval handles all search
+        return []
 
 
 _index = EmbeddingIndex()
@@ -853,7 +841,7 @@ async def health():
         "status":           "ok",
         "version":          "4.0.0",
         "model":            MODEL,
-        "embed_model":      EMBED_MODEL,
+        "embed_model":      "keyword",
         "kb_size":          len(replies),
         "semantic_ready":   _index.ready and not stale,
         "retrieval_method": "semantic" if (_index.ready and not stale) else "keyword",
@@ -864,7 +852,7 @@ async def health():
 async def info():
     return {
         "name": "Domain Email Reply Generator", "version": "4.0.0",
-        "stack": [f"FastAPI", f"Anthropic {MODEL}", f"Voyage {EMBED_MODEL}"],
+        "stack": [f"FastAPI", f"Anthropic {MODEL}", "Keyword retrieval"],
         "new_in_v4": [
             "Confidence score (0-100) on every reply",
             "Plain-English confidence reason",
