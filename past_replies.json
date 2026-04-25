@@ -1,0 +1,968 @@
+[
+  {
+    "id": 1,
+    "category": "no_thanks_basic",
+    "customer_message": "No thanks, not interested.",
+    "reply": "Thank you for replying back. If you change your mind in the future, feel free to get in touch."
+  },
+  {
+    "id": 2,
+    "category": "no_thanks_with_competitors",
+    "customer_message": "No thanks, we are not interested in this domain.",
+    "reply": "Thank you for taking the time to respond — I'm sure you receive a lot of offers by email. I tallied over two dozen of your competitors optimizing their websites to rank for the exact keywords on the first few pages of search engines and I still believe securing this domain would work toward your advantage in a number of ways. My pricing is negotiable. Should you reconsider in the future and if I still have this domain available, we can use a secure exchange service like Escrow.com to complete the purchase. My number is available if you would prefer to talk over the phone. I have a few ideas on how utilizing this domain can bring you new business. Thanks again for your time."
+  },
+  {
+    "id": 3,
+    "category": "no_thanks_reengagement_questions",
+    "customer_message": "Thanks but no thanks.",
+    "reply": "Hey — when was the last time you spent $20,000? Who other than yourself needs to be included in this deal or decision? Why aren't you buying from me? What can I do to make a deal happen? What's an appropriate next step? Is this not a good time — why not, if you don't mind me asking? Is it okay if I touch base with you in a couple of months down the road and we can revisit this deal? Sure it's a lot of money — is that your only concern keeping you from moving forward with this deal?"
+  },
+  {
+    "id": 4,
+    "category": "no_thanks_ask_objection",
+    "customer_message": "Not interested, thank you.",
+    "reply": "I understand, I am with you, and I take full responsibility for you not being interested. What's the objection if you don't mind me asking? Thank you."
+  },
+  {
+    "id": 5,
+    "category": "cannot_deal_now",
+    "customer_message": "We can't do a deal right now.",
+    "reply": "I understand. Please feel free to message me if you change your mind or have any offer in mind."
+  },
+  {
+    "id": 6,
+    "category": "price_enquiry_follow_up",
+    "customer_message": "How much is the domain?",
+    "reply": "Hi, we just wanted to follow up regarding your interest in the domain name. Kindly let us know if you need any further clarification or information to complete the transaction. Have a great day ahead."
+  },
+  {
+    "id": 7,
+    "category": "price_negotiation_open_offer",
+    "customer_message": "The price is too high for us.",
+    "reply": "If you have changed your mind due to price, then the same is negotiable. You can share any reasonable offer you have in mind and we would be happy to match your expectation. Kindly advise."
+  },
+  {
+    "id": 8,
+    "category": "initial_sales_pitch_simple",
+    "customer_message": "First outreach to a potential buyer.",
+    "reply": "Hi, we have decided to put our domain name up for sale. We believe you would value owning it for the growth of your business. For more information, visit the domain listing. Thank you for your time and consideration. Kind regards."
+  },
+  {
+    "id": 9,
+    "category": "initial_sales_pitch_short",
+    "customer_message": "Cold outreach — potential buyer has not been contacted before.",
+    "reply": "Hi, I'm the owner of this domain name and was reaching out to see if you would be interested in purchasing it given its close relation to your current website and business. Please let me know if you would like any additional information regarding this opportunity."
+  },
+  {
+    "id": 10,
+    "category": "follow_up_first",
+    "customer_message": "No reply to initial outreach email.",
+    "reply": "Hi, I emailed you last week about a beneficial domain acquisition. Are there any questions that require an answer before your company decides to move forward? Best."
+  },
+  {
+    "id": 11,
+    "category": "follow_up_gentle_check_in",
+    "customer_message": "No response after initial email — second attempt.",
+    "reply": "Hello, hope you're doing well. I was wondering whether you had any thoughts over the domain name about which I had written to you earlier this week. Do you have any questions or concerns regarding the same — or anything else I could address for you? Feel free to write back as I look forward to your valuable response. Regards."
+  },
+  {
+    "id": 12,
+    "category": "follow_up_with_discount_1",
+    "customer_message": "No reply received — first follow-up with discount.",
+    "reply": "Hello, we've not heard a reply from your service regarding the domain name. We want to know if your service is interested in acquiring it or not, so we can unsubscribe and reach out to other competitors that are interested. We also made a discount on it — as of today, you can get it for a reduced price. With warm regards."
+  },
+  {
+    "id": 13,
+    "category": "follow_up_with_discount_2",
+    "customer_message": "Still no reply — second follow-up with further discount.",
+    "reply": "Hi, this is a follow-up on the domain name. We made a discount on it — perhaps your service is interested but not okay with the former price. You can now get it at the new lower price. However, if not interested, kindly let me know so I can unsubscribe from further emails. With warm regards."
+  },
+  {
+    "id": 14,
+    "category": "follow_up_final_reminder",
+    "customer_message": "Last follow-up attempt — no response so far.",
+    "reply": "Hello, trust you're doing well. Just a reminder on the domain name. If you'd rather not, just let me know. We'd like to unsubscribe from further emails and reach out to other parties. However, to get it now at a discounted price (24-hour discount), visit the listing. With kind regards."
+  },
+  {
+    "id": 15,
+    "category": "not_interested_ask_why",
+    "customer_message": "Thanks for the offer but we're not interested.",
+    "reply": "Thanks for the feedback. If you don't mind me asking, why are you not interested in this premium domain name? I believe acquiring this type of domain for your business will be a big opportunity for the visibility of your online presence. You can also easily redirect all the visitors this domain receives to your current website, which means you don't have to spend on advertising before increasing patronage for your business. If you have any further questions, please do let us know. Thank you!"
+  },
+  {
+    "id": 16,
+    "category": "not_interested_ask_why_short",
+    "customer_message": "Not interested, thanks.",
+    "reply": "Thanks for your feedback. Can I know why you are not interested in this premium domain? I ask to know, not to push you. Looking forward to a reply from you. Regards."
+  },
+  {
+    "id": 17,
+    "category": "payment_not_yet_made",
+    "customer_message": "Buyer agreed but has not completed payment yet.",
+    "reply": "Hello, trust you are having a great day. We want to know if you are experiencing any difficulties in acquiring the domain. We await your response. Thanks."
+  },
+  {
+    "id": 18,
+    "category": "why_should_i_buy_seo_explanation",
+    "customer_message": "Why should I buy this domain? Send me more info.",
+    "reply": "Hi, thanks for the quick response. Buying this premium domain will improve your visibility on all internet search engines such as Google and Bing because there are people typing this domain name on search engines — people who are seeking the service you provide but do not know your current website. The domain name I am pitching to you is what comes to their mind when thinking of the service you render, and that is what they type when seeking a company in your line of work. Redirecting this premium domain to your current website will redirect these visitors to your site. If you eventually acquire this premium domain and redirect it, it would improve your online visibility and rank you higher on all search engines within a very short period of time, bringing in more customers and boosting sales. If you have any further questions, please do let us know. Thank you!"
+  },
+  {
+    "id": 19,
+    "category": "buyer_asks_price_with_appraisal",
+    "customer_message": "How much is it? What's the price?",
+    "reply": "Hi, I see you have shown interest in the domain name. Based on the domain's current metrics, it would be a great buy at full retail value, but since we are liquidating our portfolio, we are giving out a discount. As of today, you can get the domain for a significantly reduced price. If interested, click on the link below for immediate acquisition. If you have any further questions, please do let me know. Thank you!"
+  },
+  {
+    "id": 20,
+    "category": "follow_up_new_project_offer",
+    "customer_message": "No reply — following up with a new offer.",
+    "reply": "Hello, although I haven't heard from you, I'm convinced that great results could come out of acquiring this premium asset. We are trying to move to some new projects. Will you like to make us an offer on the domain name? Perhaps your service is interested but not okay with the former price. I am looking forward to hearing from you. With warm regards."
+  },
+  {
+    "id": 21,
+    "category": "initial_pitch_marketplace_style",
+    "customer_message": "First outreach — domain listed on GoDaddy or marketplace.",
+    "reply": "Hello, I am selling this domain at a domain marketplace. Redirecting it to your current website will help you reach more prospects. The payment and transfer process takes a few hours and is handled by Escrow. If you are interested in acquiring the domain for your company, please visit the listing to make the purchase. Let me know if you'd like more information. Thank you."
+  },
+  {
+    "id": 22,
+    "category": "price_negotiation_counter_offer",
+    "customer_message": "What's the lowest you can go?",
+    "reply": "No problem. How much would you consider a fair price to acquire this domain? Or will $200 work for you? I await your response."
+  },
+  {
+    "id": 23,
+    "category": "discuss_with_partner",
+    "customer_message": "I need to discuss this with my business partner first.",
+    "reply": "Let me be sure I understand. If this domain name would be of value to your brand's online presence, is there any reason why you wouldn't give me a decision today? Regards."
+  },
+  {
+    "id": 24,
+    "category": "trust_issue_dan_escrow",
+    "customer_message": "I'm not comfortable with this. How do I know it's safe?",
+    "reply": "Hello, thanks for indicating interest in the domain. I understand your fears and reservations concerning the transaction. The domain is currently listed on DAN domain marketplace. They provide escrow services involving domain sales for both buyer and seller. You can look them up on Trustpilot.com. Payment for the domain will not be released to the seller until the ownership is transferred to you and confirmed by you. The process is smooth and hassle-free. DAN's customer care team can easily guide you through the entire process. The domain is also listed on Epik and Afternic (GoDaddy), which also provide escrow services. You can choose whichever you are most comfortable with. Do let me know if you have any other questions."
+  },
+  {
+    "id": 25,
+    "category": "persuasion_pitch_with_history",
+    "customer_message": "Tell me more about this domain before I decide.",
+    "reply": "Hello, thanks for indicating your interest. The domain in question has history in this niche. It contains quality content and backlinks that would be useful to your company. You can check out its history and stats via archive.org. It has rich keyword value with a solid monthly search volume, which is one of the reasons why GoDaddy Appraisal values it highly. Since you operate in a competitive niche, acquiring this domain would give your company additional visibility. You can redirect it to your main site for more traffic boost and increased search engine visibility by leveraging its backlinks and content. Do let me know if you have any questions. Warm regards."
+  },
+  {
+    "id": 26,
+    "category": "follow_up_pitch_with_price_drop",
+    "customer_message": "No response — following up with a lower price.",
+    "reply": "Good morning. We have decided to sell the domain name at a new reduced price. I know you're interested but may not be okay with the former price. For today, you can get it at the discounted rate. If interested, visit the listing to get this domain. And if you're not interested, let us know so as to contact other organizations and companies. High regards."
+  },
+  {
+    "id": 27,
+    "category": "initial_pitch_research_based",
+    "customer_message": "Cold outreach — researched the prospect's website.",
+    "reply": "Hi, I was doing some research on your website to determine if there is a need for this domain. After researching, I found out that your company is one of the best potential buyers for this name. Would you like me to send you more information? If you are ready to buy it now, simply visit the listing to acquire, or reply with your best offer. Warm regards."
+  },
+  {
+    "id": 28,
+    "category": "where_did_domain_come_from",
+    "customer_message": "Where did you get this domain? Where did it originate?",
+    "reply": "Hi, thanks for the feedback. The domain has been on GoDaddy expired auctions for quite some time and has not been used before. I'm a domain broker and I purchased it off the auctions before reaching out to businesses that might need it. This is a well-targeted GEO domain for your business in the local area. To proceed with checkout, visit the domain listing. Do let me know if you have other questions. Best regards."
+  },
+  {
+    "id": 29,
+    "category": "follow_up_after_promised_months",
+    "customer_message": "You said you'd come back in two months — following up now.",
+    "reply": "Hi, sorry to bother you again. You promised to proceed with the purchase of this domain after two months. It's two months past now. Will you be proceeding with payment? Here's the link to purchase. Best regards."
+  },
+  {
+    "id": 30,
+    "category": "redirect_demonstration_pitch",
+    "customer_message": "How would this domain help us? We already have a site.",
+    "reply": "Hi, you might have to look through your Google Analytics metrics to check your current traffic. Quick one though — GEO domains like the one I'm offering help with brand recognition in the minds of prospects and set you out as an authority in your field. Your prospects are most likely to remember a geo-targeted domain than they would your current URL. Think about that. Meanwhile, the domain now points to your website — I'll leave it that way for the next 24 hours. If you're interested, here's a link to make payment. Regards."
+  },
+  {
+    "id": 31,
+    "category": "yogi_initial_pitch",
+    "customer_message": "First outreach — Yogi style pitch.",
+    "reply": "Hi, we own this domain name and we are seeking out some potential buyers. After doing some research, we found out that your business might be a potential suitor for this domain. I would love to know if it suits you — let me know if you would like to receive more information. Warm regards."
+  },
+  {
+    "id": 32,
+    "category": "yogi_follow_up_1",
+    "customer_message": "No reply to first email — first follow-up.",
+    "reply": "Hi, I know my previous email might've been something you didn't fully understand about how a domain name can add value to your business, and I'd like to apologize if I caught you at the wrong time. I decided to reach out to your company only because I was confident that I could add value to your business. I'm sure you must be having some questions regarding this domain. If so, may I propose a short email exchange or phone call? Looking forward to hearing from you."
+  },
+  {
+    "id": 33,
+    "category": "yogi_follow_up_short",
+    "customer_message": "Quick follow-up after first email.",
+    "reply": "Hi, following up to see if you have gone through my previous email and have any questions related to this domain name. Looking forward to hearing from you."
+  },
+  {
+    "id": 34,
+    "category": "yogi_follow_up_2",
+    "customer_message": "No reply after second follow-up email.",
+    "reply": "Hi, I have not heard from you. I hope you had a chance to go through my previous email and it did not get buried in your inbox. Maybe I didn't explain my email well enough and you need more information. Would you like me to send you more info about this domain, or should I stop sending you emails? Looking forward to hearing from you."
+  },
+  {
+    "id": 35,
+    "category": "yogi_follow_up_3_final_allIn",
+    "customer_message": "Final follow-up — all in — with comparable domain sales data.",
+    "reply": "Hello, you don't seem to be interested in this domain name that could help you get more value. But before I let you go, I thought I should share some information because you might need this domain name in the future. You are currently using a less popular extension, but do you know .com is the most popular web extension in the world? This domain can increase your online presence and make your site more credible and respectable. If you're unfamiliar with the value of domain names and how they're priced, check out recent comparable sales in your niche. Based on similar recent sales and the high demand for .com, my asking price for this domain is competitive. If you are interested and ready to purchase now or in the future, we can handle the purchase securely through the domain marketplace (Dan.com, Escrow, or Epik), and you can buy it securely and get ownership instantly. I hope all this information makes more sense now — if you ever change your mind, reply to this email or call me."
+  },
+  {
+    "id": 36,
+    "category": "yogi_not_interested_reply",
+    "customer_message": "Prospect replied saying they are not interested.",
+    "reply": "Hi, thank you for getting back to me — I appreciate it! I would like to ask you for a couple of extra minutes to understand why you are not interested. Do you think that's possible? Your feedback would be vital for us. Thanks in advance. Regards."
+  },
+  {
+    "id": 37,
+    "category": "yogi_not_yet_not_now",
+    "customer_message": "Not now — maybe later.",
+    "reply": "Hi, should I follow up in three months? Would that be a preferable time for you? Thanks in advance! Regards."
+  },
+  {
+    "id": 38,
+    "category": "yogi_how_much_reply",
+    "customer_message": "How much are you asking for this domain?",
+    "reply": "Hi, thank you for your reply and interest in buying this domain. As I mentioned, this is a .com name and .com is the most popular and commonly used web extension. I'm not asking for retail value — I'm looking to sell this domain at a wholesale price, and the retail value based on GoDaddy appraisal is over $1,000. My asking price is only $499. You can buy this securely from the domain marketplace and get ownership instantly. Let me know if you would like me to explain how to buy securely. I am looking forward to hearing from you."
+  },
+  {
+    "id": 39,
+    "category": "agreed_price_dan_listing",
+    "customer_message": "We agreed on a price — what's the next step?",
+    "reply": "Hi, thank you for accepting the offer. Now the next step is effortless. I'll list this domain on Dan.com and send you a buy-now link so you can buy this securely and get ownership instantly. They use an escrow service to protect both buyer and seller — the whole process is seamless. May I send you a buy-now link? Any questions, please let me know."
+  },
+  {
+    "id": 40,
+    "category": "agreed_dan_link_sent",
+    "customer_message": "Buyer said yes to the Dan.com link being sent.",
+    "reply": "Hi, I have sent you a buy-now link through the leading domain marketplace Dan.com. Please check your email (spam too), and now you can buy this securely and get ownership instantly. Any questions, please let me know. Regards."
+  },
+  {
+    "id": 41,
+    "category": "buyer_has_not_completed_purchase",
+    "customer_message": "Buyer received the link but has not completed the purchase.",
+    "reply": "Hi, following up to see if you have received the buy-now link through Dan.com. Please let me know if you have any more questions. Regards."
+  },
+  {
+    "id": 42,
+    "category": "buyer_agreed_going_cold",
+    "customer_message": "We had a deal but the buyer has gone quiet.",
+    "reply": "Hi, I have not heard from you — I thought we had a deal. I forgot to mention that this domain is now publicly listed on the marketplace, which means anyone can buy it anytime. I don't want you to lose this name because we virtually shook hands on this deal. Let's get this done, please, and move forward. Regards."
+  },
+  {
+    "id": 43,
+    "category": "not_a_scam_trust_pitch",
+    "customer_message": "This sounds like a scam. I don't believe this is real.",
+    "reply": "Hi, on the contrary, this isn't a scam at all. Dan's domain marketplace — you can look them up on TrustPilot or any other review site — will handle escrow and ensure you get the domain you paid for transferred to you immediately. It's a smooth and safe process for both buyer and seller. On the other hand, I trust you're familiar with GoDaddy? I can have this domain listed there so you can head over and purchase directly from them. Let me know if this works for you. If you have further questions, just ask. Regards."
+  },
+  {
+    "id": 44,
+    "category": "not_letting_expire",
+    "customer_message": "What if you just let the domain expire and I can pick it up for free?",
+    "reply": "Hi, there's no way we are letting the name expire. It's been placed on auto-renewal with our registrar, so you can be sure to strike out that possibility. However, if you let us know your bottom dollar offer for the name, we'll put it into consideration. I'm sure you know the SEO benefits of using this name for your business. Let's talk more. Or visit the listing to own this name immediately. Regards."
+  },
+  {
+    "id": 45,
+    "category": "agreed_price_24hr_urgency",
+    "customer_message": "Prospect accepted the price — sending purchase link with urgency.",
+    "reply": "Hello, we'll take $155 for the domain. However, seeing as we are also reaching out to other agencies that might be interested, and because we may be negotiating a higher price with them, we can only leave it at this price for the next 24 hours. So it would be best if we are able to seal this deal immediately. Visit the listing for ownership."
+  },
+  {
+    "id": 46,
+    "category": "payment_portal_problem",
+    "customer_message": "I tried to pay but the Dan.com link isn't working.",
+    "reply": "Hi, must be a problem with Dan's payment portal. Not to worry though — I've had the name listed on Epik's domain marketplace. You should now be able to check out easily. Here's the new link. Let me know if you have further questions. Regards."
+  },
+  {
+    "id": 47,
+    "category": "price_inquiry_follow_up",
+    "customer_message": "Following up on a prospect who asked about price but went quiet.",
+    "reply": "Hello, just following up on your interest in this domain name. Let us know your bottom dollar offer so we can seal the deal. Looking forward to hearing from you. Regards."
+  },
+  {
+    "id": 48,
+    "category": "not_just_8_dollars",
+    "customer_message": "Why does it cost so much? I thought domains were only $8 or $12.",
+    "reply": "Hi, not all domains are $12. Some domains — like the one I'm offering you now — are considered premium. What this means is that such domains pack high SEO value and will help your business rank on search results when redirected to your current website. Let us know your bottom dollar offer for this name and let's seal the deal. Regards."
+  },
+  {
+    "id": 49,
+    "category": "counter_offer_response",
+    "customer_message": "Prospect made an offer that is too low.",
+    "reply": "Hi, thanks for the offer. But this price is currently below what we are looking at for this name. Will $xx work for you? Do let us know. Regards. Here is the link to purchase the domain."
+  },
+  {
+    "id": 50,
+    "category": "redirection_explanation_simple",
+    "customer_message": "Do I have to build a new website if I buy this domain?",
+    "reply": "Hi, you'd get to keep your current domain. All you'd have to do with the new one is redirect it to your current website. This would then boost direct traffic to your website. Here's the link to purchase the domain. Let me know if you have any questions. Best regards."
+  },
+  {
+    "id": 51,
+    "category": "redirection_explanation_detailed",
+    "customer_message": "How does domain redirection work exactly?",
+    "reply": "Hi, sounds like what you want is for this domain to point to exactly the stuff you've got going on on your current website — am I right? Don't worry, that's a very easy thing to do. You don't even need any special editing or coding skills. All you have to do is a simple redirect of this domain to your current website. It'll be in your domain admin panel — you'll just input your current website URL under the 'forward this domain' option and the domain will point to your website immediately. So when anyone visits the new domain, it instantly takes them to your website. I could even do this for you if you want. If you need further clarifications, just ask. I'll be here to see you through the process. Here's the link to purchase the domain."
+  },
+  {
+    "id": 52,
+    "category": "redirection_short_explanation",
+    "customer_message": "Can I just forward it to my existing website?",
+    "reply": "You can redirect this domain to your current website. When leads type in the domain into their browser, it would redirect them to your current website automatically."
+  },
+  {
+    "id": 53,
+    "category": "duru_initial_pitch",
+    "customer_message": "Cold outreach — Duru Domains style pitch.",
+    "reply": "Hello, would you be interested in acquiring this domain name? Anytime someone types the related keywords into their browser, owning this domain could make your site be the first they see. This means you'll be reaching more prospects when you redirect this name to your current website. I'm sure you'd want that, right? We have listed it for sale at Dan's domain marketplace and we are currently reaching out to a number of businesses that might be interested. Here's the link to purchase the domain. Let me know if you have any questions. Best regards, Duru Domains."
+  },
+  {
+    "id": 54,
+    "category": "price_inquiry_reply_bottom_dollar",
+    "customer_message": "What's your bottom price on this?",
+    "reply": "Hi, our bottom dollar price for this name is $100. If this price works for you, here's the link to purchase the domain. Let me know if you have further questions. Best regards."
+  },
+  {
+    "id": 55,
+    "category": "price_reply_direct",
+    "customer_message": "Can you just tell me the price directly?",
+    "reply": "Hi, price for it is $xxx. For immediate ownership, visit the listing link. Let me know if you have any questions. Best regards."
+  },
+  {
+    "id": 56,
+    "category": "geo_targeted_sales_template",
+    "customer_message": "First outreach to a local service business — geo domain pitch.",
+    "reply": "Hello, are you a local service business? Do you have a website or social media page through which prospective clients can find you? Would you like to constantly wake up to an inbox full of prospective clients wanting to pay for your services? Recent research by SEO experts proves that 95% of businesses that adopted a GEO-targeted keyword domain experienced a multiple-fold increase in traffic to their website right from the first year, translating to more clients and more sales. Don't be left out — you too can enjoy the benefits of a GEO-targeted keyword domain today. This domain name is now up for sale and I thought you would be interested. You can acquire it now by following the listing link. PS: You can have this domain redirected to your current website or social media page."
+  },
+  {
+    "id": 57,
+    "category": "no_action_follow_up",
+    "customer_message": "No response — polite check-in before stopping.",
+    "reply": "Hello, I haven't heard back on this. If you're no longer interested, kindly let us know so we can stop following up. Regards, Duru Domains."
+  },
+  {
+    "id": 58,
+    "category": "follow_up_with_keyword_value",
+    "customer_message": "No reply to initial email — following up with domain value explanation.",
+    "reply": "Hello, just wondering if you received my previous email on the availability of this domain name. This domain can be forwarded to your existing website to capture leads from people who type in the keywords into their browsers. We have listed it for sale at Dan's domain marketplace and are currently reaching out to businesses that might be interested. For immediate ownership, visit the listing or reply with an offer. I am sure we can find a price that meets both our needs. Best regards, Duru Domains."
+  },
+  {
+    "id": 59,
+    "category": "price_agreed_quick_close",
+    "customer_message": "We agreed on $99 — sending the purchase link.",
+    "reply": "Hi, we'll take $99 for it. However, since we are reaching out to a number of businesses that might be interested, we can only leave it at this price for 24 hours — so it's best if we are able to seal this deal immediately. Visit the listing for ownership. Best regards, Duru Domains."
+  },
+  {
+    "id": 60,
+    "category": "difficult_times_pitch",
+    "customer_message": "Cold outreach during a challenging period.",
+    "reply": "Hello, hope you and your family are well in this difficult time. The domain name is available for sale. We currently decided to sell this domain name and find clients that can benefit from it. While doing a search, your company came up. If you are interested please follow the link below to purchase or reply with your best offer. Stay safe. Regards."
+  },
+  {
+    "id": 61,
+    "category": "we_have_a_site_redirect_value",
+    "customer_message": "We already have a website, why would we need this?",
+    "reply": "Hi, that's great — and that was exactly why I chose to contact you, as you are best positioned to put this domain name to good use. Acquiring this domain would help you maintain your prestigious status as the foremost business in your city. It would help your customer base interact more with your business. Having multiple channels of contact is a plus for every business as it minimises the risk of losing customers to competitors. I am sure you agree with me. PS: maybe this wasn't made clear in my first email — you can redirect this particular domain name to your current website address. This way, you wouldn't need to create content on the new website. Best wishes!"
+  },
+  {
+    "id": 62,
+    "category": "competitor_takeover_fear_pitch",
+    "customer_message": "We don't need it — we already rank well.",
+    "reply": "Hi, we are happy you're the top performer when it comes to your service in your area. But then, if one of your competitors gets this domain ahead of you and uses it for their business, they'll outrank you on Google in no time. That's usually how this SEO stuff works. You wouldn't want that, would you? So if you want to ensure you keep being number one in this business, I'd advise you own the name and redirect it to your current website. Here's the link to purchase it. Price is negotiable. Let me know if you have further questions. Best regards."
+  },
+  {
+    "id": 63,
+    "category": "benefits_for_business_detailed",
+    "customer_message": "What are the actual benefits for my business specifically?",
+    "reply": "Dear sir or madam, thank you for asking this wonderful question. There are lots of benefits for your business if you acquire this domain name. First, your website will be among the top results whenever someone searches for your exact service in your city. Also, once you acquire this domain name, you don't need to build another website if your business grows beyond your current city to other nearby areas. In a nutshell, you have better chances to gain more customers from other cities and counties with this domain name. If you read this far, it shows you are still interested — kindly follow the link below to purchase it now. P.S.: Do not procrastinate — other competitors are showing interest. Act fast."
+  },
+  {
+    "id": 64,
+    "category": "bottom_dollar_100",
+    "customer_message": "What's your absolute lowest price?",
+    "reply": "Hi, the bottom dollar we are looking at for this name is $100. Will $100 work for you? Do let us know. Regards. Here's the link to purchase the domain."
+  },
+  {
+    "id": 65,
+    "category": "agreed_buyer_dan_informed",
+    "customer_message": "We made a deal — notifying buyer that DAN.com will contact them.",
+    "reply": "Hello, I have informed the domain escrow company DAN.com handling this transaction about our agreement. You will receive an email from DAN.com to confirm the agreement, payment, and transfer of the domain to you. If there are any issues, let me know. Thanks for choosing to do business with us. Regards."
+  },
+  {
+    "id": 66,
+    "category": "verification_of_ownership_options",
+    "customer_message": "How do I verify you actually own this domain?",
+    "reply": "Hi, thanks for your reply. Yes, it would show that the name has been taken because I recently acquired it as part of my investment portfolio. I understand your need for caution — thankfully there are many ways to verify the authenticity of my offer. You can type the URL in your browser — it should take you to a platform showing that I'm selling the domain. You could also use GoDaddy to check the domain. Finally, you could have me redirect the domain to your existing site as proof of ownership. I'd be happy to assist you through whichever verification process you'd prefer. The entire process is handled by a third-party broker and the domain is sent to you in less than 12 hours. Best wishes."
+  },
+  {
+    "id": 67,
+    "category": "step_by_step_buy_now_process",
+    "customer_message": "Walk me through exactly how to buy it.",
+    "reply": "Hi, we understand your concerns. That's why we'd like you to first take a moment to look up Dan's Domain Marketplace on TrustPilot and read the reviews yourself. Here's how the process works: you go to the listing link, you click on Buy Now, you make payment, and Dan transfers the name to the registry of your choosing. It's a smooth and safe process. If all looks good, let's seal this deal immediately. Regards. P.S.: Just in case, here's the link to purchase the name."
+  },
+  {
+    "id": 68,
+    "category": "it_guy_redirect_offer",
+    "customer_message": "I need to ask my IT guy about this first.",
+    "reply": "Hello, just following up on this. I wanted to make sure things were still in progress. I'd love to hear how things are going with your IT guy. In the meantime, how about I redirect the name to your current website for you? Don't worry, I'll do that for free. Let me know your thoughts. Regards."
+  },
+  {
+    "id": 69,
+    "category": "domain_expired_previous_owner",
+    "customer_message": "Wait — that was our domain name. How did you get it?",
+    "reply": "Hello, every domain name typically has a lifespan of one year when it is registered, after which it needs to be renewed. If for some reason the owner chooses or forgets not to renew, it passes through certain stages and becomes available again to anyone who wishes to register it. I'm guessing this is what happened in this case. And that explains the direct traffic I've been getting on the name since I acquired it — must be coming from people who previously visited your site and are looking to find you again. Not to worry though — I'm willing to let this name go at a fair price. You're free to make me an offer if you feel my price is on the high side. I'm sure we can find a price that meets both our needs. Visit the listing to own this name again for your business. Best regards."
+  },
+  {
+    "id": 70,
+    "category": "renewal_fees_explanation",
+    "customer_message": "Are there ongoing fees after I buy the domain?",
+    "reply": "Hello, thanks for the feedback. The domain will be transferred to the registrar of your choosing after you make payment. The yearly renewal fee depends on your registrar but it's usually less than $10. Dan's domain marketplace will provide escrow and ensure you get the domain transferred to you immediately. Visit the listing for immediate ownership. Best regards."
+  },
+  {
+    "id": 71,
+    "category": "still_available_confirmation",
+    "customer_message": "Is this domain still available?",
+    "reply": "Thanks for the enquiry. Yes, it's still available and it's currently listed at a domain marketplace. Escrow services will be used in the whole process. For testimonials and more information on how the marketplace works, do a quick Google search or check out the buyer guide on Dan.com. Let me know if you've got other enquiries. Regards."
+  },
+  {
+    "id": 72,
+    "category": "process_to_buy_dan",
+    "customer_message": "How do I actually purchase this domain?",
+    "reply": "Hello, thanks for the feedback. Kindly proceed to the domain sale page for immediate ownership. Note that DAN.com is an escrow service so the transaction is secured. Just click on the Buy Now button and follow the simple payment instructions. Please reply to this email for further inquiries. Thanks."
+  },
+  {
+    "id": 73,
+    "category": "24hr_price_offer",
+    "customer_message": "What price are you offering today?",
+    "reply": "Hello, we'll take $200 for the domain. We have set the price to reflect this. However, seeing as we are also reaching out to other businesses that might be interested, and because we may be negotiating a higher price with them, we can only leave it at this price for the next 24 hours. So it'd be best if we are able to seal this deal immediately. Visit the listing for immediate acquisition."
+  },
+  {
+    "id": 74,
+    "category": "follow_up_discount_check_in",
+    "customer_message": "No reply — following up with a discount offer.",
+    "reply": "Hello, trust you are doing great. This is a follow-up on the domain name. We would love to hear from your end whether you are interested in acquiring the name. We also made a discount on it — for today you can get it at a reduced price. To get it now, go to the listing."
+  },
+  {
+    "id": 75,
+    "category": "google_ranking_pitch",
+    "customer_message": "First outreach focused on Google ranking benefits.",
+    "reply": "Hi, we are offering this domain name. If anyone searches for the related keywords on Google, owning this domain could make your site be the first they see. We have listed it for sale at Dan's domain marketplace. Here's the link to purchase it. Let me know if you have any questions. Regards."
+  },
+  {
+    "id": 76,
+    "category": "benefit_of_redirection_list",
+    "customer_message": "List the benefits of owning and redirecting this domain to my site.",
+    "reply": "Benefits of redirecting the domain name to your main site: 1. It aptly describes the service you provide and would guarantee direct type-in traffic. 2. It is a geo-targeted domain name and would help you stand out in your area. 3. It will help cut down ad spend. 4. It will help attract new clients and put you ahead of your competitors. 5. It will help improve your online presence. 6. Due to the keyword value, it will increase your search engine ranking, thereby putting your business on the map."
+  },
+  {
+    "id": 77,
+    "category": "domain_will_not_expire",
+    "customer_message": "What if I just wait for it to expire?",
+    "reply": "Hi, there's no way we are letting the name expire. It's been placed on auto-renewal with our registrar, so you can be sure to strike out that possibility. However, if you let us know your bottom dollar offer for the name, we'll put it into consideration. I'm sure you know the SEO benefits of using this name for your business. Let's talk more. Or visit the listing to own this name immediately. Regards."
+  },
+  {
+    "id": 78,
+    "category": "agreed_price_final_send",
+    "customer_message": "We agreed on a higher price — confirming and sending link.",
+    "reply": "Hello, we'll take $1,500 for it. We have set the price to reflect this. However, seeing as we are also reaching out to other businesses that might be interested, and because we may be negotiating a higher price with them, we can only leave it at this price for the next 24 hours. So it would be best if we are able to seal this deal immediately. Visit the listing for ownership. Best regards."
+  },
+  {
+    "id": 79,
+    "category": "counter_offer_below_asking",
+    "customer_message": "Prospect's offer is below what we want.",
+    "reply": "Hi, thanks for the offer. But this price is below what we are currently looking at for this name. Will $xx work for you? Do let us know. Regards. Here's the link to purchase the domain."
+  },
+  {
+    "id": 80,
+    "category": "buyer_trust_free_redirect_offer",
+    "customer_message": "I'm still not convinced. I need more proof this is legitimate.",
+    "reply": "Hello, just following up on this. I wanted to make sure things were still in progress. In the meantime, how about I redirect the name to your current website for you? Don't worry, I'll do that for free. Let me know your thoughts. Regards."
+  },
+  {
+    "id": 81,
+    "category": "i_own_the_domain_explanation",
+    "customer_message": "How did you end up owning this domain?",
+    "reply": "Hello, every domain name typically has a lifespan of one year when it is registered, after which it needs to be renewed. If for some reason the owner forgets to renew, it passes through certain stages and becomes available again to anyone who wishes to register it. I'm guessing this is what happened in this case. And that explains the direct traffic I've been getting on the name since I acquired it. Not to worry though — I'm willing to let this name go at a considerable price. You're free to make me an offer if you feel my price is on the high side. Visit the listing to own this name for your business. Best regards."
+  },
+  {
+    "id": 82,
+    "category": "us_holiday_discount_pitch",
+    "customer_message": "Holiday or seasonal outreach with a special price.",
+    "reply": "Hello, trust you are having a great day. In the spirit of the holiday celebration, I have decided to offer you this domain at a special discounted price. Proceed to the listing for immediate acquisition. Best regards."
+  },
+  {
+    "id": 83,
+    "category": "call_me_email_only_response",
+    "customer_message": "Can we get on a phone call to discuss this?",
+    "reply": "I would have loved to call you, but I'm not in the same country as you currently. Therefore, emails will be the best form of communication between us. The domain is listed on a marketplace and they will act as escrow services between us for trust purposes. For further information about the domain, feel free to reply to my email or visit the domain listing."
+  },
+  {
+    "id": 84,
+    "category": "angry_end_user_closing",
+    "customer_message": "Stop emailing me. This is harassment.",
+    "reply": "Thank you — your honest opinion is appreciated. If there is anything else you would like to share, I will surely take it into consideration when marketing future domains in your industry."
+  },
+  {
+    "id": 85,
+    "category": "agreed_price_thursday_deadline",
+    "customer_message": "Agreed on a deal — checking in before the deadline.",
+    "reply": "I just wanted to check in on whether you feel ready to make the swap we agreed on a few days back. I'll keep our agreement open through Thursday evening unless you feel a later date would be more convenient. Hoping all is well."
+  },
+  {
+    "id": 86,
+    "category": "price_inquiry_opening_offer",
+    "customer_message": "Prospect asked for pricing — giving opening price.",
+    "reply": "Hello, thank you for showing interest. We currently have the domain priced at $xxxx. Please let me know if this price is suitable for you. Best regards."
+  },
+  {
+    "id": 87,
+    "category": "extension_com_vs_net",
+    "customer_message": "We have the .net version — why do we need the .com?",
+    "reply": "When people get back to their computer they are going to type in the .com and forget the .net. The more you market the .net, the more traffic the .com will get. The more you develop the .net, the more you will need the .com in the future."
+  },
+  {
+    "id": 88,
+    "category": "extension_traffic_data",
+    "customer_message": "We own the .net — is the .com really that important?",
+    "reply": "That is not a problem at all. But I must tell you — for the duration I have owned this domain it has received about 2 to 5 visitors a day. This may be due to users trying to find your .net site, thinking it is a .com. Owning the .com version of your domain will allow you to capture those visitors and expose them to your business. I will lower the asking price if you are interested. You can easily forward the .com to the .net for a traffic boost."
+  },
+  {
+    "id": 89,
+    "category": "seo_first_position_value",
+    "customer_message": "How much traffic could this domain actually bring?",
+    "reply": "There is a real chance to be number one on Google for the exact search term. According to many SEO specialists, the number one position gets about 30 to 40% of the total search volume. This means you'll get a significant number of clicks per month. This domain can help get you there faster than building organic authority from scratch."
+  },
+  {
+    "id": 90,
+    "category": "analytical_buyer_seo_confusion",
+    "customer_message": "My site already ranks for those keywords — I don't see the value.",
+    "reply": "Hi, thanks for getting back to me. Your site definitely does rank well for those keywords. While the domain could still provide a nice SEO boost, I actually see it as a great addition from a branding and geo-authority perspective as well. Owning the exact match .com of your core service carries a certain credibility and authority in the market. I appreciate your best offer to buy. Best regards."
+  },
+  {
+    "id": 91,
+    "category": "negotiation_ask_their_price",
+    "customer_message": "Your price seems high — what's your reasoning?",
+    "reply": "Thanks for the honest response. If our price is the issue here, may I ask how much this domain would be worth to you? We will take your best offer under consideration."
+  },
+  {
+    "id": 92,
+    "category": "final_price_with_search_volume",
+    "customer_message": "I won't pay that much for a domain.",
+    "reply": "Our final offer to you for this domain is $xxxx. Given that internet users search the relevant keywords over 1,000 times per month according to Google's keyword tool, it would make little financial sense for us to let this domain go for any less. Please let us know whether this price is acceptable. Again, this is our final offer."
+  },
+  {
+    "id": 93,
+    "category": "60_day_lock_godaddy_transfer",
+    "customer_message": "Why can't I transfer this to my registrar right away?",
+    "reply": "Currently the domain is registered with GoDaddy and cannot be transferred to another registrar for a period of 60 days because I just acquired it through a backorder. GoDaddy has a 60-day latency period before you can transfer — this is standard with any registrar once the ownership of the domain changes. A temporary workaround would be to create a GoDaddy account if you do not already have one, and then transfer to your preferred registrar after 60 days. Once I initiate the transfer, GoDaddy will send you instructions on how to accept it. The transfer is instant."
+  },
+  {
+    "id": 94,
+    "category": "agreed_buyer_firm_on_price",
+    "customer_message": "Buyer keeps trying to push the price lower after we agreed.",
+    "reply": "Hello, thanks for raising your offer price. However, as I have stated earlier I cannot go lower than my asking price. Leave aside making profit — I'm just covering the costs involved in the domain name acquisition from the previous owner. I have already rejected a higher offer as I am certainly not looking to go lower. Let me know and we can wrap this up as soon as possible. Best regards."
+  },
+  {
+    "id": 95,
+    "category": "price_inquiry_open_to_offers",
+    "customer_message": "Buyer asked about price — open to offer.",
+    "reply": "Hello, I was wondering if you have any other questions about this domain or if you have considered my offer. If you believe the asking price is over your budget, I am open to offers. I would want you to be happy with your purchase in the end."
+  },
+  {
+    "id": 96,
+    "category": "no_payment_follow_up_detailed",
+    "customer_message": "Buyer agreed and received link but still hasn't paid.",
+    "reply": "Hello, this is a follow-up to our recent conversation on the perfect domain name for your business. This domain is the exact keyword that every customer will type into a search engine when looking for your type of service. Having the exact keyword match means all search engines will bring your business domain to the forefront — giving you a very big edge over your competitors and showing how trusted your business is. That's one of the main benefits of having the perfect keyword domain. I am letting it go on a discount to benefit you — hoping you take advantage of this offer. Let me know what you think, or go directly to the listing to make the purchase and receive transfer of the domain name. We use Dan.com as escrow. Thanks."
+  },
+  {
+    "id": 97,
+    "category": "follow_up_sales_pitch_generic",
+    "customer_message": "Follow-up to an interested buyer who hasn't paid yet.",
+    "reply": "Hello, this is a follow-up to your interest in the perfect domain name for your business. This domain is the exact keyword every customer will type into a search engine when planning to use a service like yours. Anytime someone types the related keywords into their browser, owning this domain could make your site be the first they see. This gives you a very big edge over your competitors. If you believe the asking price is over your budget, I am open to offers. For immediate ownership, visit the listing to make the purchase or reply with an offer. Regards."
+  },
+  {
+    "id": 98,
+    "category": "initial_pitch_seo_centric",
+    "customer_message": "First outreach emphasizing SEO and search engine ranking.",
+    "reply": "Hello, would you be interested in acquiring this domain name? Anytime someone types the related search keywords into their browser, owning this domain could make your site be the first they see. According to many SEO specialists, being ranked on the search engine first page gets about 30 to 40% of the search volume, which results in more exposure for your brand and more people clicking through to your website. This means you'll be reaching more prospects when you redirect this name to your current website. We are currently reaching out to a number of businesses that might be interested. Here's the link to purchase the domain. Let me know if you have any questions. Best regards."
+  },
+  {
+    "id": 99,
+    "category": "not_yet_sold_20_percent_discount",
+    "customer_message": "Prospect who showed interest earlier — re-engaging with a discount.",
+    "reply": "I'm giving you a 20% discount off the original price I quoted before. I'm trying to move on to some new projects — that's why I'm doing this. Let me know if you're interested."
+  },
+  {
+    "id": 100,
+    "category": "follow_up_still_available_doubt",
+    "customer_message": "Interested prospect who had doubts — following up.",
+    "reply": "Hello, just a kind reminder that this domain is still available. We know you are interested in acquiring it but may have had some doubts. Is it the price? If yes, let me know your offer — I am sure we can find a price that meets both our needs. And if you're not interested, let me know so I can contact other organisations. Best regards."
+  },
+  {
+    "id": 101,
+    "category": "not_10_dollar_reason",
+    "customer_message": "It's just a domain name — why would I pay more than $10 for it?",
+    "reply": "Hi, thanks for the honest feedback. You are very right — it costs nothing more than $10 to register a new domain name. But the case is quite different with the domain I am pitching to you. This domain is unique as it is city-specific and carries your exact business keywords. It is suitable for attracting search engine traffic, and in turn you gain more customers. A domain with these criteria is rare, hard to find, and cannot be acquired for just $10. If you are still interested, just click on the link below to purchase. P.S.: Some prospects are also showing interest in this domain — if you want it, act fast."
+  },
+  {
+    "id": 102,
+    "category": "whatsapp_price_message",
+    "customer_message": "Prospect contacted via WhatsApp asking about the price.",
+    "reply": "$400. Price is negotiable. What do you say?"
+  },
+  {
+    "id": 103,
+    "category": "i_will_discuss_with_partner",
+    "customer_message": "I need to discuss this with my partner first.",
+    "reply": "Hi, thanks for the feedback. Do let me know once you and your partner conclude on this. Also, the price is slightly negotiable so you can always make an offer. Any idea when I should check back on this? Best regards."
+  },
+  {
+    "id": 104,
+    "category": "follow_up_given_up_question",
+    "customer_message": "Long silent prospect — are they still interested?",
+    "reply": "Have you given up on this deal?"
+  },
+  {
+    "id": 105,
+    "category": "process_to_buy_broker_explained",
+    "customer_message": "How does the buying process work with the broker?",
+    "reply": "Hi, thanks for showing interest. The domain is already listed on a trusted marketplace with a broker service at Dan.com. The process involved in buying the domain is very easy as we have used them many times before. But if you prefer to use the GoDaddy broker service, I will inform my team and get back to you immediately. Here is the link once again."
+  },
+  {
+    "id": 106,
+    "category": "rank_questions_answer",
+    "customer_message": "Will this domain actually help me rank on Google? Can I make an offer?",
+    "reply": "Hi, yes — the domain will help you rank when you redirect it to your current website. And yes, you're free to make an offer. Just go to the listing and proceed from there. Let me know if you have any questions. Best regards."
+  },
+  {
+    "id": 107,
+    "category": "agreed_no_reply_follow_up",
+    "customer_message": "We agreed on a deal but I haven't heard back to confirm.",
+    "reply": "Hi, I wanted to touch base and find out where we are on this. Is there any way I can be of help? Do let me know. Regards."
+  },
+  {
+    "id": 108,
+    "category": "basic_domain_info_request",
+    "customer_message": "Can you tell me the basic details about this domain?",
+    "reply": "We are open to being asked anything about the domain and we will try to give you the best reply we can. This domain is currently registered at a reputable registrar. We can use an escrow service to provide a safe transaction for all parties. The asking price is listed on the domain marketplace."
+  },
+  {
+    "id": 109,
+    "category": "agreed_nonpayment_follow_up",
+    "customer_message": "We had an agreement but the buyer hasn't paid — checking in.",
+    "reply": "Hello, just following up on our previous discussions. I wanted to make sure things were still in progress. I would like to know if you're experiencing any challenges in purchasing the domain name. Kindly let us know if you need any assistance or clarification to complete the transaction. Regards."
+  },
+  {
+    "id": 110,
+    "category": "price_inquiry_make_offer",
+    "customer_message": "What's your asking price? I might want to make an offer.",
+    "reply": "My asking price is $xxxx. However, if you make a good offer, we can have a deal."
+  },
+  {
+    "id": 111,
+    "category": "how_will_it_help_with_price",
+    "customer_message": "How will this domain actually help me and what does it cost?",
+    "reply": "Hello, thanks for your response. This domain would help capture leads as a result of those searching for the related keywords. The asking price is listed on the domain — visit the listing to purchase it. Feel free to let me know if you have any questions or concerns. Regards."
+  },
+  {
+    "id": 112,
+    "category": "get_back_to_you_follow_up",
+    "customer_message": "Prospect said they'd get back to me — checking in.",
+    "reply": "Hi, just following back on this. Any updates? Do let me know. Best regards."
+  },
+  {
+    "id": 113,
+    "category": "how_will_it_help_city_specific",
+    "customer_message": "How would owning this domain help my business in my city?",
+    "reply": "Hi, this domain contains juicy keywords that'd help rank your business on search engines. Whether anyone searches for your service and city in any order, owning this domain could make your site be the first they see. More visibility means more prospects. I'm sure you'd want that, right? Visit the listing for checkout. Let me know if you have any questions. Best regards."
+  },
+  {
+    "id": 114,
+    "category": "counter_offer_too_low_cannot_accept",
+    "customer_message": "Prospect offered a price I can't accept.",
+    "reply": "Thanks for your offer. We are unable to accept it, but feel free to submit your best possible offer for consideration and we will respond immediately. Thanks."
+  },
+  {
+    "id": 115,
+    "category": "initial_pitch_competitor_domain_taken",
+    "customer_message": "First pitch where competitors already took similar domain names.",
+    "reply": "Hello, do you know that similar keyword domains in your niche are currently in use? Those domains went off the market quickly and now redirect to the owners' websites. We now have this domain available for sale — a domain of better quality and value. If interested in owning it, kindly reply to this email or click on the link to make an outright purchase. If not interested, just reply to unsubscribe. Thanks."
+  },
+  {
+    "id": 116,
+    "category": "learn_more_seo_expert_intro",
+    "customer_message": "Who are you and why are you contacting me about a domain?",
+    "reply": "I am a domain name investor and an SEO expert. The domain name I'm offering matches your business location and service. When such a service is searched for in this location, search engines will rank this domain name highest in terms of relevance and location. Redirecting this domain to your website improves the SEO and ensures higher ranking. Would you be interested?"
+  },
+  {
+    "id": 117,
+    "category": "extra_charges_annual_only",
+    "customer_message": "What other fees will I have to pay after buying?",
+    "reply": "Hi, yes — you'd fully have access to the domain. All it needs is the annual $8 to $10 renewal fee depending on your registrar. You can own the domain for as long as you want. Do let me know if you have further questions. Best regards."
+  },
+  {
+    "id": 118,
+    "category": "short_follow_up_price_only",
+    "customer_message": "Very short follow-up for a previously interested prospect.",
+    "reply": "Hello, interested? $200."
+  },
+  {
+    "id": 119,
+    "category": "old_portfolio_pitch",
+    "customer_message": "Pitching a domain that has been held for several years.",
+    "reply": "Hi, we've put our domain name on the market for the first time since 2010. Your company should grab it before a competitor does. For more information, please visit the listing. Kind regards."
+  },
+  {
+    "id": 120,
+    "category": "first_pitch_epik_marketplace",
+    "customer_message": "First outreach — domain listed on Epik.",
+    "reply": "Hello, trust you are doing fine. Would your business be interested in acquiring this domain name? You can redirect this domain name to your current website or a social media page to gain its immense name value. If interested, go to the Epik marketplace listing to get it now, or reply with an offer. I await your response. Best regards."
+  },
+  {
+    "id": 121,
+    "category": "second_pitch_with_discount",
+    "customer_message": "No reply to first pitch — second pitch with a discount.",
+    "reply": "Hello, trust you're doing great. This is a follow-up on the domain name. We'd love to hear from your end whether you're interested in acquiring it or not. We also made a discount on it — for today, you can get it at a reduced price. To get it now, go to the listing. With kind regards."
+  },
+  {
+    "id": 122,
+    "category": "third_pitch_month_end_discount",
+    "customer_message": "Third follow-up — month-end discount.",
+    "reply": "Hello, I'd like to know if you're still interested in the domain name. We're also running month-end discounts across all our domains. As of today, you can get it at a further reduced price. To get it now, go to the listing. With kind regards."
+  },
+  {
+    "id": 123,
+    "category": "fourth_pitch_final_apology",
+    "customer_message": "Fourth follow-up — apologetic final pitch.",
+    "reply": "Hello, please let me know if this email was a bother to you — we deeply apologize and would move on elsewhere. We just have no use for the domain name and were looking for someone who could benefit from it and put it to use. The domain is still available for you at a reduced price. We'll be waiting for your positive response. Best regards."
+  },
+  {
+    "id": 124,
+    "category": "call_me_email_preferred",
+    "customer_message": "Prospect wants a phone call — you prefer email.",
+    "reply": "Hello, I'm sorry I can only communicate via email, but I can provide you with every piece of information you need on the name. The process of acquisition is easy and automated, but I will guide you through it if you don't mind. Best regards."
+  },
+  {
+    "id": 125,
+    "category": "no_reply_stopping_emails",
+    "customer_message": "Sending final email before stopping follow-ups.",
+    "reply": "Hi, please let me know if this email was a bother to you — we deeply apologize and would move on elsewhere. We just have no real use of the domain name and were looking to find someone who could put it to use. The domain is still available for you at the listed price. We will be waiting for your positive response. Best regards."
+  },
+  {
+    "id": 126,
+    "category": "how_much_after_buying_one_time",
+    "customer_message": "What will I need to pay ongoing after buying this domain?",
+    "reply": "Hello, it is a one-time fee. The yearly renewal fee depends on your registrar but it's usually less than $10. For immediate ownership, visit the listing. Let me know if you have further questions. Best regards."
+  },
+  {
+    "id": 127,
+    "category": "cannot_accept_low_offer",
+    "customer_message": "Offer made was too low — telling them politely.",
+    "reply": "Hi, thanks for your offer — I appreciate it, but unfortunately this premium domain cannot go for that price. I will be glad to have a deal with you if you can increase your offer. Let me know how I can be of help. Thanks."
+  },
+  {
+    "id": 128,
+    "category": "running_away_after_offer",
+    "customer_message": "Buyer made an offer but has since gone quiet.",
+    "reply": "Hi, just checking back on this. I wanted to make sure things were still in progress. Let me know. Best regards."
+  },
+  {
+    "id": 129,
+    "category": "law_firm_liquidation_pitch",
+    "customer_message": "Pitching a domain to a law firm — end-of-year liquidation.",
+    "reply": "Hello, we've not gotten any response regarding this premium domain name. What is stopping your law firm from buying it? We just want to let you know we are liquidating a part of our domain portfolio before the year runs out. This domain is now available at a reduced price. You can take immediate ownership by visiting the listing and clicking on the Buy Now option. We look forward to hearing from you. Regards."
+  },
+  {
+    "id": 130,
+    "category": "how_much_open_to_discount",
+    "customer_message": "How much is it? Is there any flexibility?",
+    "reply": "$455 — however, we are open to a discount. Feel free to submit your best offer."
+  },
+  {
+    "id": 131,
+    "category": "local_services_domain_pitch",
+    "customer_message": "Outreach for a junk removal or local services geo domain.",
+    "reply": "Hello, we are currently selling this domain name. The domain can be developed or redirected to your current website to increase visibility with its keywords and expand your online presence in the local area. We are selling at a very affordable price — let us know if you'd like to have it, or get it right away on the listing. Best regards, Adex Domains."
+  },
+  {
+    "id": 132,
+    "category": "local_business_geo_pitch",
+    "customer_message": "Outreach to a local pest control or similar service business.",
+    "reply": "Hello, hope this email finds you well. This domain name is available for sale. As you serve this area, I thought that you might be interested, hence the contact. This domain name can be redirected to your current website. If you are interested, please go to the listing to acquire it or make an offer. We look forward to hearing from you. Best regards."
+  },
+  {
+    "id": 133,
+    "category": "domain_for_sale_by_owner",
+    "customer_message": "Short direct pitch — domain for sale by owner.",
+    "reply": "Hello, this domain name is for sale by owner. Would you be interested in acquiring it? To purchase or submit an offer, visit the listing. Let me know if you have any questions or concerns. Kind regards."
+  },
+  {
+    "id": 134,
+    "category": "price_reply_450",
+    "customer_message": "Buyer asked for the price.",
+    "reply": "Hi, the price for it is $450. To purchase or submit an offer, visit the listing. Yours faithfully, Adex Domains."
+  },
+  {
+    "id": 135,
+    "category": "domain_relevant_to_business_pitch",
+    "customer_message": "Domain pitch emphasising relevance to the prospect's business.",
+    "reply": "Hello, the domain name is available for sale at the domain marketplace. It has relevance to your business and can be developed and redirected to your current website for a traffic boost. Any interest, kindly get in touch. If no interest, kindly reply with 'no interest' or 'unsubscribe' so we don't follow up further. Kindest regards."
+  },
+  {
+    "id": 136,
+    "category": "lomas_final_price_firm",
+    "customer_message": "Buyer keeps pushing on price after we already gave a final number.",
+    "reply": "Hello, thanks for raising your offer price. However, as I have stated earlier I cannot go lower than my asking price. I appreciate the gesture, but I need to at least cover my acquisition costs. I have already rejected a higher offer than what you're currently proposing, so please do not expect me to go lower. Let me know and we can wrap this up as soon as possible. Best regards."
+  },
+  {
+    "id": 137,
+    "category": "multiple_follow_ups_worried",
+    "customer_message": "Multiple follow-ups to a prospect who showed interest but went quiet.",
+    "reply": "Hi, I'm worried my messages aren't getting to you, hence my numerous follow-ups. Please let me know if you're no longer interested in acquiring this domain so I can stop the constant messages and start reaching out to other businesses. If you have any questions or doubts about anything, feel free to let me know. I'd really appreciate feedback. Best regards. P.S.: Here's the link to purchase the domain."
+  },
+  {
+    "id": 138,
+    "category": "persuasive_pitch_long_form",
+    "customer_message": "Comprehensive cold outreach — detailed persuasive pitch.",
+    "reply": "Hello, I contacted you because your website appears for a related search term. I thought that you might be interested in knowing that I am selling this domain since I do not currently have the time to develop it myself. This domain is very well suited for your industry and owning such a name will attract relevant customers and could give you an advantage over competitors. Furthermore, if you add content to the website, Google will boost your ranking for this search. However, you can also choose not to develop the website and just have this domain take visitors directly to your existing website. Not only can owning this domain benefit you through additional online marketing and search engine pickup, but it will also grow in value as these types of .com domains are becoming much harder to come by. I am offering this domain at a competitive price. Please let me know if you'd like more info or to buy it. If you are not interested, let me know as well so I stop emailing you. Warm regards."
+  },
+  {
+    "id": 139,
+    "category": "holiday_liquidation_pitch",
+    "customer_message": "End of year — liquidating domain portfolio.",
+    "reply": "Hello, we are liquidating a part of our domain portfolio before the year runs out. This domain is now available at a reduced price. You can take immediate ownership by visiting the listing and clicking on the Buy Now option. Thank you. Best."
+  },
+  {
+    "id": 140,
+    "category": "detailed_geo_pitch_with_examples",
+    "customer_message": "Detailed pitch to a local business — referencing other city domains already in use.",
+    "reply": "Hello, good morning. This domain name is now available for sale at a discounted price. GEO domains like the one I'm offering help with brand recognition in the minds of prospects and set you as the local authority in your field. Your prospects are more likely to remember a geo-targeted keyword domain than a generic company brand name. That's why most top cities already have these domains in use by different businesses in their respective cities. To buy it now, visit the listing. Best regards."
+  },
+  {
+    "id": 141,
+    "category": "accept_offer_100",
+    "customer_message": "Prospect made an offer and we are accepting it.",
+    "reply": "Hi, many thanks for your interest. My team and I have considered and accepted your offer for $100, if you would make payment today. If you need any further assistance, I will be happy to help. Best."
+  },
+  {
+    "id": 142,
+    "category": "premium_domain_pitch_so_baba",
+    "customer_message": "Premium domain pitch — direct and professional.",
+    "reply": "Hello, trust you are well. This premium domain name is listed for sale. This domain is valuable for your business in this city and can be developed or redirected to your current website to increase visibility online and to capture more targeted prospects in your area. Interested? Go to the listing for immediate acquisition. Do let me know if you have any questions! Warm regards."
+  },
+  {
+    "id": 143,
+    "category": "follow_up_price_drop_so_baba",
+    "customer_message": "Follow-up pitch — price reduced since last email.",
+    "reply": "Hello, I sent you an email about this domain recently. The domain can be developed or redirected to your current website to increase visibility with its keywords and expand online presence in your area. We have also reduced the price of the domain. To get it now, go to the listing. Do let me know if you have any questions. Warm regards."
+  },
+  {
+    "id": 144,
+    "category": "geo_paving_or_trades_pitch",
+    "customer_message": "Cold outreach for a paving, construction, or trades domain.",
+    "reply": "Hello, this premium domain is available for acquisition. Having this domain developed or redirected to your current website would actually make those who enter the keywords into their browsers end up on your website. Would you be interested? Regards."
+  },
+  {
+    "id": 145,
+    "category": "related_domain_offer",
+    "customer_message": "I'm interested but don't like this exact domain. Do you have anything else?",
+    "reply": "I am really sorry for the delay. Let me know if you would be interested in other related domain names in your niche — we have some and I can give them to you at a certain discount. Thank you."
+  },
+  {
+    "id": 146,
+    "category": "non_reply_send_more_info_offer",
+    "customer_message": "Previously interested buyer who has gone silent.",
+    "reply": "Hi, I have not heard from you. I hope you had the chance to go through my previous email and it didn't get buried in your inbox. Maybe I didn't explain my email well enough and you need more information. Would you like me to send you more info about this domain, or should I stop sending you emails? Looking forward to hearing from you."
+  },
+  {
+    "id": 147,
+    "category": "promo_48hr_follow_up",
+    "customer_message": "Short follow-up with a 48-hour promo price.",
+    "reply": "Good day, trust this meets you well. This domain is available at a reduced promo price for the next 48 hours. If you're interested, kindly visit the listing for immediate purchase. Regards."
+  },
+  {
+    "id": 148,
+    "category": "exact_match_domain_pitch",
+    "customer_message": "Pitching an exact-match domain to a local business.",
+    "reply": "Hi, I own this domain name and I am looking to sell it. This is an exact match .com domain name and matches perfectly with your business model. Please let me know if you have any offer or any questions. Regards."
+  },
+  {
+    "id": 149,
+    "category": "price_499_negotiable",
+    "customer_message": "Buyer asked for the price — $499 negotiable.",
+    "reply": "Hi, the domain price is $499 but is negotiable. I look forward to hearing from you. Regards."
+  },
+  {
+    "id": 150,
+    "category": "geo_city_pitch_isaac",
+    "customer_message": "Cold outreach — geo domain for a city-specific business.",
+    "reply": "Hello, hope this email finds you well. This domain name is available for sale. As you serve this area, we thought that you might be interested, hence the contact. You can redirect this domain to your current website to boost your online traffic and have an edge over your competitors. If you are interested, please go to the listing to acquire it immediately. If you have any questions, kindly reach out by replying to this email. Best regards."
+  },
+  {
+    "id": 151,
+    "category": "why_not_interested_ask_ayo",
+    "customer_message": "Prospect said they're not interested — asking why.",
+    "reply": "Thanks. May I ask why you are not interested? If you choose not to share, it's okay — I ask to understand, not to push you. If it is about the money, reply with your best offer so we can conclude on the deal. Regards."
+  },
+  {
+    "id": 152,
+    "category": "sales_template_woodwork_or_niche",
+    "customer_message": "Outreach to a business in a specific trade or niche.",
+    "reply": "Hello, since you are in this business, we thought you might like to know that we are selling this domain name. This domain can be redirected to your existing site to capture some pre-qualified leads from people who type in the keywords into their browser. This domain would increase your online presence and work to your advantage in the search engines. This is a short-term, first-come-first-served opportunity as we are contacting other businesses today as well. The domain is priced at $350, although offers are welcomed. Best regards."
+  },
+  {
+    "id": 153,
+    "category": "sales_template_general_first_touch",
+    "customer_message": "General first-touch cold email for any service business.",
+    "reply": "Hello, since you are in the relevant service business, I thought you might like to know that I am selling this domain. This domain can be forwarded to your existing site to capture some pre-qualified leads from people who type in the keywords into their browser. This domain should work to your advantage in the search engines and in internet and offline marketing campaigns. This is a very short-term, first-come-first-served opportunity — I am contacting other businesses today as well. I will sell this domain today for a competitive price. Let me know if you're interested."
+  },
+  {
+    "id": 154,
+    "category": "musician_or_entertainer_pitch",
+    "customer_message": "Outreach to a performer, musician, or entertainer.",
+    "reply": "Hello, we are reaching out to the best performers in this area for a sale of our domain name. You can build this domain name up or redirect it to an existing website or social media page for a traffic boost. It's descriptive, premium, and search engine optimised. If interested, go to the marketplace listing to get it now, or reply to this email with any inquiry. Best regards."
+  },
+  {
+    "id": 155,
+    "category": "second_pitch_50_percent_off",
+    "customer_message": "Second pitch — 50% discount offered.",
+    "reply": "Hello, we've not had any response regarding this premium domain name. What's stopping your business from buying it? We just want to let you know we ran almost a 50% discount across all of our domains, and you can now get it at the new price. For immediate acquisition, go to the listing. We look forward to hearing from you. Regards."
+  },
+  {
+    "id": 156,
+    "category": "agreed_price_200_24hr",
+    "customer_message": "Accepting offer of $200 — 24-hour window.",
+    "reply": "Hello, we'll take $200 for the domain. We have set the price to reflect this. However, seeing as we are also reaching out to other businesses that might be interested, and because we may be negotiating a higher price with them, we can only leave it at this price for the next 24 hours. So it'd be best if we are able to seal this deal immediately. Visit the listing for immediate acquisition."
+  },
+  {
+    "id": 157,
+    "category": "price_inquiry_starting_from",
+    "customer_message": "Prospect asked for pricing — giving opening range.",
+    "reply": "Hello, thank you for your reply. We are looking for a fee starting from $650. Let me know what you think."
+  },
+  {
+    "id": 158,
+    "category": "boudoir_photography_pitch",
+    "customer_message": "Outreach to a photography or creative services business.",
+    "reply": "Hello, would you be interested in acquiring this domain name? Anytime someone types the related photography keywords into their browser, owning this domain could make your site be the first they see. This means you'll be reaching more prospects when you redirect this name to your current website. I'm sure you'd want that, right? We have listed it for sale at Dan's domain marketplace and we are currently reaching out to a number of businesses that might be interested. Here's the link to purchase the domain. Let me know if you have any questions. Best regards, Duru Domains."
+  },
+  {
+    "id": 159,
+    "category": "photo_booth_seo_pitch",
+    "customer_message": "Outreach to a photo booth rental or events business.",
+    "reply": "Hello, would you be interested in acquiring this domain name? This domain has juicy SEO benefits that'll give your website a boost on search engines and help you reach more prospects when you redirect it to your current website. We are reaching out to businesses that might be interested. Visit the listing for immediate ownership. Do let me know if you have any questions. Best regards, Duru Domains."
+  },
+  {
+    "id": 160,
+    "category": "agreed_nonpayment_check_in_testimony",
+    "customer_message": "We had an agreement but the buyer hasn't paid — detailed check-in.",
+    "reply": "Hello Ben, just following up on our previous discussions. I wanted to make sure things were still in progress. I would like to know if you're experiencing any challenges in purchasing the domain name. Kindly let us know if you need any assistance or clarification to complete the transaction. Regards, Testimony."
+  },
+  {
+    "id": 161,
+    "category": "buyer_confusion_short_keyword_reply",
+    "customer_message": "Buyer is confused about why a shorter domain would rank better.",
+    "reply": "Hi, domain names with short keywords rank higher than long keywords on search engines. Also, since the keywords of this domain are an exact match to your business brand, acquiring it will stop your competitors from hijacking your online presence. Whenever a client types your service keywords into Google, your website will always rank at the top. And if a competitor acquires this domain, their website will compete with yours in rankings due to the similarity in keywords. Keep it in mind that this domain has real potential."
+  }
+]
