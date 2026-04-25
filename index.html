@@ -197,6 +197,7 @@
     <div class="tabs">
       <button class="tab active" data-tab="generate">✉ Generate</button>
       <button class="tab" data-tab="knowledge">📚 KB</button>
+      <button class="tab" data-tab="template">⚡ Template</button>
     </div>
 
     <!-- TAB: GENERATE -->
@@ -280,6 +281,68 @@ Examples:
         </div>
       </div>
     </div><!-- /tab-generate -->
+
+
+    <!-- TAB: TEMPLATE -->
+    <div class="tab-panel" id="tab-template">
+      <div class="card" style="margin-top:1px;border-top-left-radius:0">
+        <div class="card-header"><span class="card-icon">⚡</span><span class="card-title">Template Mode — No API Key Required</span></div>
+        <div class="card-body">
+          <div id="notifTemplate" class="notif"></div>
+          <p style="font-size:.8rem;color:var(--ink-2);margin-bottom:.9rem;line-height:1.6">Instant replies using keyword matching — zero AI cost. Enable <strong>AI Polish</strong> to have Claude refine the result (API key required).</p>
+          <div class="quick-pick">
+            <button class="qp-btn" onclick="fillTemplate('How much is the domain?')">Price Inquiry</button>
+            <button class="qp-btn" onclick="fillTemplate('Not interested, thanks.')">No Thanks</button>
+            <button class="qp-btn" onclick="fillTemplate('This looks like a scam.')">Scam Concern</button>
+            <button class="qp-btn" onclick="fillTemplate('We already have a website.')">Have Website</button>
+            <button class="qp-btn" onclick="fillTemplate('That price is too expensive.')">Too Expensive</button>
+            <button class="qp-btn" onclick="fillTemplate('I need to think about it.')">Not Now</button>
+          </div>
+          <textarea id="tplMessage" placeholder="What did the prospect say?" style="min-height:90px"></textarea>
+          <div class="inline-row">
+            <div class="field"><label class="field-label">Domain Name (optional)</label><input type="text" id="tplDomain" placeholder="e.g. LondonPlumber.com" /></div>
+            <div class="field"><label class="field-label">Asking Price (optional)</label><input type="text" id="tplPrice" placeholder="e.g. $650" /></div>
+          </div>
+          <div style="margin-top:.9rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer;font-size:.82rem;font-weight:500;color:var(--ink-2)">
+              <input type="checkbox" id="tplPolish" style="width:auto;accent-color:var(--gold)" /> AI Polish
+            </label>
+            <span style="font-size:.75rem;color:var(--ink-3)">(uses API key above)</span>
+            <select id="tplTone" style="flex:1;min-width:150px;font-size:.82rem">
+              <option value="professional and persuasive">Professional &amp; Persuasive</option>
+              <option value="warm and friendly">Warm &amp; Friendly</option>
+              <option value="firm but respectful">Firm but Respectful</option>
+              <option value="concise and direct">Concise &amp; Direct</option>
+              <option value="empathetic and understanding">Empathetic</option>
+            </select>
+          </div>
+          <button class="btn btn-primary btn-full" id="tplBtn" onclick="generateTemplate()" style="margin-top:.9rem">
+            <span id="tplBtnText">Generate Template Reply</span>
+            <span class="spinner" id="tplSpinner"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="card" id="tplOutputCard" style="display:none">
+        <div class="card-header"><span class="card-icon">💬</span><span class="card-title">Template Reply</span></div>
+        <div class="card-body">
+          <div id="tplOriginalWrap" style="display:none;margin-bottom:.75rem">
+            <div style="font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:.35rem">Original Template</div>
+            <div id="tplOriginalBox" style="font-size:.83rem;color:var(--ink-3);background:var(--cream);border:1px solid var(--border);border-radius:var(--radius);padding:.7rem .9rem;line-height:1.7;white-space:pre-wrap"></div>
+          </div>
+          <div id="tplPolishedLabel" style="display:none;font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--green);margin-bottom:.35rem">✨ AI Polished</div>
+          <div id="tplOutputBox" class="output-box" style="min-height:80px"></div>
+          <div style="margin-top:.5rem;display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
+            <span id="tplIntentBadge" class="intent-badge"></span>
+            <span id="tplModeBadge" style="display:none;font-size:.7rem;font-weight:500;padding:.2rem .6rem;border-radius:12px;background:var(--green-lt);color:var(--green);border:1px solid #b7dfca"></span>
+          </div>
+          <div style="margin-top:.7rem;display:flex;gap:.5rem">
+            <button class="btn btn-secondary btn-sm" onclick="copyTemplate()">⎘ Copy</button>
+            <button class="btn btn-secondary btn-sm" onclick="clearTemplate()">↺ Clear</button>
+          </div>
+        </div>
+      </div>
+    </div><!-- /tab-template -->
 
     <!-- TAB: KNOWLEDGE BASE -->
     <div class="tab-panel" id="tab-knowledge">
@@ -681,3 +744,102 @@ Examples:
 </script>
 </body>
 </html>
+<script>
+  /* ── TEMPLATE MODE ── */
+  function fillTemplate(text) {
+    document.getElementById('tplMessage').value = text;
+    document.getElementById('tplMessage').focus();
+  }
+
+  async function generateTemplate() {
+    var message = document.getElementById('tplMessage').value.trim();
+    if (!message) return showNotif('notifTemplate', 'Please describe the situation first.', 'error');
+
+    var polish  = document.getElementById('tplPolish').checked;
+    var apiKey  = document.getElementById('apiKey').value.trim();
+    if (polish && !apiKey) return showNotif('notifTemplate', 'AI Polish requires your Anthropic API key (enter it above).', 'error');
+
+    clearNotif('notifTemplate');
+    document.getElementById('tplBtn').disabled = true;
+    document.getElementById('tplBtnText').textContent = 'Generating…';
+    document.getElementById('tplSpinner').style.display = 'inline-block';
+
+    var body = {
+      customer_message: message,
+      ai_polish: polish,
+      tone: document.getElementById('tplTone').value
+    };
+    var domain = document.getElementById('tplDomain').value.trim();
+    var price  = document.getElementById('tplPrice').value.trim();
+    if (domain) body.domain_name  = domain;
+    if (price)  body.asking_price = price;
+    if (polish && apiKey) body.api_key = apiKey;
+
+    try {
+      var res  = await fetch(API_BASE + '/generate-reply/template', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
+
+      var outputBox = document.getElementById('tplOutputBox');
+      var card      = document.getElementById('tplOutputCard');
+      card.style.display = 'block';
+
+      // Show intent badge
+      var intentBadge = document.getElementById('tplIntentBadge');
+      intentBadge.textContent = data.detected_intent || '';
+      intentBadge.style.display = data.detected_intent ? 'inline-block' : 'none';
+
+      if (polish && data.polished_reply) {
+        // Show original template collapsed, polished reply prominent
+        document.getElementById('tplOriginalBox').textContent = data.original_template_reply || '';
+        document.getElementById('tplOriginalWrap').style.display = 'block';
+        document.getElementById('tplPolishedLabel').style.display = 'block';
+        outputBox.textContent = data.polished_reply;
+        document.getElementById('tplModeBadge').textContent = 'template + AI polish';
+        document.getElementById('tplModeBadge').style.display = 'inline-block';
+      } else {
+        document.getElementById('tplOriginalWrap').style.display = 'none';
+        document.getElementById('tplPolishedLabel').style.display = 'none';
+        outputBox.textContent = data.reply || JSON.stringify(data);
+        document.getElementById('tplModeBadge').textContent = 'template only';
+        document.getElementById('tplModeBadge').style.display = 'inline-block';
+      }
+
+      outputBox.classList.remove('empty');
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    } catch(err) {
+      showNotif('notifTemplate', 'Error: ' + err.message, 'error');
+    } finally {
+      document.getElementById('tplBtn').disabled = false;
+      document.getElementById('tplBtnText').textContent = 'Generate Template Reply';
+      document.getElementById('tplSpinner').style.display = 'none';
+    }
+  }
+
+  function copyTemplate() {
+    var text = document.getElementById('tplOutputBox').textContent;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() {
+        var btn = event.target;
+        btn.textContent = '✓ Copied!';
+        setTimeout(function() { btn.textContent = '⎘ Copy'; }, 1800);
+      });
+    } else {
+      try { Android.copyToClipboard(text); } catch(e) {}
+    }
+  }
+
+  function clearTemplate() {
+    document.getElementById('tplMessage').value = '';
+    document.getElementById('tplDomain').value  = '';
+    document.getElementById('tplPrice').value   = '';
+    document.getElementById('tplPolish').checked = false;
+    document.getElementById('tplOutputCard').style.display = 'none';
+    document.getElementById('tplOutputBox').textContent = '';
+    clearNotif('notifTemplate');
+  }
+</script>
