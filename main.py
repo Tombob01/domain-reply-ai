@@ -3,6 +3,7 @@ Domain Email Reply Generator — FastAPI + Anthropic Claude API
 =============================================================
 Stack:  FastAPI           (web framework)
         Anthropic SDK     (claude-sonnet-4-6)
+        voyageai          (voyage-3 embeddings)
         Pydantic v2       (validation)
         Uvicorn           (ASGI server)
 
@@ -39,13 +40,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, field_validator
+from template_engine import build_template_reply, ai_polish_reply, detect_template_intent, TEMPLATE_INTENT_KEYWORDS
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CONSTANTS
 # ─────────────────────────────────────────────────────────────────────────────
 
 MODEL        = "claude-sonnet-4-6"
-
+EMBED_MODEL  = "voyage-3"
 MAX_TOKENS   = 700
 TOP_K        = 4
 DATA_FILE    = Path(__file__).parent / "past_replies.json"
@@ -256,14 +258,25 @@ class EmbeddingIndex:
             json.dump({"built_at": self.built_at, "kb_size": self.kb_size, "entries": self.entries}, f, indent=2)
 
     def build(self, replies: list[dict], api_key: str) -> None:
-        # Semantic embeddings removed — using keyword retrieval instead
-        print("[Embed] Skipping semantic build — keyword retrieval active.")
+        import voyageai
+        print(f"[Embed] Building for {len(replies)} replies…")
+        vo    = voyageai.Client(api_key=api_key)
+        texts = [f"{r.get('category','')} | {r['customer_message']} | {r['reply']}" for r in replies]
+        embs: list[list[float]] = []
+        for i in range(0, len(texts), 50):
+            embs.extend(vo.embed(texts[i:i+50], model=EMBED_MODEL, input_type="document").embeddings)
+        self.entries  = [{**r, "embedding": e} for r, e in zip(replies, embs)]
+        self.built_at = time.time()
         self.kb_size  = len(replies)
-        self.ready    = False
+        self.ready    = True
+        self.save_cache()
+        print(f"[Embed] Done — {len(self.entries)} entries saved")
 
     def query(self, text: str, api_key: str, top_k: int) -> list[dict]:
-        # Not used — keyword retrieval handles all search
-        return []
+        import voyageai
+        vo  = voyageai.Client(api_key=api_key)
+        vec = vo.embed([text], model=EMBED_MODEL, input_type="query").embeddings[0]
+        return sorted(self.entries, key=lambda e: _cosine(vec, e["embedding"]), reverse=True)[:top_k]
 
 
 _index = EmbeddingIndex()
@@ -351,6 +364,25 @@ class AddReplyRequest(BaseModel):
     def not_empty(cls, v: str) -> str:
         if not v.strip():
             raise ValueError("Field cannot be empty.")
+        return v.strip()
+
+
+
+# ── Template Mode Request ──────────────────────────────────────────────────
+class TemplateRequest(BaseModel):
+    customer_message: str
+    domain_name: Optional[str] = None
+    asking_price: Optional[str] = None
+    force_intent: Optional[str] = None
+    ai_polish: bool = False          # set True to run Claude improvement pass
+    api_key: Optional[str] = None    # only needed when ai_polish=True
+    tone: str = "professional and persuasive"
+
+    @field_validator("customer_message")
+    @classmethod
+    def message_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("customer_message cannot be empty.")
         return v.strip()
 
 
@@ -653,6 +685,52 @@ async def generate_reply(req: GenerateRequest):
     )
 
 
+# ── TEMPLATE MODE ─────────────────────────────────────────────────────────
+@app.post("/generate-reply/template")
+async def generate_reply_template(req: TemplateRequest):
+    """
+    Template mode: generates a reply using keyword matching + component assembly.
+    No AI, no API key required unless ai_polish=True.
+    """
+    result = build_template_reply(
+        customer_message=req.customer_message,
+        domain_name=req.domain_name,
+        asking_price=req.asking_price,
+        force_intent=req.force_intent,
+    )
+
+    if not req.ai_polish:
+        return result
+
+    # AI polish requested — run improvement pass with Claude
+    api_key = get_api_key(req.api_key)  # reuses your existing helper
+    polished = ai_polish_reply(
+        template_reply=result["reply"],
+        customer_message=req.customer_message,
+        intent=result["detected_intent"],
+        api_key=api_key,
+        domain_name=req.domain_name,
+        asking_price=req.asking_price,
+        tone=req.tone,
+    )
+    return polished
+
+
+# ── INTENT DETECTION UTILITY ──────────────────────────────────────────────
+@app.post("/generate-reply/template/detect-intent")
+async def detect_intent_template(req: TemplateRequest):
+    """
+    Returns only the detected intent without generating a reply.
+    Useful for testing and debugging intent detection.
+    """
+    intent = req.force_intent or detect_template_intent(req.customer_message)
+    return {
+        "customer_message": req.customer_message,
+        "detected_intent":  intent,
+        "available_intents": list(TEMPLATE_INTENT_KEYWORDS.keys())
+    }
+
+
 @app.post("/generate-reply/stream")
 async def generate_reply_stream(req: GenerateRequest):
     """
@@ -682,8 +760,7 @@ async def generate_reply_stream(req: GenerateRequest):
             ) as s:
                 for chunk in s.text_stream:
                     full_text += chunk
-                    newline = "\n"
-                    yield f"data: {chunk.replace(newline, '<br>')}\n\n"
+                    yield f"data: {chunk.replace(chr(10), '\\n')}\n\n"
 
             # Score after streaming completes
             score, reason = score_reply(client, req.customer_message, full_text)
@@ -842,7 +919,7 @@ async def health():
         "status":           "ok",
         "version":          "4.0.0",
         "model":            MODEL,
-        "embed_model":      "keyword",
+        "embed_model":      EMBED_MODEL,
         "kb_size":          len(replies),
         "semantic_ready":   _index.ready and not stale,
         "retrieval_method": "semantic" if (_index.ready and not stale) else "keyword",
@@ -853,7 +930,7 @@ async def health():
 async def info():
     return {
         "name": "Domain Email Reply Generator", "version": "4.0.0",
-        "stack": [f"FastAPI", f"Anthropic {MODEL}", "Keyword retrieval"],
+        "stack": [f"FastAPI", f"Anthropic {MODEL}", f"Voyage {EMBED_MODEL}"],
         "new_in_v4": [
             "Confidence score (0-100) on every reply",
             "Plain-English confidence reason",
@@ -866,6 +943,8 @@ async def info():
             "POST   /generate-reply",
             "POST   /generate-reply/stream",
             "POST   /generate-reply/alternatives",
+            "POST   /generate-reply/template",
+            "POST   /generate-reply/template/detect-intent",
             "GET    /replies",
             "GET    /replies/search?q=...",
             "POST   /replies",

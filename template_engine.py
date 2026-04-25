@@ -1,0 +1,1479 @@
+"""
+template_engine.py — Modular Email Reply Generator (Template Mode)
+===================================================================
+No AI. No external libraries. Pure Python.
+
+Architecture:
+  - COMPONENTS: structured dict of reusable email parts
+  - detect_intent(): keyword-based intent detection (reuses main.py logic)
+  - build_template_reply(): selects + assembles components into a full reply
+  - /generate-reply/template: FastAPI endpoint (add to main.py)
+
+All components were extracted and compressed from 161 real past email replies.
+Variations are grouped so no two calls produce identical output.
+"""
+
+import random
+import re
+from typing import Optional
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COMPONENT LIBRARY
+# Keys: intent name
+# Values: dict with "greeting", "acknowledgment", "body", "closing"
+# Each value is a LIST — random.choice() picks one per call
+# ─────────────────────────────────────────────────────────────────────────────
+
+COMPONENTS: dict[str, dict[str, list[str]]] = {
+
+    # ── GREETINGS (shared pool, intent-neutral) ───────────────────────────────
+    "_greetings": [
+        "Hi,",
+        "Hello,",
+        "Good day,",
+        "Hi there,",
+        "Hello there,",
+        "Dear sir or madam,",
+        "Good morning,",
+    ],
+
+    # ── CLOSINGS (shared pool, intent-neutral) ────────────────────────────────
+    "_closings": [
+        "Best regards.",
+        "Kind regards.",
+        "Warm regards.",
+        "Regards.",
+        "Thanks for your time.",
+        "Looking forward to hearing from you.",
+        "I look forward to your response.",
+        "Do let me know if you have any questions.",
+        "Feel free to reach out if you need anything further.",
+    ],
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: no_thanks
+    # ─────────────────────────────────────────────────────────────────────────
+    "no_thanks": {
+        "acknowledgment": [
+            "Thank you for taking the time to reply — I appreciate it.",
+            "Thanks for getting back to me.",
+            "Thank you for the honest response.",
+            "I appreciate you responding.",
+        ],
+        "body": [
+            (
+                "If you don't mind me asking — what's holding you back? "
+                "I ask to understand, not to push you. "
+                "If it's the price, feel free to share any offer you have in mind."
+            ),
+            (
+                "I understand completely. "
+                "Just know that my pricing is negotiable, and should you reconsider, "
+                "we can handle the transaction securely through an escrow service like Dan.com or GoDaddy."
+            ),
+            (
+                "I still believe this domain could work to your advantage — "
+                "I've seen over two dozen competitors in this space optimizing for these exact keywords. "
+                "That said, I fully respect your decision."
+            ),
+            (
+                "May I ask what the objection is, if you don't mind sharing? "
+                "Your feedback genuinely helps me understand what matters to buyers in your industry."
+            ),
+        ],
+        "closing": [
+            "If you ever change your mind, this email is always open. Best regards.",
+            "The door remains open — feel free to get in touch anytime. Kind regards.",
+            "Should you reconsider down the road, don't hesitate to reach out.",
+            "Wishing you all the best with your business.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: price_inquiry
+    # ─────────────────────────────────────────────────────────────────────────
+    "price_inquiry": {
+        "acknowledgment": [
+            "Thanks for your interest in this domain.",
+            "Thank you for reaching out about the price.",
+            "Great to hear from you.",
+        ],
+        "body": [
+            (
+                "The domain is currently listed at a competitive price. "
+                "Based on GoDaddy's appraisal and comparable recent sales in this niche, "
+                "this is well below retail value. "
+                "Offers are welcome — just let me know your number."
+            ),
+            (
+                "We are looking for a fee starting from $650, though this is negotiable. "
+                "The domain carries strong keyword and geo value, which justifies the premium. "
+                "That said, if you have a different number in mind, share it and we can work something out."
+            ),
+            (
+                "The asking price is listed on the domain marketplace. "
+                "Since we are looking to move this as part of a portfolio sale, "
+                "we are open to a reasonable offer — visit the listing or reply with what works for you."
+            ),
+            (
+                "I'm not asking for full retail value — this is a wholesale price. "
+                "GoDaddy's appraisal puts similar domains well above $1,000, "
+                "and I'm offering this at a fraction of that. "
+                "Reply with your best offer if the listed price doesn't work."
+            ),
+        ],
+        "closing": [
+            "Visit the listing to purchase or submit an offer directly. Let me know if you have questions.",
+            "For immediate ownership, click the listing link. Happy to answer any questions.",
+            "Feel free to reply with a counter-offer — I'm sure we can find a number that works for both of us.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: price_too_high
+    # ─────────────────────────────────────────────────────────────────────────
+    "price_too_high": {
+        "acknowledgment": [
+            "I hear you — and I appreciate the honest feedback.",
+            "Thanks for the candid response.",
+            "I understand the concern about price.",
+        ],
+        "body": [
+            (
+                "You're right that a new domain registration costs around $10. "
+                "The difference here is that this domain is city-specific, "
+                "carries your exact business keywords, and already has SEO traction — "
+                "that kind of name simply can't be hand-registered for $10."
+            ),
+            (
+                "This isn't a standard registration — it's a premium geo-keyword domain. "
+                "The value comes from its ability to rank on search engines and capture direct type-in traffic "
+                "from people already searching for your service in your area. "
+                "That's something a generic domain can't replicate."
+            ),
+            (
+                "The price reflects the domain's rarity and search value — "
+                "not just the cost of registration. "
+                "That said, if you have a figure in mind, share it. "
+                "I'd rather make a deal than leave this name sitting idle."
+            ),
+        ],
+        "closing": [
+            "What would feel like a fair price to you? Reply with your best offer.",
+            "Share your number and let's see if we can meet in the middle.",
+            "I'm open to a reasonable offer — just let me know what works for you.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: negotiation
+    # ─────────────────────────────────────────────────────────────────────────
+    "negotiation": {
+        "acknowledgment": [
+            "Thanks for the offer — I appreciate you engaging on this.",
+            "I appreciate the response and the willingness to negotiate.",
+            "Good to hear from you on this.",
+        ],
+        "body": [
+            (
+                "The offer is a bit below what I'm currently looking for. "
+                "I've already passed on a higher number, so I can't go lower than my floor price. "
+                "Will you be able to meet me somewhere closer to the middle?"
+            ),
+            (
+                "I can't accept that figure, but I don't want to lose this deal either. "
+                "How about we split the difference? "
+                "I'll hold this price for 24 hours while we sort this out — "
+                "just note the domain is publicly listed and anyone can buy it."
+            ),
+            (
+                "I hear you on price. Here's my thinking: "
+                "I need to at least cover my acquisition costs, "
+                "and the name has genuine commercial value beyond what I paid. "
+                "Give me your absolute best offer and I'll give you a straight yes or no."
+            ),
+            (
+                "That's lower than I can go, but I'm open to a fair deal. "
+                "What's the maximum you could stretch to? "
+                "Let's be straight with each other and get this done quickly."
+            ),
+        ],
+        "closing": [
+            "Reply with your best number and I'll respond immediately.",
+            "Visit the listing and submit your offer there — or just reply here.",
+            "Let me know and we can wrap this up as soon as possible.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: follow_up
+    # ─────────────────────────────────────────────────────────────────────────
+    "follow_up": {
+        "acknowledgment": [
+            "Just circling back on my previous email.",
+            "Following up on the domain I reached out about recently.",
+            "I wanted to check in — I haven't heard back yet.",
+            "Quick follow-up to make sure my earlier email didn't get buried.",
+        ],
+        "body": [
+            (
+                "If you're still considering it, I'd love to hear your thoughts. "
+                "And if the price was the issue, I've since made a discount — "
+                "you can now get it at a reduced rate."
+            ),
+            (
+                "I'd love to know if you're still interested or if I should move on. "
+                "Just a yes or no would be very helpful so I can plan accordingly. "
+                "No pressure either way."
+            ),
+            (
+                "I've been reaching out to other businesses in your space, "
+                "and I want to give you the first right of refusal before moving on. "
+                "The domain is still available, but that may not be the case for long."
+            ),
+            (
+                "I'm not trying to be a bother — I just genuinely believe this domain "
+                "could add real value to your business, and I haven't been able to reach you yet. "
+                "If you'd prefer I stop reaching out, just say the word."
+            ),
+        ],
+        "closing": [
+            "Interested or not — either answer works. Just let me know. Best regards.",
+            "Reply with your thoughts, or visit the listing if you're ready to move forward.",
+            "If you'd rather not hear from me again, a quick reply is all it takes.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: trust_issue
+    # ─────────────────────────────────────────────────────────────────────────
+    "trust_issue": {
+        "acknowledgment": [
+            "I completely understand your concern — it's a fair one.",
+            "Your caution is reasonable, and I don't take it personally.",
+            "Thanks for being upfront about that.",
+        ],
+        "body": [
+            (
+                "The domain is listed on Dan.com — a leading domain marketplace. "
+                "You can look them up on TrustPilot right now and read real buyer reviews. "
+                "Their escrow service means your payment is held until the domain is transferred to you. "
+                "You won't pay and get nothing — the whole process is automated and protected."
+            ),
+            (
+                "This isn't a scam. The domain is also listed on GoDaddy and Afternic "
+                "— two of the most trusted names in the industry. "
+                "If you'd feel more comfortable buying directly through GoDaddy, I can arrange that. "
+                "Just say the word."
+            ),
+            (
+                "I can verify ownership right now. "
+                "Type the domain URL into your browser — you'll see it points to a marketplace listing. "
+                "You can also look up the WHOIS record. "
+                "And if you'd like, I can redirect it to your website temporarily as proof I own it."
+            ),
+            (
+                "The entire transaction is handled by a third-party escrow service — "
+                "I never receive payment until you confirm the domain has been transferred to your account. "
+                "There is no risk to you. "
+                "The process is smooth and typically completes within a few hours."
+            ),
+        ],
+        "closing": [
+            "Let me know which platform you'd prefer — Dan.com, GoDaddy, or Epik — and I'll set it up.",
+            "Search 'Dan.com Trustpilot' to see what real buyers say. Then let's proceed.",
+            "Any remaining questions? I'm happy to walk you through the entire process step by step.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: have_website
+    # ─────────────────────────────────────────────────────────────────────────
+    "have_website": {
+        "acknowledgment": [
+            "That's great — and it's actually exactly why I reached out to you.",
+            "Having an existing website is a plus, not a barrier.",
+            "Good — that makes this even simpler.",
+        ],
+        "body": [
+            (
+                "You don't need to build anything new. "
+                "All you'd do is redirect this domain to your current website. "
+                "When anyone types it into their browser, it sends them straight to your existing site. "
+                "It's a one-click setup in your domain admin panel — no coding needed."
+            ),
+            (
+                "Think of it as a second front door for your business. "
+                "Your current site stays exactly as it is — this domain just sends more people there. "
+                "Specifically, the people already searching for your service in your city "
+                "who don't know your current URL."
+            ),
+            (
+                "You already have the infrastructure in place. "
+                "This domain simply adds another channel that feeds traffic directly to what you've built. "
+                "And if a competitor picks it up first, their traffic grows at your expense."
+            ),
+            (
+                "Owning multiple relevant domains is how established businesses defend their online territory. "
+                "You redirect this to your site in minutes and immediately capture type-in traffic "
+                "from customers who would otherwise land on a competitor's page."
+            ),
+        ],
+        "closing": [
+            "The only risk is someone else grabbing it first. Visit the listing to secure it now.",
+            "I can even do the redirect for you for free once you've purchased. Let me know.",
+            "Reply with any questions — or visit the listing to get it immediately.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: rank_well
+    # ─────────────────────────────────────────────────────────────────────────
+    "rank_well": {
+        "acknowledgment": [
+            "That's genuinely impressive — ranking well takes real effort.",
+            "Good to hear your SEO is solid.",
+            "That's great work — strong rankings are hard to maintain.",
+        ],
+        "body": [
+            (
+                "The concern isn't your current ranking — it's what happens if a competitor buys this domain. "
+                "An exact-match geo domain in the hands of a rival will put them alongside you in the results "
+                "almost immediately. This domain is a defensive buy as much as an offensive one."
+            ),
+            (
+                "Beyond SEO, there's the branding angle. "
+                "A geo-keyword domain instantly communicates authority to anyone who sees it — "
+                "it signals that you are the go-to business for this service in this city. "
+                "That's not something your current domain can replicate."
+            ),
+            (
+                "You've built the ranking — now protect it. "
+                "Owning the exact keyword domain ensures no competitor can use it against you. "
+                "It also captures direct type-in traffic from users who go straight to the URL "
+                "without searching at all."
+            ),
+        ],
+        "closing": [
+            "Price is negotiable. Let me know if you'd like to make an offer.",
+            "Interested? Visit the listing or reply with an offer.",
+            "Happy to answer any questions about how this would work alongside your existing setup.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: how_it_works
+    # ─────────────────────────────────────────────────────────────────────────
+    "how_it_works": {
+        "acknowledgment": [
+            "Great question — let me break it down simply.",
+            "Happy to explain exactly how this works.",
+            "No problem — here's a plain-language explanation.",
+        ],
+        "body": [
+            (
+                "Once you purchase the domain, you redirect it to your current website URL. "
+                "You do this in your domain admin panel — find the 'Forward this domain' option, "
+                "paste your current website address, and save. "
+                "From that point on, anyone who types or clicks the domain lands on your site. "
+                "No coding or technical skills needed."
+            ),
+            (
+                "The redirect is a simple forwarding rule — like a postal redirect for your mail. "
+                "You input your current website URL in the domain settings, "
+                "and all traffic to the new domain is automatically sent to your existing site. "
+                "I can also do this step for you if you prefer."
+            ),
+            (
+                "The purchase is handled by an escrow marketplace — Dan.com or GoDaddy. "
+                "You click Buy Now, make payment, and the domain is transferred to your account "
+                "within a few hours. "
+                "Then you add a redirect to your existing website in one minute. "
+                "That's the entire process."
+            ),
+            (
+                "Here's the step-by-step: "
+                "1. Go to the listing. "
+                "2. Click Buy Now and complete payment. "
+                "3. The domain transfers to your account within 12 hours. "
+                "4. In your domain admin, set it to forward to your current website URL. "
+                "Done. I can guide you through any of these steps."
+            ),
+        ],
+        "closing": [
+            "If you need me to walk you through it personally, just ask. Here's the listing link.",
+            "Any other questions? I'm here to help every step of the way.",
+            "Ready to proceed? Visit the listing for immediate ownership.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: why_buy
+    # ─────────────────────────────────────────────────────────────────────────
+    "why_buy": {
+        "acknowledgment": [
+            "Great question — here's the honest answer.",
+            "Fair question. Let me give you the real case for this.",
+            "I'm glad you asked — here's why this matters for your specific business.",
+        ],
+        "body": [
+            (
+                "Every day, people in your city type keywords like this domain directly into Google "
+                "looking for a business exactly like yours. "
+                "Right now, those searches don't lead to you. "
+                "With this domain redirected to your site, they do."
+            ),
+            (
+                "There are three things this domain does for you: "
+                "it captures type-in traffic from people who never knew your URL, "
+                "it signals geo-authority on search engines, "
+                "and it stops a competitor from owning it and using it against you. "
+                "Any one of those alone justifies the cost."
+            ),
+            (
+                "The domain contains the exact keywords your customers type when they're ready to buy. "
+                "According to SEO research, the number one result on Google gets 30–40% of all clicks. "
+                "This domain can help put you there — faster than building organic authority from scratch."
+            ),
+            (
+                "Benefits at a glance: guaranteed direct traffic, improved search rankings, "
+                "reduced ad spend, stronger geo-authority, and competitor lockout. "
+                "All from a one-time purchase and a 60-second redirect setup."
+            ),
+        ],
+        "closing": [
+            "Does that answer your question? Happy to go deeper on any of these points.",
+            "If this resonates, visit the listing to get it now — or reply with any follow-up questions.",
+            "Want me to explain any of these benefits in more detail? Just ask.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: not_now
+    # ─────────────────────────────────────────────────────────────────────────
+    "not_now": {
+        "acknowledgment": [
+            "Understood — timing is everything in business.",
+            "That's completely fair — I won't push.",
+            "I hear you. No pressure from my side.",
+        ],
+        "body": [
+            (
+                "When would be a better time to revisit this? "
+                "I'm happy to check back in a month or two — "
+                "just be aware the domain is publicly listed and could be gone by then."
+            ),
+            (
+                "Noted. I'll follow up in a couple of months. "
+                "Just a heads-up though — I am reaching out to other businesses in your space, "
+                "so I can't guarantee the name will still be available when you're ready."
+            ),
+            (
+                "Shall I check back in 30 days? "
+                "I don't want to keep emailing if it's genuinely not the right time, "
+                "but I also don't want you to miss out if you do decide you want it later."
+            ),
+        ],
+        "closing": [
+            "Let me know a good time to circle back. Best regards.",
+            "I'll make a note and reach out again — unless you'd prefer I don't. Just say the word.",
+            "Take care, and feel free to reach out whenever the time is right.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: partner
+    # ─────────────────────────────────────────────────────────────────────────
+    "partner": {
+        "acknowledgment": [
+            "Of course — this kind of decision often involves more than one person.",
+            "That makes complete sense. Take the time you need.",
+            "No problem at all.",
+        ],
+        "body": [
+            (
+                "Please do loop them in. "
+                "In the meantime — is there any additional information I can provide "
+                "that would make the conversation with your partner easier? "
+                "I'm happy to put together a brief case for the domain's value."
+            ),
+            (
+                "Just to help the internal conversation: the key points are "
+                "the direct traffic the domain already receives, the SEO keyword value, "
+                "and the competitor risk if someone else acquires it first. "
+                "Price is also negotiable, which gives you flexibility."
+            ),
+            (
+                "Any idea on a rough timeline? "
+                "I'm asking only because the domain is listed publicly "
+                "and I wouldn't want the decision to be made for you by another buyer."
+            ),
+        ],
+        "closing": [
+            "Do let me know once you've had a chance to discuss. Best regards.",
+            "Happy to answer any questions your partner might have — just forward this email.",
+            "Looking forward to hearing from you both.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: agreed_no_pay
+    # ─────────────────────────────────────────────────────────────────────────
+    "agreed_no_pay": {
+        "acknowledgment": [
+            "Just following up on our previous conversation.",
+            "I wanted to check in — I thought we had an agreement in place.",
+            "Circling back to make sure everything is still on track.",
+        ],
+        "body": [
+            (
+                "I haven't heard from you since we agreed on the price, "
+                "and I want to make sure you haven't run into any issues. "
+                "Are you experiencing any difficulties with the payment or the marketplace? "
+                "I'm happy to walk you through it."
+            ),
+            (
+                "Just a reminder that this domain is publicly listed — "
+                "another buyer could come in at any time. "
+                "I'd hate for you to lose the name we shook hands on. "
+                "Visit the listing to complete the purchase at the price we agreed."
+            ),
+            (
+                "I've set the listing to reflect our agreed price. "
+                "Click Buy Now, follow the payment steps, "
+                "and the domain will be transferred to your account within a few hours. "
+                "Let me know if you hit any snags."
+            ),
+        ],
+        "closing": [
+            "Here's the listing link. Let's get this done. Best regards.",
+            "Let me know if there's anything holding you up — I'm here to help.",
+            "Looking forward to completing this transaction.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: payment_issue
+    # ─────────────────────────────────────────────────────────────────────────
+    "payment_issue": {
+        "acknowledgment": [
+            "Sorry to hear you're having trouble — let me sort this out for you.",
+            "That shouldn't happen — let's fix it right away.",
+            "Thanks for letting me know. Here's what we can do.",
+        ],
+        "body": [
+            (
+                "If the Dan.com link isn't working, I can switch to Epik or GoDaddy — "
+                "both are fully trusted marketplaces with escrow services. "
+                "Just let me know which you'd prefer and I'll send a new link immediately."
+            ),
+            (
+                "Payment issues on marketplace platforms are rare but do happen. "
+                "The quickest fix is to try an alternative listing — "
+                "I have the domain on both Afternic (GoDaddy) and Epik as backup. "
+                "Which would be easier for you?"
+            ),
+            (
+                "Let's not let a technical issue lose this deal. "
+                "I'll list it on a different platform and send you a fresh buy link. "
+                "In the meantime, are you able to give me any more detail on the error you saw?"
+            ),
+        ],
+        "closing": [
+            "Reply and I'll send you the alternative link within the hour.",
+            "Let me know which platform works best and I'll set it up right away.",
+            "We'll get this resolved — just say the word.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: angry
+    # ─────────────────────────────────────────────────────────────────────────
+    "angry": {
+        "acknowledgment": [
+            "I sincerely apologize for the inconvenience.",
+            "I'm sorry — that was not my intention at all.",
+            "I hear you, and I'm sorry for the disruption.",
+        ],
+        "body": [
+            "You will not receive any further emails from me.",
+            "I'll remove you from my list immediately and won't contact you again.",
+            "Consider this the last email you'll receive from me on this matter.",
+        ],
+        "closing": [
+            "I wish you all the best.",
+            "Take care.",
+            "Thank you for the feedback — I'll take it on board.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: expired_owner
+    # ─────────────────────────────────────────────────────────────────────────
+    "expired_owner": {
+        "acknowledgment": [
+            "Thank you for reaching out — that's actually a really common situation.",
+            "I completely understand why that's surprising.",
+            "Thanks for explaining — let me give you some context.",
+        ],
+        "body": [
+            (
+                "Every domain has a one-year registration cycle. "
+                "If it isn't renewed before the expiry date, it passes through a grace period "
+                "and then becomes publicly available again on the open market. "
+                "That's exactly how I acquired this one — through a legitimate expired auction."
+            ),
+            (
+                "Once a domain expires and enters the open market, anyone can register it legally. "
+                "I purchased it through GoDaddy's expired auctions before anyone else did. "
+                "The traffic I've been receiving since then is likely from people still looking for your old site."
+            ),
+            (
+                "This is actually good news for you — the domain is still closely associated with your business, "
+                "and I'm willing to sell it back at a fair price. "
+                "It will recover your lost traffic and restore your online footprint."
+            ),
+        ],
+        "closing": [
+            "Feel free to make me an offer — I'm sure we can find a price that works for both of us.",
+            "Visit the listing or reply with your best offer. I'd prefer this goes back to you.",
+            "I'm open to negotiation. Let me know what feels fair and we'll go from there.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: extension (owns .net or .org)
+    # ─────────────────────────────────────────────────────────────────────────
+    "extension": {
+        "acknowledgment": [
+            "That's a fair point — you already have a presence online.",
+            "Good to know you already have the other extension.",
+            "Understood — having a variant already is a start.",
+        ],
+        "body": [
+            (
+                "Here's the challenge: when people see your .net in marketing materials, "
+                "the vast majority will type .com when they go to look you up. "
+                "The more you promote the .net, the more free traffic the .com collects. "
+                "Right now, that traffic goes nowhere useful — or worse, to a competitor."
+            ),
+            (
+                ".com is the default extension in virtually every user's mind. "
+                "Owning the .com version of your domain means you capture "
+                "every user who types the .com out of habit. "
+                "You can forward the .com directly to your .net in minutes."
+            ),
+            (
+                "Since I've owned this domain, it's been receiving 2–5 direct visitors per day. "
+                "That's real traffic from people looking for you, ending up nowhere. "
+                "Redirecting the .com to your .net fixes that instantly."
+            ),
+        ],
+        "closing": [
+            "I'll lower the asking price if you're interested — just let me know.",
+            "Reply with an offer. It makes sense to own both.",
+            "Visit the listing or make an offer. The .com is worth protecting.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: cold_outreach (initial pitch)
+    # ─────────────────────────────────────────────────────────────────────────
+    "cold_outreach": {
+        "acknowledgment": [
+            "I'm reaching out because this domain is closely related to your business.",
+            "I came across your business while researching potential buyers for a domain I own.",
+            "I own a domain name that I believe could add real value to your online presence.",
+        ],
+        "body": [
+            (
+                "This domain is an exact keyword match for your service and city. "
+                "When someone in your area searches for what you offer, "
+                "owning this domain could put your website at the top of the results. "
+                "You can redirect it to your current site — no new website needed."
+            ),
+            (
+                "I've listed this domain for sale at a domain marketplace "
+                "and I'm currently reaching out to businesses that are the best fit. "
+                "Anytime someone types the related keywords into their browser, "
+                "owning this domain could make your site the first they land on."
+            ),
+            (
+                "GEO domains like this one help with brand recognition in your local market "
+                "and signal authority to search engines. "
+                "Your prospects are far more likely to remember a geo-targeted keyword domain "
+                "than a generic brand name URL. "
+                "It works alongside your current website — not instead of it."
+            ),
+            (
+                "This is a first-come-first-served opportunity — "
+                "I'm contacting several businesses in your niche today. "
+                "The domain is priced competitively, and offers are welcome. "
+                "Let me know if you'd like more information or if you're ready to proceed."
+            ),
+        ],
+        "closing": [
+            "Visit the listing to purchase or make an offer. Let me know if you have any questions.",
+            "Reply with any questions, or head to the listing for immediate ownership.",
+            "I look forward to your response. Best regards.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: not_interested_ask_why (specific sub-intent)
+    # ─────────────────────────────────────────────────────────────────────────
+    "not_interested_ask_why": {
+        "acknowledgment": [
+            "Thanks for the feedback.",
+            "I appreciate you taking the time to respond.",
+        ],
+        "body": [
+            (
+                "May I ask why you're not interested — if you don't mind sharing? "
+                "I ask to understand, not to pressure you. "
+                "If it's about price, any offer is welcome. "
+                "If it's something else, your feedback genuinely helps me."
+            ),
+            (
+                "Could you share what's holding you back? "
+                "Is it the price, the timing, or something about the domain itself? "
+                "Knowing this helps me either address your concern or respect your decision fully."
+            ),
+        ],
+        "closing": [
+            "Looking forward to a reply from you, even if it's to confirm you're not interested.",
+            "Whatever your reason — I appreciate the honesty. Best regards.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: general / fallback
+    # ─────────────────────────────────────────────────────────────────────────
+    "general": {
+        "acknowledgment": [
+            "Thanks for your message.",
+            "Thank you for getting in touch.",
+            "Appreciate you reaching out.",
+        ],
+        "body": [
+            (
+                "The domain is currently listed for sale at a domain marketplace. "
+                "It can be redirected to your current website to boost your online visibility "
+                "and capture more targeted traffic in your local area. "
+                "Offers are welcome — I'm open to negotiation."
+            ),
+            (
+                "This is a premium geo-targeted .com domain with strong keyword value. "
+                "It's listed on Dan.com with full escrow protection, "
+                "so the purchase process is safe and straightforward. "
+                "Let me know if you'd like more information."
+            ),
+        ],
+        "closing": [
+            "Visit the listing or reply with any questions. Best regards.",
+            "Feel free to ask anything — I'm happy to help. Kind regards.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: post_purchase  [NEW]
+    # "I already paid — where is my domain?" / "How long does transfer take?"
+    # ─────────────────────────────────────────────────────────────────────────
+    "post_purchase": {
+        "acknowledgment": [
+            "Thank you for completing the purchase — I really appreciate it.",
+            "Great — payment confirmed. Here's what happens next.",
+            "Thanks for going ahead with this.",
+        ],
+        "body": [
+            (
+                "The domain transfer is handled automatically by the marketplace. "
+                "You should receive a confirmation email from them shortly — "
+                "please also check your spam folder just in case. "
+                "The full transfer to your account typically completes within a few hours, "
+                "though it can occasionally take up to 24 hours."
+            ),
+            (
+                "Once payment is confirmed by the escrow service, "
+                "the domain is released to your account at the registrar of your choice. "
+                "This usually takes between 2 and 12 hours. "
+                "If you haven't received a transfer email within 24 hours, "
+                "contact Dan.com's support directly — they're very responsive."
+            ),
+            (
+                "The transfer process is: payment confirmed → domain unlocked → "
+                "transfer email sent to you → you accept → domain in your account. "
+                "Most buyers complete this within a few hours. "
+                "Let me know if anything is unclear and I'll guide you through it."
+            ),
+        ],
+        "closing": [
+            "Welcome — and let me know once the domain is in your account. Best regards.",
+            "Reach out if anything doesn't arrive within 24 hours. Happy to help.",
+            "Congratulations on the acquisition. Feel free to ask if you need help with the redirect setup.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: refund  [NEW]
+    # "I want a refund" / "I changed my mind after paying"
+    # ─────────────────────────────────────────────────────────────────────────
+    "refund": {
+        "acknowledgment": [
+            "I'm sorry to hear the purchase didn't work out.",
+            "Thank you for letting me know — I want to make this right.",
+            "I understand, and I appreciate you reaching out directly.",
+        ],
+        "body": [
+            (
+                "Refund requests are handled by the marketplace escrow service — "
+                "Dan.com or GoDaddy — depending on where you purchased. "
+                "Please contact their support team directly and reference your order number. "
+                "They have a clear buyer protection policy and will guide you through the process."
+            ),
+            (
+                "Since the transaction was handled by a third-party escrow service, "
+                "the refund process goes through them, not through me. "
+                "Contact the marketplace's support team with your transaction ID "
+                "and they will be able to assist you promptly."
+            ),
+            (
+                "I want to understand what went wrong before we get to that point — "
+                "is there something about the domain or the process that didn't meet your expectations? "
+                "If the issue is something I can resolve on my end, I'd like to try first."
+            ),
+        ],
+        "closing": [
+            "Let me know if there's anything I can do to help on my side. Best regards.",
+            "I hope we can resolve this quickly — please don't hesitate to follow up.",
+            "I'm sorry for the inconvenience and want to make sure you're looked after.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: payment_method  [NEW]
+    # "Can I pay by crypto / PayPal / bank transfer?"
+    # ─────────────────────────────────────────────────────────────────────────
+    "payment_method": {
+        "acknowledgment": [
+            "Good question — let me clarify what payment options are available.",
+            "Happy to explain how payment works.",
+            "No problem — here are your options.",
+        ],
+        "body": [
+            (
+                "The marketplace handles all payment processing securely. "
+                "Dan.com accepts major credit and debit cards, bank transfer, and some crypto options. "
+                "GoDaddy and Afternic also support standard card payments. "
+                "Visit the listing and click Buy Now to see the full list of accepted methods at checkout."
+            ),
+            (
+                "Payment is processed through the escrow marketplace, not directly by me — "
+                "which is actually better for you, as your funds are protected until the domain is delivered. "
+                "The marketplace typically accepts credit card, bank wire, and in some cases PayPal or crypto. "
+                "Check the listing for the exact options at checkout."
+            ),
+            (
+                "If you have a preferred payment method, let me know and I'll confirm whether "
+                "it's supported before you proceed. "
+                "I can also list the domain on a different platform if one suits your payment method better — "
+                "Dan.com, Epik, and GoDaddy each have slightly different options."
+            ),
+        ],
+        "closing": [
+            "Visit the listing to see the checkout options, or reply with your preference. Best regards.",
+            "Let me know which method you'd like to use and I'll confirm it's available.",
+            "Happy to switch platforms if needed — just let me know.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: renewal_fees  [NEW]
+    # "What are the ongoing fees after I buy?" / "Annual renewal cost?"
+    # ─────────────────────────────────────────────────────────────────────────
+    "renewal_fees": {
+        "acknowledgment": [
+            "Great question — there's only one ongoing cost to be aware of.",
+            "Simple answer: the purchase is a one-time fee.",
+            "Good to ask — no surprises after purchase.",
+        ],
+        "body": [
+            (
+                "The purchase price is a one-time payment — you own the domain outright after that. "
+                "The only recurring cost is the annual renewal fee, which is typically $8–$12 per year "
+                "depending on your registrar. "
+                "This is the same renewal cost as any standard .com domain."
+            ),
+            (
+                "Once you own it, you simply renew it each year like any other domain — "
+                "usually $8 to $10 annually at registrars like GoDaddy, Namecheap, or Cloudflare. "
+                "You can also set it to auto-renew so you never accidentally lose it."
+            ),
+            (
+                "There are no hidden fees. "
+                "You pay once to acquire the domain, then a small annual renewal (under $12) "
+                "to keep it registered in your name. "
+                "That's it — no platform fees, no commission, no monthly charges."
+            ),
+        ],
+        "closing": [
+            "Any other questions? Happy to help. Here's the listing link when you're ready.",
+            "Simple and transparent — let me know if you'd like to proceed.",
+            "Let me know if you have any other questions before buying.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: domain_metrics  [NEW]
+    # "What is the DA / DR / authority / traffic of this domain?"
+    # ─────────────────────────────────────────────────────────────────────────
+    "domain_metrics": {
+        "acknowledgment": [
+            "Good question — let me give you the honest picture.",
+            "Happy to share what I know about the domain's metrics.",
+            "Fair thing to ask before buying — here's the data.",
+        ],
+        "body": [
+            (
+                "The domain's value comes primarily from its keyword composition and geo-targeting — "
+                "not historical traffic data, since it was previously unregistered or expired. "
+                "You can check its history on archive.org, "
+                "and run a WHOIS lookup to confirm ownership details. "
+                "GoDaddy's own appraisal tool also values it well above the asking price."
+            ),
+            (
+                "You can verify the domain's stats yourself — I'd encourage it. "
+                "Check archive.org for its history, use a tool like Moz or Ahrefs for authority scores, "
+                "and run Google's keyword planner for monthly search volume on the exact match keywords. "
+                "The numbers back up why this domain has real commercial value."
+            ),
+            (
+                "The core value here isn't domain authority built up over years — "
+                "it's the exact-match keyword advantage. "
+                "Search engines treat exact-match geo domains as highly relevant for local searches, "
+                "even without a history of backlinks. "
+                "That's why these domains command a premium."
+            ),
+        ],
+        "closing": [
+            "Happy to provide any other details I have. Here's the listing link.",
+            "Let me know if you'd like me to pull any specific data points.",
+            "Any other questions before you decide? I'm happy to be transparent.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: identity  [NEW]
+    # "Who are you?" / "What company is this?" / "Why are you contacting me?"
+    # ─────────────────────────────────────────────────────────────────────────
+    "identity": {
+        "acknowledgment": [
+            "Good question — let me introduce myself properly.",
+            "Happy to explain exactly who I am and why I reached out.",
+            "Fair enough — here's some context.",
+        ],
+        "body": [
+            (
+                "I'm a domain name investor — I purchase expired or undervalued domain names "
+                "and sell them to businesses that can benefit from owning them. "
+                "I reached out to you specifically because this domain closely matches "
+                "your business's service and location, making you one of the most relevant potential buyers."
+            ),
+            (
+                "I specialise in geo-targeted .com domain names — "
+                "domains that contain the exact keywords people type when searching for a local service. "
+                "I acquired this domain through a legitimate expired domain auction, "
+                "and I'm now offering it to businesses in your industry before listing it more broadly."
+            ),
+            (
+                "Think of me as a domain broker. "
+                "I source valuable domains and connect them with businesses that can actually use them. "
+                "All transactions are handled through trusted third-party escrow marketplaces "
+                "like Dan.com and GoDaddy — I never handle payment directly."
+            ),
+        ],
+        "closing": [
+            "Happy to answer any other questions. I'm transparent about how this works.",
+            "Let me know if that helps clarify things — and whether you'd like to know more about the domain.",
+            "No obligation at all — just let me know if you're interested or have more questions.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: low_budget  [NEW]
+    # "I have a limited budget" / "That's too much for a small business like mine"
+    # ─────────────────────────────────────────────────────────────────────────
+    "low_budget": {
+        "acknowledgment": [
+            "I appreciate the honesty — budget is always a real consideration.",
+            "That's completely understandable — I want to work with you, not against you.",
+            "Thanks for being upfront about that.",
+        ],
+        "body": [
+            (
+                "I'd rather sell this domain to someone who'll genuinely use it "
+                "than leave it sitting in a portfolio. "
+                "Tell me what you can realistically stretch to and I'll give you a straight answer. "
+                "I can't promise I'll match every number, but I'm open to a fair conversation."
+            ),
+            (
+                "Price is negotiable — especially for a buyer who's the right fit. "
+                "Make me your best offer and I'll do my best to meet you there. "
+                "A smaller sale today is better than no sale at all."
+            ),
+            (
+                "If the full asking price isn't workable right now, "
+                "reply with a number that is and we'll go from there. "
+                "I also don't require immediate payment — "
+                "in some cases a short payment arrangement can be discussed."
+            ),
+        ],
+        "closing": [
+            "What's your best number? Let's see if we can make it work.",
+            "Reply with an offer — no judgment, just a straight yes or no from me.",
+            "Let me know what you're working with and we'll figure it out.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: related_domains  [NEW]
+    # "Do you have other similar domains?" / "What else do you have?"
+    # ─────────────────────────────────────────────────────────────────────────
+    "related_domains": {
+        "acknowledgment": [
+            "Great question — I do have other domains in my portfolio.",
+            "Happy to help — let me see what else might suit you.",
+            "Yes, I have several related names — let me give you some options.",
+        ],
+        "body": [
+            (
+                "I have a portfolio of geo-targeted keyword domains across multiple cities and service types. "
+                "If this specific domain isn't the right fit, let me know what city or keywords "
+                "you're targeting and I'll check what else I have available. "
+                "Buying more than one domain from me also opens the door to a bundle discount."
+            ),
+            (
+                "I can look into whether I have similar domains for nearby cities or related service keywords. "
+                "Just reply with the location and service type you're most interested in "
+                "and I'll come back to you with options. "
+                "I'm also open to discounts on multiple purchases."
+            ),
+            (
+                "If you're interested in expanding your online presence across multiple areas, "
+                "owning several geo-targeted domains is a very cost-effective strategy. "
+                "Tell me your target cities or services and I'll see what I can put together for you."
+            ),
+        ],
+        "closing": [
+            "Reply with your target area and I'll check my portfolio. Best regards.",
+            "Let me know what you're looking for and I'll get back to you quickly.",
+            "Happy to help you find the right fit — just send me some details.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: development  [NEW]
+    # "Can I build a new website on this?" / "Can I develop it instead of redirect?"
+    # ─────────────────────────────────────────────────────────────────────────
+    "development": {
+        "acknowledgment": [
+            "Absolutely — and that's actually the highest-value use of a domain like this.",
+            "Yes, you have full flexibility on what to do with it.",
+            "Great thinking — developing it is a powerful option.",
+        ],
+        "body": [
+            (
+                "Once you own the domain, you can do anything with it: "
+                "redirect it to your current website, build a brand new site on it, "
+                "or use it for a landing page targeting a specific city or service. "
+                "Most buyers redirect first for a quick win, then consider development later."
+            ),
+            (
+                "Building a dedicated website on this domain would be even more powerful than redirecting. "
+                "A site with content built around these exact keywords, "
+                "hosted on this domain, would rank very strongly on its own. "
+                "It's a longer-term investment, but a very strong one."
+            ),
+            (
+                "You're not limited to a redirect. "
+                "Develop it as a standalone site, a micro-site for a specific service, "
+                "or a city-specific landing page. "
+                "The domain is yours to use however best fits your business strategy."
+            ),
+        ],
+        "closing": [
+            "Visit the listing to get started — and let me know if you have more questions.",
+            "Happy to discuss the best approach for your specific situation.",
+            "The domain is yours to shape. Visit the listing for immediate ownership.",
+        ],
+    },
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# INTENT KEYWORDS (mirrors main.py — kept in sync)
+# ─────────────────────────────────────────────────────────────────────────────
+
+TEMPLATE_INTENT_KEYWORDS: dict[str, list[str]] = {
+    "no_thanks":             ["no thanks", "not interested", "pass", "decline", "don't need",
+                              "not for us", "no thank you", "remove me"],
+    "price_inquiry":         ["how much", "price", "cost", "what are you asking", "rate", "fee",
+                              "what's the price", "pricing"],
+    "price_too_high":        ["too expensive", "too high", "too much", "can't afford",
+                              "register for", "just $10", "only $8", "only $10", "only $12",
+                              "costs nothing", "regular domain"],
+    "negotiation":           ["offer", "counter", "negotiate", "lower", "discount",
+                              "best price", "bottom", "lowest", "deal", "make an offer"],
+    "follow_up":             ["follow up", "following up", "no reply", "no response",
+                              "checking in", "reminder", "still available", "any update"],
+    "trust_issue":           ["scam", "fake", "not real", "legitimate", "trust",
+                              "verify", "proof", "fraud", "suspicious", "doubt",
+                              "worried", "concern", "is this real"],
+    "have_website":          ["already have", "have a website", "have a domain",
+                              "don't need another", "existing site", "current website"],
+    "rank_well":             ["already rank", "rank fine", "seo is fine",
+                              "first page already", "rank well", "good ranking"],
+    "how_it_works":          ["how does", "redirect", "forward", "how do i", "technical",
+                              "it guy", "developer", "walk me through", "step by step",
+                              "buy it", "how to buy", "process"],
+    "why_buy":               ["why", "benefits", "what's the point", "explain",
+                              "value", "help my business", "what will it do", "how will it help"],
+    "not_now":               ["later", "not now", "maybe", "not the right time",
+                              "future", "check back", "few months"],
+    "partner":               ["partner", "team", "discuss", "boss", "colleague",
+                              "approval", "need to talk", "business partner"],
+    "agreed_no_pay":         ["agreed", "deal", "haven't paid", "no payment",
+                              "still waiting", "we agreed", "send the link"],
+    "payment_issue":         ["link not working", "payment failed", "can't checkout",
+                              "portal", "error", "not working", "checkout issue"],
+    "angry":                 ["stop emailing", "spam", "harassment", "angry",
+                              "annoying", "unsubscribe", "remove", "leave me alone"],
+    "expired_owner":         ["used to be", "our domain", "how did you get",
+                              "previously owned", "that was ours", "we owned"],
+    "extension":             [".net", ".org", ".io", "other extension",
+                              "already own the", "have the .net", "have the .org"],
+    "not_interested_ask_why": ["not interested", "no interest", "thanks but no"],
+    "cold_outreach":         ["first contact", "cold email", "new prospect",
+                              "reaching out", "initial email"],
+    # ── NEW INTENTS ────────────────────────────────────────────────────────
+    "post_purchase":         ["already paid", "sent payment", "made payment",
+                              "where is my domain", "when will i receive", "how long does transfer",
+                              "transfer take", "waiting for domain", "haven't received",
+                              "payment confirmed", "after i pay", "next step"],
+    "refund":                ["refund", "money back", "cancel my order",
+                              "changed my mind", "want my money", "return"],
+    "payment_method":        ["paypal", "crypto", "bitcoin", "bank transfer",
+                              "wire transfer", "how do i pay", "payment method",
+                              "pay by", "payment options", "can i pay"],
+    "renewal_fees":          ["annual fee", "renewal fee", "ongoing fee", "yearly fee",
+                              "recurring cost", "how much per year", "after i buy",
+                              "maintenance fee", "keep it running"],
+    "domain_metrics":        ["domain authority", "da score", "dr score", "backlinks",
+                              "traffic data", "seo score", "moz", "ahrefs",
+                              "how many visitors", "monthly traffic", "analytics",
+                              "blacklisted", "penalised", "penalty", "spam score"],
+    "identity":              ["who are you", "what company", "your company",
+                              "who is this", "where are you from", "your name",
+                              "why are you contacting", "how did you find me",
+                              "who sent this", "are you a broker"],
+    "low_budget":            ["low budget", "tight budget", "small business",
+                              "can't afford much", "limited budget", "not much to spend",
+                              "small budget", "what's the minimum"],
+    "related_domains":       ["other domains", "similar domains", "other cities",
+                              "portfolio", "do you have more", "what else",
+                              "different domain", "other options", "multiple domains"],
+    "development":           ["build a website", "build a new site", "develop it",
+                              "create a website", "make a site", "new website on",
+                              "host a site", "build on this", "develop the domain"],
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# INTENT DETECTION
+# ─────────────────────────────────────────────────────────────────────────────
+
+def detect_template_intent(message: str) -> str:
+    """
+    Detect intent from a customer message using keyword matching.
+    Returns the best-match intent key, or 'general' as fallback.
+    Priority order matters — more specific intents listed first.
+    """
+    text = message.lower().strip()
+
+    # Priority overrides — check these first
+    priority_order = [
+        "angry",
+        "refund",
+        "post_purchase",
+        "payment_issue",
+        "payment_method",
+        "agreed_no_pay",
+        "trust_issue",
+        "expired_owner",
+        "price_too_high",
+        "extension",
+        "rank_well",
+        "have_website",
+        "partner",
+        "not_now",
+        "negotiation",
+        "low_budget",
+        "how_it_works",
+        "development",
+        "why_buy",
+        "renewal_fees",
+        "domain_metrics",
+        "related_domains",
+        "identity",
+        "follow_up",
+        "not_interested_ask_why",
+        "no_thanks",
+        "price_inquiry",
+        "cold_outreach",
+    ]
+
+    scores: dict[str, int] = {intent: 0 for intent in priority_order}
+
+    for intent in priority_order:
+        keywords = TEMPLATE_INTENT_KEYWORDS.get(intent, [])
+        for kw in keywords:
+            if kw in text:
+                scores[intent] += 1
+
+    best = max(scores, key=lambda k: scores[k])
+    if scores[best] == 0:
+        return "general"
+    return best
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FILLER PHRASE CLEANER (reuses logic from main.py)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_FILLER = [
+    r"i hope this email finds you well[,.]?",
+    r"trust you are doing (great|well)[,.]?",
+    r"hope you('re| are) having a great day[,.]?",
+    r"i hope you are doing well[,.]?",
+    r"i hope all is well[,.]?",
+    r"i wanted to reach out[,.]?",
+    r"please do not hesitate[,.]?",
+    r"feel free to reach out[,.]?",
+    r"as per my last email[,.]?",
+]
+
+def _strip_filler(text: str) -> str:
+    for pattern in _FILLER:
+        text = re.sub(pattern, "", text, flags=re.IGNORECASE).strip()
+    return text
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# REPLY BUILDER
+# ─────────────────────────────────────────────────────────────────────────────
+
+def build_template_reply(
+    customer_message: str,
+    domain_name: Optional[str] = None,
+    asking_price: Optional[str] = None,
+    force_intent: Optional[str] = None,
+) -> dict:
+    """
+    Build a complete email reply from components.
+
+    Args:
+        customer_message: The incoming message text.
+        domain_name:      Optional domain name to mention in the reply.
+        asking_price:     Optional price string to inject.
+        force_intent:     Override auto-detection with a specific intent.
+
+    Returns:
+        dict with keys: reply, detected_intent, components_used
+    """
+    intent = force_intent or detect_template_intent(customer_message)
+    template = COMPONENTS.get(intent, COMPONENTS["general"])
+
+    # Pick random variation for each component
+    greeting      = random.choice(COMPONENTS["_greetings"])
+    acknowledgment = random.choice(template["acknowledgment"])
+    body          = random.choice(template["body"])
+    closing       = random.choice(template["closing"])
+
+    # Inject domain name and price placeholders if provided
+    def inject(text: str) -> str:
+        if domain_name:
+            text = text.replace("{domain}", domain_name)
+            # Also sub common references
+            text = re.sub(r"\bthis domain\b", f"{domain_name}", text, count=1)
+        if asking_price:
+            text = re.sub(r"\$[xX]+|\$xxxx|\$xxx|\$xx", asking_price, text)
+        return text
+
+    parts = [
+        greeting,
+        inject(acknowledgment),
+        inject(body),
+        inject(closing),
+    ]
+
+    # Clean and join
+    reply = " ".join(p.strip() for p in parts if p.strip())
+    reply = _strip_filler(reply)
+
+    return {
+        "reply":            reply,
+        "detected_intent":  intent,
+        "mode":             "template",
+        "components_used": {
+            "greeting":      greeting,
+            "acknowledgment": acknowledgment,
+            "body":          body,
+            "closing":       closing,
+        },
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AI POLISH — Optional upgrade layer using Claude
+# Call this AFTER build_template_reply() to improve the assembled reply.
+# Requires: anthropic SDK  |  API key passed in
+# ─────────────────────────────────────────────────────────────────────────────
+
+def ai_polish_reply(
+    template_reply: str,
+    customer_message: str,
+    intent: str,
+    api_key: str,
+    domain_name: Optional[str] = None,
+    asking_price: Optional[str] = None,
+    tone: str = "professional and persuasive",
+) -> dict:
+    """
+    Takes a template-generated reply and asks Claude to improve it.
+
+    What Claude does:
+      - Makes the reply sound more natural and less robotic
+      - Adjusts tone to match the customer's message
+      - Keeps all facts and intent intact — no hallucination
+      - Does NOT add new claims not already in the template
+
+    Args:
+        template_reply:   The raw reply from build_template_reply()
+        customer_message: The original customer message
+        intent:           Detected intent (e.g. "trust_issue")
+        api_key:          Anthropic API key
+        domain_name:      Optional — for context
+        asking_price:     Optional — for context
+        tone:             Tone instruction string
+
+    Returns:
+        dict with: polished_reply, original_template_reply, intent, mode
+    """
+    try:
+        import anthropic
+    except ImportError:
+        # If anthropic isn't installed, return the template reply unchanged
+        return {
+            "polished_reply":          template_reply,
+            "original_template_reply": template_reply,
+            "detected_intent":         intent,
+            "mode":                    "template_only",
+            "ai_polish":               False,
+            "error":                   "anthropic SDK not installed",
+        }
+
+    context_parts = []
+    if domain_name:
+        context_parts.append(f"Domain name: {domain_name}")
+    if asking_price:
+        context_parts.append(f"Asking price: {asking_price}")
+    context_str = "\n".join(context_parts) if context_parts else "Not specified"
+
+    system_prompt = (
+        "You are an expert email editor for a domain name broker. "
+        "Your job is to polish draft email replies so they sound natural, human, and persuasive. "
+        "RULES YOU MUST FOLLOW:\n"
+        "1. Do NOT change the meaning, intent, or facts in the draft.\n"
+        "2. Do NOT add claims, prices, or domain details that are not already in the draft.\n"
+        "3. Do NOT use filler phrases like 'I hope this finds you well' or 'going forward'.\n"
+        "4. Keep it concise — do not pad or inflate the reply.\n"
+        "5. Match the requested tone exactly.\n"
+        "6. Output ONLY the final email reply text. No preamble, no explanation, no quotes."
+    )
+
+    user_prompt = (
+        f"CUSTOMER MESSAGE:\n{customer_message}\n\n"
+        f"DETECTED INTENT: {intent}\n\n"
+        f"CONTEXT:\n{context_str}\n\n"
+        f"REQUESTED TONE: {tone}\n\n"
+        f"DRAFT REPLY TO POLISH:\n{template_reply}\n\n"
+        "Please improve this draft reply. Make it sound natural and human. "
+        "Fix any awkward phrasing, improve flow, and match the tone. "
+        "Keep all facts and the overall message intact."
+    )
+
+    try:
+        client  = anthropic.Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model      = "claude-sonnet-4-6",
+            max_tokens = 700,
+            messages   = [{"role": "user", "content": user_prompt}],
+            system     = system_prompt,
+        )
+        polished = message.content[0].text.strip()
+        return {
+            "polished_reply":          polished,
+            "original_template_reply": template_reply,
+            "detected_intent":         intent,
+            "mode":                    "template_plus_ai",
+            "ai_polish":               True,
+        }
+    except Exception as e:
+        # Graceful fallback — return template reply if AI call fails
+        return {
+            "polished_reply":          template_reply,
+            "original_template_reply": template_reply,
+            "detected_intent":         intent,
+            "mode":                    "template_only",
+            "ai_polish":               False,
+            "error":                   str(e),
+        }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# QUICK TEST (run: python template_engine.py)
+# ─────────────────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    test_cases = [
+        # Original intents
+        ("No thanks, not interested.", None, None),
+        ("How much is the domain?", "LondonPlumber.com", "$650"),
+        ("This seems like a scam.", "ChicagoRoofer.com", None),
+        ("We already have a website.", None, None),
+        ("The price is way too high.", None, "$495"),
+        ("Stop emailing me.", None, None),
+        ("How does redirection work exactly?", None, None),
+        ("I need to discuss with my business partner first.", None, None),
+        ("We agreed on a price but I haven't paid yet.", None, "$200"),
+        ("We already own the .net version.", None, None),
+        # New intents
+        ("I already sent payment — where is my domain?", None, None),
+        ("I want a refund please.", None, None),
+        ("Can I pay by crypto or bank transfer?", None, None),
+        ("What is the annual renewal fee after I buy?", None, None),
+        ("What is the domain authority score?", None, None),
+        ("Who are you and why are you contacting me?", None, None),
+        ("I have a very tight budget as a small business.", None, None),
+        ("Do you have other similar domains for nearby cities?", None, None),
+        ("Can I build a new website on this domain?", None, None),
+    ]
+
+    print("=" * 70)
+    print("TEMPLATE ENGINE — SAMPLE OUTPUTS")
+    print("=" * 70)
+    for msg, domain, price in test_cases:
+        result = build_template_reply(msg, domain_name=domain, asking_price=price)
+        print(f"\nINTENT: {result['detected_intent']}")
+        print(f"INPUT:  {msg}")
+        print(f"REPLY:\n{result['reply']}")
+        print("-" * 70)
