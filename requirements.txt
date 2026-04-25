@@ -1,18 +1,6 @@
-# Core web framework
 fastapi==0.115.0
-
-# ASGI server to run FastAPI
 uvicorn[standard]==0.30.0
-
-# Anthropic SDK for Claude generation (claude-sonnet-4-6)
 anthropic==0.40.0
-
-# Voyage AI — semantic embeddings for smart retrieval (voyage-3)
-# Uses your Anthropic API key — no separate account needed
-voyageai==0.3.2
-
-# Data validation (used internally by FastAPI)
 pydantic==2.9.0
-
-# For serving static files (the frontend)
 aiofiles==24.1.0
+voyageai==0.3.2
