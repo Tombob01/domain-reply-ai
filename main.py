@@ -456,6 +456,10 @@ class TemplateRequest(BaseModel):
     ai_polish: bool              = False
     api_key: Optional[str]       = None
     tone: str                    = "professional and persuasive"
+    response_length: Optional[str]   = "medium"
+    length_instructions: Optional[str] = None
+    include_urgency: bool            = False
+    force_intensity: Optional[str]   = None
 
     @field_validator("customer_message")
     @classmethod
@@ -1128,14 +1132,21 @@ async def generate_reply_template(req: TemplateRequest):
         domain_name=req.domain_name,
         asking_price=req.asking_price,
         force_intent=req.force_intent,
+        response_length=getattr(req, "response_length", "medium") or "medium",
+        length_instructions=getattr(req, "length_instructions", None),
     )
     if not req.ai_polish:
         return result
     api_key = get_api_key(req.api_key)
+    tone_with_length = req.tone
+    if getattr(req, "response_length", "medium") == "long":
+        tone_with_length += ". Write a detailed, multi-paragraph email — minimum 4 paragraphs with full explanation, value proposition, and clear call to action."
+    elif getattr(req, "response_length", "medium") == "short":
+        tone_with_length += ". Keep the reply short — maximum 3 sentences total."
     return ai_polish_reply(
         template_reply=result["reply"], customer_message=req.customer_message,
         intent=result["detected_intent"], api_key=api_key,
-        domain_name=req.domain_name, asking_price=req.asking_price, tone=req.tone,
+        domain_name=req.domain_name, asking_price=req.asking_price, tone=tone_with_length,
     )
 
 

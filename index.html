@@ -330,48 +330,89 @@ Examples:
 
 
 
-    <!-- TAB: TEMPLATE -->
+    <!-- TAB: TEMPLATE (v2 — Smart Template System) -->
+    <style>
+      /* ── Template v2 styles ── */
+      .tpl-category-tabs { display:flex; gap:.35rem; flex-wrap:wrap; margin-bottom:.6rem; }
+      .tpl-cat-btn { font-size:.72rem; font-weight:500; padding:.28rem .65rem; border-radius:10px; border:1px solid var(--border); background:var(--paper); color:var(--ink-2); cursor:pointer; transition:all .15s; }
+      .tpl-cat-btn:hover { border-color:var(--gold); color:var(--ink); }
+      .tpl-cat-btn.active { background:var(--gold); border-color:var(--gold); color:#fff; font-weight:600; }
+      .tpl-search-row { display:flex; gap:.5rem; align-items:center; margin-bottom:.5rem; }
+      .tpl-search-row input { flex:1; font-size:.82rem; border:1px solid var(--border); border-radius:var(--radius); padding:.45rem .7rem; color:var(--ink); outline:none; background:white; }
+      .tpl-search-row input:focus { border-color:var(--gold); }
+      .tpl-card-grid { display:flex; flex-direction:column; gap:.4rem; max-height:230px; overflow-y:auto; padding-right:2px; }
+      .tpl-card { border:1px solid var(--border); border-radius:var(--radius); padding:.6rem .8rem; cursor:pointer; background:var(--paper); transition:all .15s; position:relative; }
+      .tpl-card:hover { border-color:var(--gold); background:#fffdf5; }
+      .tpl-card.selected { border-color:var(--gold); background:#fffbee; box-shadow:0 0 0 2px var(--gold-lt); }
+      .tpl-card-title { font-size:.82rem; font-weight:600; color:var(--ink); margin-bottom:.18rem; }
+      .tpl-card-preview { font-size:.76rem; color:var(--ink-3); line-height:1.45; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .tpl-card-tags { display:flex; gap:.25rem; flex-wrap:wrap; margin-top:.3rem; }
+      .tpl-tag { font-size:.65rem; padding:.1rem .4rem; border-radius:8px; background:var(--cream); border:1px solid var(--border); color:var(--ink-3); }
+      .tpl-score-dot { width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:.3rem; flex-shrink:0; }
+      .tpl-card-meta { display:flex; align-items:center; gap:.4rem; margin-top:.25rem; }
+      .tpl-card-uses { font-size:.68rem; color:var(--ink-3); }
+      .tpl-suggest-strip { background:var(--cream); border:1px solid var(--border); border-left:3px solid var(--gold); border-radius:var(--radius); padding:.55rem .8rem; margin-bottom:.6rem; font-size:.78rem; color:var(--ink-2); display:none; }
+      .tpl-suggest-strip strong { color:var(--ink); }
+      .tpl-suggest-chip { display:inline-block; font-size:.72rem; padding:.18rem .5rem; border-radius:10px; background:var(--gold-lt); border:1px solid var(--gold); color:#6b4f00; cursor:pointer; margin:.15rem .2rem 0 0; font-weight:500; }
+      .tpl-suggest-chip:hover { background:var(--gold); color:#fff; }
+      .length-toggle { display:flex; gap:.3rem; }
+      .length-btn { flex:1; font-size:.75rem; font-weight:500; padding:.3rem .5rem; border:1px solid var(--border); border-radius:6px; background:var(--paper); color:var(--ink-2); cursor:pointer; text-align:center; transition:all .15s; }
+      .length-btn.active { background:var(--ink); color:#fff; border-color:var(--ink); }
+      .tpl-editor-panel { display:none; border:1px solid var(--border); border-radius:var(--radius); padding:.75rem; background:var(--cream); margin-top:.5rem; }
+      .tpl-editor-panel textarea { font-size:.8rem; min-height:70px; margin-bottom:.4rem; }
+      .tpl-component-row { display:flex; flex-direction:column; gap:.4rem; }
+      .tpl-component-label { font-size:.68rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-3); margin-bottom:.15rem; }
+      .tpl-save-notif { font-size:.75rem; color:var(--green); font-weight:500; display:none; }
+    </style>
     <div class="tab-panel" id="tab-template">
       <div class="card" style="margin-top:1px;border-top-left-radius:0">
-        <div class="card-header"><span class="card-icon">⚡</span><span class="card-title">Template Mode — No API Key Required</span></div>
+        <div class="card-header"><span class="card-icon">⚡</span><span class="card-title">Smart Template System</span></div>
         <div class="card-body">
           <div id="notifTemplate" class="notif"></div>
-          <p style="font-size:.8rem;color:var(--ink-2);margin-bottom:.9rem;line-height:1.6">Instant replies using keyword matching — zero AI cost. Describe what the prospect said <em>or</em> the situation you're in. Enable <strong>AI Polish</strong> to have Claude refine the result (API key required).</p>
 
-          <!-- Quick-pick: prospect replies -->
-          <div style="font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:.35rem">Prospect Replies</div>
-          <div class="quick-pick">
-            <button class="qp-btn" onclick="fillTemplate('How much is the domain?')">Price Inquiry</button>
-            <button class="qp-btn" onclick="fillTemplate('Not interested, thanks.')">No Thanks</button>
-            <button class="qp-btn" onclick="fillTemplate('This looks like a scam.')">Scam Concern</button>
-            <button class="qp-btn" onclick="fillTemplate('We already have a website.')">Have Website</button>
-            <button class="qp-btn" onclick="fillTemplate('That price is too expensive.')">Too Expensive</button>
-            <button class="qp-btn" onclick="fillTemplate('I need to think about it.')">Not Now</button>
+          <!-- Smart suggestion strip (auto-shows when user types) -->
+          <div class="tpl-suggest-strip" id="tplSuggestStrip">
+            <strong>💡 Suggested for your situation:</strong>
+            <div id="tplSuggestChips" style="margin-top:.3rem"></div>
           </div>
 
-          <!-- Quick-pick: proactive situations -->
-          <div style="font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:.35rem;margin-top:.75rem">Proactive Situations</div>
-          <div class="quick-pick">
-            <button class="qp-btn" onclick="fillTemplate('No response after 3 days of sending initial offer')">No Reply 3 Days</button>
-            <button class="qp-btn" onclick="fillTemplate('Prospect said not interested last week')">Said Not Interested</button>
-            <button class="qp-btn" onclick="fillTemplate('First contact — never emailed this prospect before')">First Outreach</button>
-            <button class="qp-btn" onclick="fillTemplate('Cold lead from 3 months ago, no contact since')">Cold Lead Revival</button>
-            <button class="qp-btn" onclick="fillTemplate('Prospect asked about price but hasn\'t replied in 2 days')">Asked Price, Gone Quiet</button>
-            <button class="qp-btn" onclick="fillTemplate('Prospect seems hesitant and unsure if they need the domain')">Hesitant Prospect</button>
-            <button class="qp-btn" onclick="fillTemplate('Agreed to buy but hasn\'t paid yet, 5 days passed')">Agreed, No Payment</button>
-            <button class="qp-btn" onclick="fillTemplate('Second follow-up, still no response')">2nd Follow-Up</button>
+          <!-- Situation input -->
+          <div style="margin-bottom:.6rem">
+            <label class="field-label">Describe the situation or what the prospect said</label>
+            <textarea id="tplMessage" placeholder="e.g. 'How much is the domain?' or 'No response after 3 days' or 'They said the price is too high'" style="min-height:80px" oninput="tplOnInput(this.value)"></textarea>
           </div>
 
-          <textarea id="tplMessage" placeholder="What did the prospect say, or describe the situation…&#10;&#10;Examples:&#10;• 'How much is the domain?'&#10;• 'No response after 3 days of sending initial offer'&#10;• 'Agreed to buy but hasn't paid yet'" style="min-height:100px;margin-top:.75rem"></textarea>
+          <!-- Category filter tabs -->
+          <div style="font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:.35rem">Filter by Category</div>
+          <div class="tpl-category-tabs" id="tplCatTabs">
+            <button class="tpl-cat-btn active" data-cat="all" onclick="tplSetCat('all',this)">All</button>
+            <button class="tpl-cat-btn" data-cat="pricing" onclick="tplSetCat('pricing',this)">💰 Pricing</button>
+            <button class="tpl-cat-btn" data-cat="follow_up" onclick="tplSetCat('follow_up',this)">📬 Follow-Up</button>
+            <button class="tpl-cat-btn" data-cat="sales" onclick="tplSetCat('sales',this)">🎯 Sales</button>
+            <button class="tpl-cat-btn" data-cat="re_engagement" onclick="tplSetCat('re_engagement',this)">🔄 Re-Engage</button>
+            <button class="tpl-cat-btn" data-cat="objection_handling" onclick="tplSetCat('objection_handling',this)">🛡 Objections</button>
+            <button class="tpl-cat-btn" data-cat="general_response" onclick="tplSetCat('general_response',this)">💬 General</button>
+          </div>
 
-          <div class="inline-row">
+          <!-- Tag search -->
+          <div class="tpl-search-row">
+            <input type="text" id="tplTagSearch" placeholder="🔍 Search by tag or keyword (e.g. 'price question', 'no reply', 'not interested')…" oninput="tplFilterCards()" />
+            <button class="btn btn-secondary btn-sm" onclick="tplTagSearch.value='';tplFilterCards()" style="white-space:nowrap">✕ Clear</button>
+          </div>
+
+          <!-- Template card library -->
+          <div class="tpl-card-grid" id="tplCardGrid"></div>
+          <div id="tplNoResults" style="display:none;font-size:.8rem;color:var(--ink-3);padding:.5rem 0">No templates match — try a different keyword or category.</div>
+
+          <!-- Domain + price -->
+          <div class="inline-row" style="margin-top:.75rem">
             <div class="field"><label class="field-label">Domain Name (optional)</label><input type="text" id="tplDomain" placeholder="e.g. LondonPlumber.com" /></div>
             <div class="field"><label class="field-label">Asking Price (optional)</label><input type="text" id="tplPrice" placeholder="e.g. $650" /></div>
           </div>
 
-          <!-- Tone + Intent override + Intensity override -->
+          <!-- Controls row: tone + length mode + intent override -->
           <div style="margin-top:.9rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end">
-            <div class="field" style="flex:1;min-width:150px;margin:0">
+            <div class="field" style="flex:1;min-width:145px;margin:0">
               <label class="field-label">Tone</label>
               <select id="tplTone" style="font-size:.82rem">
                 <option value="professional and persuasive">Professional &amp; Persuasive</option>
@@ -381,9 +422,18 @@ Examples:
                 <option value="empathetic and understanding">Empathetic</option>
               </select>
             </div>
+            <div class="field" style="flex:1;min-width:190px;margin:0">
+              <label class="field-label">Response Length</label>
+              <div class="length-toggle">
+                <button class="length-btn" data-len="short" onclick="tplSetLen('short',this)" title="2–4 sentences — quick reply">Short</button>
+                <button class="length-btn active" data-len="medium" onclick="tplSetLen('medium',this)" title="Standard professional email">Medium</button>
+                <button class="length-btn" data-len="long" onclick="tplSetLen('long',this)" title="Detailed persuasive email with full explanation">Long</button>
+              </div>
+              <div id="tplLenHint" style="font-size:.68rem;color:var(--ink-3);margin-top:.2rem">Standard professional email with multiple paragraphs</div>
+            </div>
             <div class="field" style="flex:1;min-width:140px;margin:0">
               <label class="field-label">Override Intent</label>
-              <select id="tplForceIntent">
+              <select id="tplForceIntent" onchange="tplOnIntentOverride(this.value)">
                 <option value="">Auto-detect</option>
                 <option value="follow_up">Follow Up</option>
                 <option value="sales_pitch">Sales Pitch</option>
@@ -397,6 +447,10 @@ Examples:
                 <option value="have_website">Has Website</option>
                 <option value="not_now">Not Now</option>
                 <option value="agreed_no_pay">Agreed No Pay</option>
+                <option value="low_budget">Low Budget</option>
+                <option value="identity">Who Are You</option>
+                <option value="how_it_works">How It Works</option>
+                <option value="post_purchase">Post Purchase</option>
               </select>
             </div>
             <div class="field" style="flex:1;min-width:130px;margin:0">
@@ -410,7 +464,7 @@ Examples:
             </div>
           </div>
 
-          <!-- AI Polish + Urgency row -->
+          <!-- AI Polish + Urgency -->
           <div style="margin-top:.75rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
             <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer;font-size:.82rem;font-weight:500;color:var(--ink-2)">
               <input type="checkbox" id="tplPolish" style="width:auto;accent-color:var(--gold)" /> AI Polish
@@ -418,22 +472,34 @@ Examples:
             </label>
             <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer;font-size:.82rem;font-weight:500;color:var(--ink-2)">
               <input type="checkbox" id="tplUrgency" style="width:auto;accent-color:var(--gold)" /> Add light urgency
-              <span style="font-size:.72rem;color:var(--ink-3);font-weight:300">(medium/high only)</span>
             </label>
           </div>
 
           <button class="btn btn-primary btn-full" id="tplBtn" onclick="generateTemplate()" style="margin-top:.9rem">
-            <span id="tplBtnText">Generate Template Reply</span>
+            <span id="tplBtnText">Generate Email Reply</span>
             <span class="spinner" id="tplSpinner"></span>
           </button>
         </div>
       </div>
 
+      <!-- Output card -->
       <div class="card" id="tplOutputCard" style="display:none">
-        <div class="card-header"><span class="card-icon">💬</span><span class="card-title">Template Reply</span></div>
+        <div class="card-header"><span class="card-icon">💬</span><span class="card-title">Generated Email</span></div>
         <div class="card-body">
-          <!-- Meta strip: intent + intensity + interpreted label -->
           <div id="tplMetaStrip" style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.7rem;align-items:center"></div>
+
+          <!-- Components breakdown (expandable) -->
+          <div id="tplComponentsWrap" style="display:none;margin-bottom:.7rem">
+            <div style="font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:.35rem;cursor:pointer" onclick="tplToggleComponents()">▶ Email Components Used <span id="tplCompToggleHint" style="font-weight:300">(click to expand)</span></div>
+            <div id="tplComponentsDetail" style="display:none">
+              <div style="font-size:.78rem;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+                <div style="padding:.4rem .7rem;background:var(--cream);border-bottom:1px solid var(--border)"><span style="color:var(--ink-3);font-weight:600">Greeting: </span><span id="tplCompGreeting"></span></div>
+                <div style="padding:.4rem .7rem;background:white;border-bottom:1px solid var(--border)"><span style="color:var(--ink-3);font-weight:600">Opening: </span><span id="tplCompAck"></span></div>
+                <div style="padding:.4rem .7rem;background:var(--cream);border-bottom:1px solid var(--border)"><span style="color:var(--ink-3);font-weight:600">Body: </span><span id="tplCompBody"></span></div>
+                <div style="padding:.4rem .7rem;background:white"><span style="color:var(--ink-3);font-weight:600">Closing: </span><span id="tplCompClosing"></span></div>
+              </div>
+            </div>
+          </div>
 
           <div id="tplOriginalWrap" style="display:none;margin-bottom:.75rem">
             <div style="font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:.35rem">Original Template</div>
@@ -441,6 +507,9 @@ Examples:
           </div>
           <div id="tplPolishedLabel" style="display:none;font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--green);margin-bottom:.35rem">✨ AI Polished</div>
           <div id="tplOutputBox" class="output-box" style="min-height:80px"></div>
+
+          <!-- Quality indicators -->
+          <div id="tplQualityStrip" style="display:none;margin-top:.55rem;padding:.45rem .7rem;background:var(--cream);border:1px solid var(--border);border-radius:var(--radius);font-size:.76rem;color:var(--ink-2)"></div>
 
           <!-- Score bar -->
           <div id="tplScoreWrap" style="display:none;margin-top:.6rem">
@@ -456,11 +525,39 @@ Examples:
 
           <div style="margin-top:.5rem;display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
             <span id="tplIntentBadge" class="intent-badge"></span>
+            <span id="tplLenBadge" style="display:none;font-size:.7rem;font-weight:500;padding:.2rem .6rem;border-radius:12px;background:var(--cream);color:var(--ink-2);border:1px solid var(--border)"></span>
             <span id="tplModeBadge" style="display:none;font-size:.7rem;font-weight:500;padding:.2rem .6rem;border-radius:12px;background:var(--green-lt);color:var(--green);border:1px solid #b7dfca"></span>
           </div>
-          <div style="margin-top:.7rem;display:flex;gap:.5rem">
+          <div style="margin-top:.7rem;display:flex;gap:.5rem;flex-wrap:wrap">
             <button class="btn btn-secondary btn-sm" onclick="copyTemplate()">⎘ Copy</button>
             <button class="btn btn-secondary btn-sm" onclick="clearTemplate()">↺ Clear</button>
+            <button class="btn btn-secondary btn-sm" onclick="tplSaveAsNew()" id="tplSaveBtn">＋ Save as Template</button>
+          </div>
+          <div id="tplSaveNotif" class="tpl-save-notif">✓ Template saved!</div>
+        </div>
+      </div>
+
+      <!-- Template Editor / Saved Templates -->
+      <div class="card" style="margin-top:.75rem">
+        <div class="card-header" style="cursor:pointer" onclick="tplToggleEditor()">
+          <span class="card-icon">📝</span>
+          <span class="card-title">My Saved Templates</span>
+          <span id="tplEditorToggleHint" style="font-size:.72rem;color:var(--ink-3);margin-left:auto">▼ expand</span>
+        </div>
+        <div id="tplEditorBody" style="display:none" class="card-body">
+          <div id="tplSavedList" style="font-size:.82rem;color:var(--ink-3)">No saved templates yet. Generate a reply and click "Save as Template" to store it here.</div>
+          <div id="tplEditorForm" class="tpl-editor-panel" style="display:none;margin-top:.6rem">
+            <div style="font-size:.8rem;font-weight:600;color:var(--ink);margin-bottom:.5rem" id="tplEditorTitle">Edit Template</div>
+            <div class="tpl-component-row">
+              <div><div class="tpl-component-label">Template Name</div><input type="text" id="tplEditName" style="font-size:.82rem;width:100%;border:1px solid var(--border);border-radius:var(--radius);padding:.4rem .6rem" /></div>
+              <div><div class="tpl-component-label">Greeting</div><textarea id="tplEditGreeting" class="tpl-editor-panel" style="display:block;min-height:40px;padding:.4rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.8rem;width:100%;background:white"></textarea></div>
+              <div><div class="tpl-component-label">Body</div><textarea id="tplEditBody" class="tpl-editor-panel" style="display:block;min-height:80px;padding:.4rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.8rem;width:100%;background:white"></textarea></div>
+              <div><div class="tpl-component-label">Closing</div><textarea id="tplEditClosing" class="tpl-editor-panel" style="display:block;min-height:40px;padding:.4rem;border:1px solid var(--border);border-radius:var(--radius);font-size:.8rem;width:100%;background:white"></textarea></div>
+            </div>
+            <div style="display:flex;gap:.5rem;margin-top:.6rem">
+              <button class="btn btn-primary btn-sm" onclick="tplSaveEdit()">Save Changes</button>
+              <button class="btn btn-secondary btn-sm" onclick="tplCancelEdit()">Cancel</button>
+            </div>
           </div>
         </div>
       </div>
@@ -940,14 +1037,107 @@ Examples:
 </body>
 </html>
 <script>
-  /* ── TEMPLATE MODE (merged from Situation + Template) ── */
+  /* ══════════════════════════════════════════════════════════════════
+     TEMPLATE SYSTEM v2 — Smart, Dynamic, Component-Based
+  ══════════════════════════════════════════════════════════════════ */
+
+  /* ── Intent labels & category mapping ── */
   var TPL_INTENT_LABELS = {
-    follow_up: 'Follow Up', sales_pitch: 'Sales Pitch',
-    re_engagement: 'Re-Engagement', objection_handling: 'Objection Handling',
-    no_thanks: 'No Thanks', price_inquiry: 'Price Inquiry',
-    price_too_high: 'Price Too High', negotiation: 'Negotiation',
-    trust_issue: 'Trust Issue', have_website: 'Has Website',
-    not_now: 'Not Now', agreed_no_pay: 'Agreed No Pay', general: 'General',
+    follow_up:'Follow Up', sales_pitch:'Sales Pitch', re_engagement:'Re-Engagement',
+    objection_handling:'Objection Handling', no_thanks:'No Thanks',
+    price_inquiry:'Price Inquiry', price_too_high:'Price Too High',
+    negotiation:'Negotiation', trust_issue:'Trust Issue', have_website:'Has Website',
+    not_now:'Not Now', agreed_no_pay:'Agreed No Pay', general:'General',
+    low_budget:'Low Budget', identity:'Who Are You', how_it_works:'How It Works',
+    post_purchase:'Post Purchase', angry:'Angry / Unsubscribe', partner:'Needs Partner OK',
+    payment_issue:'Payment Issue', payment_method:'Payment Method',
+    renewal_fees:'Renewal Fees', domain_metrics:'Domain Metrics',
+    related_domains:'Other Domains', development:'Build On Domain',
+    expired_owner:'Previous Owner', extension:'Has .net/.org',
+    rank_well:'Already Ranks', why_buy:'Why Buy?', not_now:'Not Now',
+    cold_outreach:'Cold Outreach', refund:'Refund Request',
+    not_interested_ask_why:'Not Interested (Ask Why)',
+  };
+
+  /* Category → list of intents */
+  var TPL_CATEGORIES = {
+    all: null,
+    pricing:           ['price_inquiry','price_too_high','negotiation','low_budget','renewal_fees','payment_method'],
+    follow_up:         ['follow_up','agreed_no_pay','re_engagement','not_now','partner'],
+    sales:             ['sales_pitch','cold_outreach','why_buy','domain_metrics','related_domains','development'],
+    re_engagement:     ['re_engagement','cold_outreach','follow_up','not_interested_ask_why'],
+    objection_handling:['objection_handling','no_thanks','trust_issue','have_website','rank_well','extension','price_too_high','low_budget'],
+    general_response:  ['general','how_it_works','identity','post_purchase','payment_issue','refund','expired_owner','angry'],
+  };
+
+  /* Template card library — each card = one intent, with tags + score + preview */
+  var TPL_LIBRARY = [
+    { intent:'price_inquiry',   name:'Price Inquiry',          score:95, tags:['price','cost','how much','rate','fee','what are you asking'],   preview:'Thanks for your interest. The domain is competitively priced…' },
+    { intent:'price_too_high',  name:'Price Too High',         score:93, tags:['expensive','too high','too much','can\'t afford','just $10'],   preview:'You\'re right a new domain costs $10. The difference is…' },
+    { intent:'negotiation',     name:'Counter Offer',          score:90, tags:['offer','counter','negotiate','lower','discount','deal'],         preview:'Thanks for engaging on this. The offer is a bit below…' },
+    { intent:'no_thanks',       name:'Not Interested Reply',   score:88, tags:['no thanks','not interested','decline','pass','remove me'],       preview:'Thank you for the honest response. If you don\'t mind…' },
+    { intent:'follow_up',       name:'Follow-Up (No Reply)',   score:92, tags:['follow up','no reply','no response','reminder','checking in'],   preview:'Just circling back on my previous email…' },
+    { intent:'sales_pitch',     name:'First Outreach / Cold',  score:94, tags:['first contact','cold email','initial','new prospect','pitch'],   preview:'I\'m reaching out because this domain closely matches…' },
+    { intent:'re_engagement',   name:'Re-Engage Cold Lead',    score:91, tags:['cold lead','went cold','months ago','dormant','reconnect'],      preview:'It\'s been a while since we last spoke…' },
+    { intent:'objection_handling',name:'Handle Objection',     score:89, tags:['hesitant','unsure','on the fence','not convinced','skeptical'],  preview:'That\'s a fair point. Let me address your concern…' },
+    { intent:'trust_issue',     name:'Scam / Trust Concern',   score:96, tags:['scam','fake','trust','verify','proof','fraud','suspicious'],     preview:'I completely understand your concern — it\'s a fair one…' },
+    { intent:'have_website',    name:'Already Has a Website',  score:87, tags:['already have','have a website','don\'t need another','existing site'], preview:'Having an existing website is a plus, not a barrier…' },
+    { intent:'rank_well',       name:'Already Ranks on Google',score:85, tags:['already rank','rank fine','seo is fine','first page'],           preview:'The concern isn\'t your current ranking — it\'s what happens if…' },
+    { intent:'how_it_works',    name:'Explain the Process',    score:88, tags:['how does','redirect','forward','how do i','step by step'],       preview:'Once you purchase, you redirect it to your current website…' },
+    { intent:'why_buy',         name:'Why Should I Buy?',      score:86, tags:['why','benefits','value','what\'s the point','explain'],          preview:'Every day, people in your city type keywords like this domain…' },
+    { intent:'not_now',         name:'Not the Right Time',     score:84, tags:['later','not now','maybe','not the right time','future'],         preview:'Understood — timing is everything in business…' },
+    { intent:'partner',         name:'Needs Partner Approval', score:82, tags:['partner','team','boss','approval','discuss','colleague'],        preview:'Of course — this kind of decision often involves more than one person…' },
+    { intent:'agreed_no_pay',   name:'Agreed But Hasn\'t Paid',score:91, tags:['agreed','deal','haven\'t paid','we agreed','still waiting'],     preview:'Just following up on our previous conversation…' },
+    { intent:'payment_issue',   name:'Payment / Link Problem', score:89, tags:['link not working','payment failed','can\'t checkout','error'],   preview:'Sorry to hear you\'re having trouble — let me sort this out…' },
+    { intent:'angry',           name:'Angry / Stop Emailing',  score:98, tags:['stop emailing','spam','harassment','angry','unsubscribe'],       preview:'I sincerely apologize for the inconvenience…' },
+    { intent:'expired_owner',   name:'Previous Domain Owner',  score:87, tags:['used to be ours','our domain','how did you get','previously owned'], preview:'Every domain has a one-year registration cycle…' },
+    { intent:'extension',       name:'Has .net or .org',       score:85, tags:['.net','.org','.io','already own','have the .net'],              preview:'Here\'s the challenge: when people see your .net in marketing…' },
+    { intent:'low_budget',      name:'Limited Budget',         score:86, tags:['low budget','tight budget','can\'t afford much','small business'], preview:'I\'d rather sell to someone who\'ll use it than leave it idle…' },
+    { intent:'post_purchase',   name:'After Purchase / Transfer',score:90,tags:['already paid','where is my domain','when will i receive','transfer take'], preview:'The transfer is handled automatically by the marketplace…' },
+    { intent:'refund',          name:'Refund Request',         score:88, tags:['refund','money back','cancel','changed my mind','return'],        preview:'Refund requests are handled by the marketplace escrow service…' },
+    { intent:'payment_method',  name:'Payment Method Question',score:87, tags:['paypal','crypto','bitcoin','bank transfer','how do i pay'],       preview:'The marketplace handles all payment processing securely…' },
+    { intent:'renewal_fees',    name:'Annual Renewal Cost',    score:85, tags:['annual fee','renewal','ongoing fee','how much per year'],         preview:'The purchase price is a one-time payment — you own it outright…' },
+    { intent:'domain_metrics',  name:'Domain Authority / SEO', score:86, tags:['domain authority','da score','backlinks','traffic data','moz'],  preview:'The value comes primarily from keyword composition…' },
+    { intent:'identity',        name:'Who Are You?',           score:89, tags:['who are you','what company','why are you contacting','who is this'], preview:'I\'m a domain name investor — I purchase expired or undervalued…' },
+    { intent:'related_domains', name:'Other Domains Available',score:84, tags:['other domains','portfolio','similar domains','what else'],        preview:'I have a portfolio of geo-targeted keyword domains…' },
+    { intent:'development',     name:'Build Website on Domain',score:83, tags:['build a website','develop it','create a website','new website'],  preview:'Absolutely — that\'s the highest-value use of a domain like this…' },
+    { intent:'general',         name:'General Response',       score:70, tags:['general','other','misc'],                                        preview:'The domain is currently listed for sale at a domain marketplace…' },
+  ];
+
+  /* Current active category + selected card intent */
+  var _tplActiveCat = 'all';
+  var _tplSelectedIntent = null;
+  var _tplActiveLength = 'medium';
+  var _tplSavedTemplates = JSON.parse(localStorage.getItem('tplSaved') || '[]');
+  var _tplEditIndex = -1;
+  var _tplLastGenerated = null;
+
+  /* Keyword → intent mapping for smart suggestions */
+  var TPL_SMART_KEYWORDS = {
+    'price|cost|how much|rate|fee':        'price_inquiry',
+    'expensive|too high|too much|just \\$': 'price_too_high',
+    'offer|counter|negotiate|lower|discount|deal': 'negotiation',
+    'no thanks|not interested|decline|pass|remove': 'no_thanks',
+    'follow up|no reply|no response|checking in|reminder': 'follow_up',
+    'cold lead|months ago|dormant|reconnect|been a while': 're_engagement',
+    'hesitant|unsure|fence|skeptical|not convinced': 'objection_handling',
+    'scam|fake|fraud|trust|verify|suspicious':  'trust_issue',
+    'already have|have a website|existing site': 'have_website',
+    'agreed|deal|haven\'t paid|we agreed':      'agreed_no_pay',
+    'first contact|cold email|initial|new prospect': 'sales_pitch',
+    'stop email|spam|angry|harassment|unsubscribe': 'angry',
+    'already paid|where is my domain|transfer': 'post_purchase',
+    'refund|money back|cancel order':            'refund',
+    'paypal|crypto|bank transfer|how do i pay':  'payment_method',
+    'annual fee|renewal|per year':               'renewal_fees',
+    'who are you|what company|why are you':       'identity',
+    'low budget|tight budget|can\'t afford':      'low_budget',
+  };
+
+  var TPL_LEN_HINTS = {
+    short:  '2–4 sentences — quick, direct reply',
+    medium: 'Standard professional email with multiple paragraphs',
+    long:   'Detailed persuasive email — full explanation, value, and call to action',
   };
 
   var TPL_INTENSITY_STYLES = {
@@ -956,17 +1146,184 @@ Examples:
     high:   { label: '🔴 High',   bg: '#fdecea', color: '#a93226', border: '#f5b7b1' },
   };
 
+  /* ── Init ── */
+  window.addEventListener('DOMContentLoaded', function() {
+    tplRenderCards();
+    tplRenderSaved();
+  });
+
+  /* ── Category filter ── */
+  function tplSetCat(cat, btn) {
+    _tplActiveCat = cat;
+    document.querySelectorAll('.tpl-cat-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    tplFilterCards();
+  }
+
+  /* ── Length toggle ── */
+  function tplSetLen(len, btn) {
+    _tplActiveLength = len;
+    document.querySelectorAll('.length-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    document.getElementById('tplLenHint').textContent = TPL_LEN_HINTS[len];
+  }
+
+  /* ── Intent override handler ── */
+  function tplOnIntentOverride(val) {
+    if (val) {
+      _tplSelectedIntent = val;
+      tplHighlightCard(val);
+    }
+  }
+
+  /* ── Render template cards (sorted by score, filtered by cat + search) ── */
+  function tplRenderCards() {
+    var grid = document.getElementById('tplCardGrid');
+    var search = (document.getElementById('tplTagSearch') ? document.getElementById('tplTagSearch').value : '').toLowerCase().trim();
+    var allowedIntents = _tplActiveCat === 'all' ? null : TPL_CATEGORIES[_tplActiveCat];
+
+    /* Filter */
+    var filtered = TPL_LIBRARY.filter(function(t) {
+      if (allowedIntents && allowedIntents.indexOf(t.intent) === -1) return false;
+      if (!search) return true;
+      var haystack = (t.name + ' ' + t.tags.join(' ') + ' ' + t.preview).toLowerCase();
+      return haystack.indexOf(search) !== -1;
+    });
+
+    /* Also include saved templates in library */
+    var savedCards = _tplSavedTemplates.map(function(s, i) {
+      return { intent: '__saved_' + i, name: '⭐ ' + s.name, score: 99, tags: s.tags || [], preview: s.body ? s.body.slice(0, 80) : '', _saved: true, _idx: i };
+    });
+    if (_tplActiveCat === 'all' || _tplActiveCat === null) {
+      filtered = savedCards.concat(filtered);
+    }
+
+    /* Sort by score descending */
+    filtered.sort(function(a, b) { return b.score - a.score; });
+
+    document.getElementById('tplNoResults').style.display = filtered.length === 0 ? 'block' : 'none';
+    grid.innerHTML = '';
+
+    filtered.forEach(function(t) {
+      var card = document.createElement('div');
+      card.className = 'tpl-card' + (_tplSelectedIntent === t.intent ? ' selected' : '');
+      card.dataset.intent = t.intent;
+
+      var dotColor = t.score >= 90 ? '#2d7a4f' : t.score >= 80 ? '#c9a84c' : '#9a9a90';
+      var tagsHtml = t.tags.slice(0, 5).map(function(tag) {
+        return '<span class="tpl-tag">' + tag + '</span>';
+      }).join('');
+
+      card.innerHTML =
+        '<div class="tpl-card-title">' +
+          '<span class="tpl-score-dot" style="background:' + dotColor + '"></span>' +
+          t.name +
+        '</div>' +
+        '<div class="tpl-card-preview">' + t.preview + '</div>' +
+        '<div class="tpl-card-tags">' + tagsHtml + '</div>' +
+        '<div class="tpl-card-meta">' +
+          (t._saved ? '<span class="tpl-card-uses" style="color:var(--gold)">Saved template</span>' : '<span class="tpl-card-uses">Relevance: ' + t.score + '/100</span>') +
+          (t._saved ? '<button onclick="tplEditSaved(' + t._idx + ');event.stopPropagation()" class="btn btn-secondary btn-sm" style="padding:.1rem .45rem;font-size:.68rem;margin-left:auto">Edit</button>' : '') +
+        '</div>';
+
+      card.addEventListener('click', function() {
+        if (t._saved) {
+          tplApplySaved(t._idx);
+        } else {
+          _tplSelectedIntent = t.intent;
+          document.getElementById('tplForceIntent').value = t.intent;
+          tplFilterCards();
+          if (!document.getElementById('tplMessage').value) {
+            document.getElementById('tplMessage').value = t.tags[0] || '';
+          }
+        }
+      });
+
+      grid.appendChild(card);
+    });
+  }
+
+  function tplFilterCards() { tplRenderCards(); }
+
+  function tplHighlightCard(intent) {
+    document.querySelectorAll('.tpl-card').forEach(function(c) {
+      c.classList.toggle('selected', c.dataset.intent === intent);
+    });
+  }
+
+  /* ── Smart suggestion on input ── */
+  var _tplSuggestTimer = null;
+  function tplOnInput(val) {
+    clearTimeout(_tplSuggestTimer);
+    _tplSuggestTimer = setTimeout(function() { tplRunSuggestions(val); }, 350);
+  }
+
+  function tplRunSuggestions(val) {
+    var text = val.toLowerCase();
+    var found = [];
+    for (var pattern in TPL_SMART_KEYWORDS) {
+      var re = new RegExp(pattern, 'i');
+      if (re.test(text)) {
+        var intent = TPL_SMART_KEYWORDS[pattern];
+        if (found.indexOf(intent) === -1) found.push(intent);
+      }
+    }
+    /* Also fuzzy-match against tags */
+    var words = text.split(/\s+/).filter(function(w){ return w.length > 3; });
+    TPL_LIBRARY.forEach(function(t) {
+      words.forEach(function(w) {
+        if (t.tags.some(function(tag){ return tag.indexOf(w) !== -1; })) {
+          if (found.indexOf(t.intent) === -1) found.push(t.intent);
+        }
+      });
+    });
+    found = found.slice(0, 4);
+
+    var strip = document.getElementById('tplSuggestStrip');
+    var chips = document.getElementById('tplSuggestChips');
+    if (found.length === 0 || text.length < 5) { strip.style.display = 'none'; return; }
+
+    strip.style.display = 'block';
+    chips.innerHTML = '';
+    found.forEach(function(intent) {
+      var chip = document.createElement('span');
+      chip.className = 'tpl-suggest-chip';
+      chip.textContent = TPL_INTENT_LABELS[intent] || intent;
+      chip.title = 'Use this template';
+      chip.onclick = function() {
+        _tplSelectedIntent = intent;
+        document.getElementById('tplForceIntent').value = intent;
+        tplFilterCards();
+        strip.style.display = 'none';
+      };
+      chips.appendChild(chip);
+    });
+  }
+
+  /* ── Legacy fillTemplate() kept for compatibility ── */
   function fillTemplate(text) {
     document.getElementById('tplMessage').value = text;
     document.getElementById('tplMessage').focus();
+    tplRunSuggestions(text);
   }
 
+  /* ── Build enhanced request body with length mode ── */
+  function tplBuildLengthInstructions(len, intent) {
+    var base = {
+      short:  'Write a short reply of 2–4 sentences maximum. Be direct and concise. No filler.',
+      medium: 'Write a professional email reply with 2–3 paragraphs. Each paragraph should add new information. Include a greeting, clear body, and closing line.',
+      long:   'Write a detailed, persuasive email reply of 4–6 paragraphs. Structure: (1) Greeting + opening acknowledgment. (2) Address the core concern. (3) Explain the value proposition with specifics. (4) Handle any objection or hesitation proactively. (5) Strong closing with a clear call to action. Every paragraph must add new value — no repetition.',
+    };
+    return base[len] || base['medium'];
+  }
+
+  /* ── Main generate function ── */
   async function generateTemplate() {
     var message = document.getElementById('tplMessage').value.trim();
-    if (!message) return showNotif('notifTemplate', 'Please describe the situation first.', 'error');
+    if (!message) return showNotif('notifTemplate', 'Please describe the situation or what the prospect said.', 'error');
 
     var polish = document.getElementById('tplPolish').checked;
-    var apiKey = document.getElementById('apiKey').value.trim();
+    var apiKey = document.getElementById('apiKey') ? document.getElementById('apiKey').value.trim() : '';
     if (polish && !apiKey) return showNotif('notifTemplate', 'AI Polish requires your Anthropic API key (enter it above).', 'error');
 
     clearNotif('notifTemplate');
@@ -975,16 +1332,19 @@ Examples:
     document.getElementById('tplSpinner').style.display = 'inline-block';
     document.getElementById('tplMetaStrip').innerHTML = '';
     document.getElementById('tplScoreWrap').style.display = 'none';
+    document.getElementById('tplQualityStrip').style.display = 'none';
 
     var body = {
       customer_message: message,
       ai_polish: polish,
       tone: document.getElementById('tplTone').value,
       include_urgency: document.getElementById('tplUrgency').checked,
+      response_length: _tplActiveLength,
+      length_instructions: tplBuildLengthInstructions(_tplActiveLength, _tplSelectedIntent),
     };
     var domain = document.getElementById('tplDomain').value.trim();
     var price  = document.getElementById('tplPrice').value.trim();
-    var fi     = document.getElementById('tplForceIntent').value;
+    var fi     = document.getElementById('tplForceIntent').value || _tplSelectedIntent;
     var fint   = document.getElementById('tplForceIntensity').value;
     if (domain) body.domain_name     = domain;
     if (price)  body.asking_price    = price;
@@ -1000,14 +1360,16 @@ Examples:
       var data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
 
+      _tplLastGenerated = data;
+
       var outputBox = document.getElementById('tplOutputBox');
       var card      = document.getElementById('tplOutputCard');
       card.style.display = 'block';
 
-      // Meta strip — intent badge + intensity badge + interpreted label
+      /* Meta strip */
       var meta = document.getElementById('tplMetaStrip');
       meta.innerHTML = '';
-      var intentKey = data.detected_intent || '';
+      var intentKey = data.detected_intent || fi || '';
       if (intentKey) {
         var intentEl = document.createElement('span');
         intentEl.className = 'intent-badge';
@@ -1017,7 +1379,7 @@ Examples:
       }
       var intensity = data.pitch_intensity || '';
       if (intensity) {
-        var ist   = TPL_INTENSITY_STYLES[intensity] || TPL_INTENSITY_STYLES.medium;
+        var ist = TPL_INTENSITY_STYLES[intensity] || TPL_INTENSITY_STYLES.medium;
         var intEl = document.createElement('span');
         intEl.style.cssText = 'font-size:.7rem;font-weight:600;padding:.2rem .65rem;border-radius:12px;border:1px solid ' + ist.border + ';background:' + ist.bg + ';color:' + ist.color;
         intEl.textContent = ist.label + ' intensity';
@@ -1030,38 +1392,84 @@ Examples:
         meta.appendChild(interpEl);
       }
 
-      // Legacy intent badge (below output box)
+      /* Intent badge */
       var intentBadge = document.getElementById('tplIntentBadge');
       intentBadge.textContent = intentKey;
       intentBadge.style.display = intentKey ? 'inline-block' : 'none';
 
-      // Reply body
+      /* Length badge */
+      var lenBadge = document.getElementById('tplLenBadge');
+      lenBadge.textContent = { short:'Short reply', medium:'Medium email', long:'Long email' }[_tplActiveLength] || '';
+      lenBadge.style.display = 'inline-block';
+
+      /* Reply body */
+      var replyText = '';
       if (polish && data.polished_reply) {
         document.getElementById('tplOriginalBox').textContent = data.original_template_reply || '';
         document.getElementById('tplOriginalWrap').style.display = 'block';
         document.getElementById('tplPolishedLabel').style.display = 'block';
-        outputBox.textContent = data.polished_reply;
+        replyText = data.polished_reply;
         document.getElementById('tplModeBadge').textContent = 'template + AI polish';
         document.getElementById('tplModeBadge').style.display = 'inline-block';
       } else {
         document.getElementById('tplOriginalWrap').style.display = 'none';
         document.getElementById('tplPolishedLabel').style.display = 'none';
-        outputBox.textContent = data.reply || JSON.stringify(data);
+        replyText = data.reply || JSON.stringify(data);
         document.getElementById('tplModeBadge').textContent = 'template only';
         document.getElementById('tplModeBadge').style.display = 'inline-block';
       }
 
-      // Score bar (if server returns replies[0] with confidence)
+      /* Enforce quality: never show single-sentence reply for medium/long */
+      if (_tplActiveLength !== 'short') {
+        var paraCount = replyText.split('\n\n').filter(function(p){ return p.trim().length > 0; }).length;
+        if (paraCount < 2) {
+          /* Split single block into paragraphs at sentence boundaries */
+          var sentences = replyText.match(/[^.!?]+[.!?]+/g) || [replyText];
+          if (sentences.length >= 3) {
+            var half = Math.ceil(sentences.length / 2);
+            replyText = sentences.slice(0, half).join(' ') + '\n\n' + sentences.slice(half).join(' ');
+          }
+        }
+      }
+
+      outputBox.textContent = replyText;
+
+      /* Components breakdown */
+      var comps = data.components_used;
+      if (comps) {
+        document.getElementById('tplCompGreeting').textContent = comps.greeting || '';
+        document.getElementById('tplCompAck').textContent     = comps.acknowledgment || '';
+        document.getElementById('tplCompBody').textContent    = comps.body || '';
+        document.getElementById('tplCompClosing').textContent = comps.closing || '';
+        document.getElementById('tplComponentsWrap').style.display = 'block';
+      } else {
+        document.getElementById('tplComponentsWrap').style.display = 'none';
+      }
+
+      /* Quality strip */
+      var wordCount = replyText.split(/\s+/).filter(Boolean).length;
+      var paraCount2 = replyText.split('\n\n').filter(function(p){ return p.trim(); }).length;
+      var qualHtml = '📊 <strong>' + wordCount + ' words</strong> · <strong>' + paraCount2 + ' paragraph' + (paraCount2 !== 1 ? 's' : '') + '</strong>';
+      if (intentKey) qualHtml += ' · Intent: <strong>' + (TPL_INTENT_LABELS[intentKey] || intentKey) + '</strong>';
+      qualHtml += ' · Length mode: <strong>' + _tplActiveLength + '</strong>';
+      document.getElementById('tplQualityStrip').innerHTML = qualHtml;
+      document.getElementById('tplQualityStrip').style.display = 'block';
+
+      /* Score bar */
       var firstReply = data.replies && data.replies[0];
       var score = firstReply && firstReply.confidence_score;
       if (score != null) {
         document.getElementById('tplScoreWrap').style.display = 'block';
         document.getElementById('tplScoreNum').textContent = score + ' / 100';
-        var bar = document.getElementById('tplScoreBar');
-        bar.style.width = score + '%';
-        bar.style.background = score >= 75 ? 'var(--green)' : score >= 50 ? '#f0c040' : '#e05a5a';
+        var scoreBar = document.getElementById('tplScoreBar');
+        scoreBar.style.width = score + '%';
+        scoreBar.style.background = score >= 75 ? 'var(--green)' : score >= 50 ? '#f0c040' : '#e05a5a';
         document.getElementById('tplScoreReason').textContent = (firstReply && firstReply.confidence_reason) || '';
       }
+
+      /* Update usage score on matching card */
+      var matchCard = TPL_LIBRARY.find(function(t){ return t.intent === intentKey; });
+      if (matchCard) matchCard.score = Math.min(100, matchCard.score + 1);
 
       outputBox.classList.remove('empty');
       card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1070,11 +1478,12 @@ Examples:
       showNotif('notifTemplate', 'Error: ' + err.message, 'error');
     } finally {
       document.getElementById('tplBtn').disabled = false;
-      document.getElementById('tplBtnText').textContent = 'Generate Template Reply';
+      document.getElementById('tplBtnText').textContent = 'Generate Email Reply';
       document.getElementById('tplSpinner').style.display = 'none';
     }
   }
 
+  /* ── Copy ── */
   function copyTemplate() {
     var text = document.getElementById('tplOutputBox').textContent;
     if (navigator.clipboard) {
@@ -1088,6 +1497,7 @@ Examples:
     }
   }
 
+  /* ── Clear ── */
   function clearTemplate() {
     document.getElementById('tplMessage').value = '';
     document.getElementById('tplDomain').value  = '';
@@ -1100,6 +1510,133 @@ Examples:
     document.getElementById('tplOutputBox').textContent = '';
     document.getElementById('tplMetaStrip').innerHTML = '';
     document.getElementById('tplScoreWrap').style.display = 'none';
+    document.getElementById('tplSuggestStrip').style.display = 'none';
+    document.getElementById('tplQualityStrip').style.display = 'none';
+    _tplSelectedIntent = null;
+    _tplLastGenerated  = null;
     clearNotif('notifTemplate');
+    tplFilterCards();
+  }
+
+  /* ── Save generated reply as new template ── */
+  function tplSaveAsNew() {
+    var text = document.getElementById('tplOutputBox').textContent.trim();
+    if (!text) return;
+    var name = prompt('Name this template:', 'My Template ' + (_tplSavedTemplates.length + 1));
+    if (!name) return;
+    var tags = prompt('Add tags (comma-separated):', '');
+    var parts = text.split('\n\n').filter(Boolean);
+    _tplSavedTemplates.push({
+      name: name,
+      tags: (tags || '').split(',').map(function(t){ return t.trim(); }).filter(Boolean),
+      greeting: parts[0] || '',
+      body: parts.slice(1, -1).join('\n\n') || '',
+      closing: parts[parts.length - 1] || '',
+      full: text,
+      intent: _tplLastGenerated && _tplLastGenerated.detected_intent || '',
+      created: Date.now(),
+    });
+    localStorage.setItem('tplSaved', JSON.stringify(_tplSavedTemplates));
+    var notif = document.getElementById('tplSaveNotif');
+    notif.style.display = 'block';
+    setTimeout(function(){ notif.style.display = 'none'; }, 2500);
+    tplRenderSaved();
+    tplFilterCards();
+  }
+
+  /* ── Apply saved template to output ── */
+  function tplApplySaved(idx) {
+    var t = _tplSavedTemplates[idx];
+    if (!t) return;
+    document.getElementById('tplOutputBox').textContent = t.full || ([t.greeting, t.body, t.closing].filter(Boolean).join('\n\n'));
+    document.getElementById('tplOutputCard').style.display = 'block';
+    document.getElementById('tplIntentBadge').textContent = t.intent || 'saved';
+    document.getElementById('tplIntentBadge').style.display = 'inline-block';
+    document.getElementById('tplModeBadge').textContent = 'saved template';
+    document.getElementById('tplModeBadge').style.display = 'inline-block';
+  }
+
+  /* ── Edit saved template ── */
+  function tplEditSaved(idx) {
+    var t = _tplSavedTemplates[idx];
+    if (!t) return;
+    _tplEditIndex = idx;
+    document.getElementById('tplEditName').value    = t.name || '';
+    document.getElementById('tplEditGreeting').value = t.greeting || '';
+    document.getElementById('tplEditBody').value    = t.body || '';
+    document.getElementById('tplEditClosing').value = t.closing || '';
+    document.getElementById('tplEditorForm').style.display = 'block';
+    document.getElementById('tplEditorBody').style.display = 'block';
+    document.getElementById('tplEditorToggleHint').textContent = '▲ collapse';
+    document.getElementById('tplEditorTitle').textContent = 'Editing: ' + t.name;
+    document.getElementById('tplEditorForm').scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }
+
+  function tplSaveEdit() {
+    if (_tplEditIndex < 0) return;
+    var t = _tplSavedTemplates[_tplEditIndex];
+    t.name     = document.getElementById('tplEditName').value.trim() || t.name;
+    t.greeting = document.getElementById('tplEditGreeting').value.trim();
+    t.body     = document.getElementById('tplEditBody').value.trim();
+    t.closing  = document.getElementById('tplEditClosing').value.trim();
+    t.full     = [t.greeting, t.body, t.closing].filter(Boolean).join('\n\n');
+    localStorage.setItem('tplSaved', JSON.stringify(_tplSavedTemplates));
+    _tplEditIndex = -1;
+    document.getElementById('tplEditorForm').style.display = 'none';
+    tplRenderSaved();
+    tplFilterCards();
+  }
+
+  function tplCancelEdit() {
+    _tplEditIndex = -1;
+    document.getElementById('tplEditorForm').style.display = 'none';
+  }
+
+  /* ── Render saved templates list ── */
+  function tplRenderSaved() {
+    var el = document.getElementById('tplSavedList');
+    if (_tplSavedTemplates.length === 0) {
+      el.innerHTML = '<span style="color:var(--ink-3);font-size:.82rem">No saved templates yet. Generate a reply and click "Save as Template".</span>';
+      return;
+    }
+    el.innerHTML = _tplSavedTemplates.map(function(t, i) {
+      return '<div style="display:flex;align-items:center;gap:.5rem;padding:.45rem 0;border-bottom:1px solid var(--border)">' +
+        '<span style="flex:1;font-size:.82rem;color:var(--ink)">⭐ ' + t.name + '</span>' +
+        (t.intent ? '<span class="intent-badge" style="font-size:.65rem">' + (TPL_INTENT_LABELS[t.intent]||t.intent) + '</span>' : '') +
+        '<button class="btn btn-secondary btn-sm" onclick="tplApplySaved(' + i + ')" style="font-size:.68rem;padding:.12rem .4rem">Use</button>' +
+        '<button class="btn btn-secondary btn-sm" onclick="tplEditSaved(' + i + ')" style="font-size:.68rem;padding:.12rem .4rem">Edit</button>' +
+        '<button class="btn btn-secondary btn-sm" onclick="tplDeleteSaved(' + i + ')" style="font-size:.68rem;padding:.12rem .4rem;color:#c0392b">✕</button>' +
+        '</div>';
+    }).join('');
+  }
+
+  function tplDeleteSaved(idx) {
+    if (!confirm('Delete this template?')) return;
+    _tplSavedTemplates.splice(idx, 1);
+    localStorage.setItem('tplSaved', JSON.stringify(_tplSavedTemplates));
+    tplRenderSaved();
+    tplFilterCards();
+  }
+
+  /* ── Components toggle ── */
+  function tplToggleComponents() {
+    var detail = document.getElementById('tplComponentsDetail');
+    var hint   = document.getElementById('tplCompToggleHint');
+    var visible = detail.style.display !== 'none';
+    detail.style.display = visible ? 'none' : 'block';
+    hint.textContent = visible ? '(click to expand)' : '(click to collapse)';
+    document.querySelector('#tplComponentsWrap > div').textContent =
+      (visible ? '▶' : '▼') + ' Email Components Used ' + hint.textContent;
+    hint.textContent = ''; /* already in parent text */
+  }
+
+  /* ── Editor panel toggle ── */
+  function tplToggleEditor() {
+    var body = document.getElementById('tplEditorBody');
+    var hint = document.getElementById('tplEditorToggleHint');
+    var visible = body.style.display !== 'none';
+    body.style.display = visible ? 'none' : 'block';
+    hint.textContent = visible ? '▼ expand' : '▲ collapse';
+    if (!visible) tplRenderSaved();
   }
 </script>

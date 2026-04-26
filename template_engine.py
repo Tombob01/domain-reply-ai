@@ -1427,15 +1427,19 @@ def build_template_reply(
     domain_name: Optional[str] = None,
     asking_price: Optional[str] = None,
     force_intent: Optional[str] = None,
+    response_length: Optional[str] = "medium",
+    length_instructions: Optional[str] = None,
 ) -> dict:
     """
     Build a complete email reply from components.
 
     Args:
-        customer_message: The incoming message text.
-        domain_name:      Optional domain name to mention in the reply.
-        asking_price:     Optional price string to inject.
-        force_intent:     Override auto-detection with a specific intent.
+        customer_message:    The incoming message text.
+        domain_name:         Optional domain name to mention in the reply.
+        asking_price:        Optional price string to inject.
+        force_intent:        Override auto-detection with a specific intent.
+        response_length:     'short' | 'medium' | 'long' — controls reply depth.
+        length_instructions: Custom length instruction string (from UI).
 
     Returns:
         dict with keys: reply, detected_intent, components_used
@@ -1444,29 +1448,53 @@ def build_template_reply(
     template = COMPONENTS.get(intent, COMPONENTS["general"])
 
     # Pick random variation for each component
-    greeting      = random.choice(COMPONENTS["_greetings"])
+    greeting       = random.choice(COMPONENTS["_greetings"])
     acknowledgment = random.choice(template["acknowledgment"])
-    body          = random.choice(template["body"])
-    closing       = random.choice(template["closing"])
+    closing        = random.choice(template["closing"])
+
+    # For long mode: pick 2 body sections for richer content
+    body_pool = template["body"]
+    if response_length == "long" and len(body_pool) >= 2:
+        selected_bodies = random.sample(body_pool, 2)
+        body = "\n\n".join(selected_bodies)
+    else:
+        body = random.choice(body_pool)
 
     # Inject domain name and price placeholders if provided
     def inject(text: str) -> str:
         if domain_name:
             text = text.replace("{domain}", domain_name)
-            # Also sub common references
             text = re.sub(r"\bthis domain\b", f"{domain_name}", text, count=1)
         if asking_price:
             text = re.sub(r"\$[xX]+|\$xxxx|\$xxx|\$xx", asking_price, text)
         return text
 
-    parts = [
-        greeting,
-        inject(acknowledgment),
-        inject(body),
-        inject(closing),
-    ]
+    # Build parts based on length mode
+    if response_length == "short":
+        # Short: greeting + one key sentence from body + closing
+        body_sentences = re.split(r"(?<=[.!?])\s+", inject(body))
+        short_body = body_sentences[0] if body_sentences else inject(body)
+        parts = [greeting, inject(acknowledgment), short_body, inject(closing)]
+    elif response_length == "long":
+        # Long: greeting + acknowledgment + full body (2 sections) + value prop + closing
+        value_prop = _pick_value_prop(intent, domain_name)
+        parts = [
+            greeting,
+            inject(acknowledgment),
+            inject(body),
+            value_prop,
+            inject(closing),
+        ]
+    else:
+        # Medium (default): greeting + acknowledgment + body + closing
+        parts = [
+            greeting,
+            inject(acknowledgment),
+            inject(body),
+            inject(closing),
+        ]
 
-    # Clean and join
+    # Clean and join with double newlines for proper paragraph structure
     reply = "\n\n".join(p.strip() for p in parts if p.strip())
     reply = _strip_filler(reply)
 
@@ -1474,6 +1502,7 @@ def build_template_reply(
         "reply":            reply,
         "detected_intent":  intent,
         "mode":             "template",
+        "response_length":  response_length or "medium",
         "components_used": {
             "greeting":      greeting,
             "acknowledgment": acknowledgment,
@@ -1481,6 +1510,73 @@ def build_template_reply(
             "closing":       closing,
         },
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VALUE PROPOSITION PARAGRAPHS (used in long mode)
+# Adds an extra persuasive paragraph tailored to the intent
+# ─────────────────────────────────────────────────────────────────────────────
+
+_VALUE_PROPS: dict[str, list[str]] = {
+    "price_inquiry": [
+        "To put this in perspective: comparable geo-keyword domains in this niche have sold for well above $1,000 at public auctions. "
+        "What I'm asking is already below market rate — this is a wholesale price, not a retail one. "
+        "If you have a counter-offer in mind, I'm open to hearing it.",
+    ],
+    "price_too_high": [
+        "Think of it this way: if this domain sends you just one extra customer per month, "
+        "it pays for itself many times over within the first year. "
+        "The one-time cost is fixed — the value compounds every single month it's in your possession.",
+    ],
+    "negotiation": [
+        "I want to be straightforward with you: I've had interest from other parties, "
+        "which is why I'm keen to resolve this quickly. "
+        "Give me your best number and I'll give you an honest yes or no within the hour.",
+    ],
+    "sales_pitch": [
+        "Here's the competitive reality: I'm reaching out to several businesses in your space today. "
+        "The one who secures this domain first locks out every competitor from using it. "
+        "That's not a sales tactic — it's how the domain market works. "
+        "First-come-first-served is the only rule that applies.",
+    ],
+    "objection_handling": [
+        "The way I see it, the real risk isn't in buying — it's in waiting. "
+        "Every day this domain sits unclaimed is a day a competitor could walk in and claim it. "
+        "Once it's gone, it's gone. And at that point, the price to buy it back from them will be significantly higher.",
+    ],
+    "re_engagement": [
+        "Markets shift, budgets change, priorities evolve — I understand that completely. "
+        "What I can tell you is that this domain hasn't moved, the value hasn't diminished, "
+        "and I'd still rather see it go to you than to someone who won't put it to good use. "
+        "Just let me know where things stand.",
+    ],
+    "trust_issue": [
+        "Here's how you can verify everything before spending a single penny: "
+        "type the domain into your browser and you'll see it redirects to the marketplace listing. "
+        "Run a WHOIS lookup and you'll see the registration details. "
+        "Search 'Dan.com Trustpilot' and read thousands of verified buyer reviews. "
+        "Every step of this process is transparent and reversible.",
+    ],
+    "follow_up": [
+        "I'll be honest — I don't want to keep emailing you if it's genuinely not a fit. "
+        "But I also know that good names sell quietly, often to the person who replied last. "
+        "A quick yes or no is all I need to either move forward together or move on entirely.",
+    ],
+    "general": [
+        "This is a one-time opportunity with a one-time cost. "
+        "The domain is currently listed publicly and available to anyone. "
+        "If this is something that makes sense for your business, the best time to act is now — "
+        "not because of pressure, but because the opportunity is real and the timing is right.",
+    ],
+}
+
+def _pick_value_prop(intent: str, domain_name: Optional[str] = None) -> str:
+    """Pick a value proposition paragraph for long-mode emails."""
+    props = _VALUE_PROPS.get(intent, _VALUE_PROPS["general"])
+    text  = random.choice(props)
+    if domain_name:
+        text = re.sub(r"\bthis domain\b", domain_name, text, count=1)
+    return text
 
 
 # ─────────────────────────────────────────────────────────────────────────────
