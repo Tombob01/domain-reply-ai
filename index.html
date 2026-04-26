@@ -196,8 +196,9 @@
   <div>
     <div class="tabs">
       <button class="tab active" data-tab="generate">✉ Generate</button>
-      <button class="tab" data-tab="knowledge">📚 KB</button>
+      <button class="tab" data-tab="situation">🎯 Situation</button>
       <button class="tab" data-tab="template">⚡ Template</button>
+      <button class="tab" data-tab="knowledge">📚 KB</button>
     </div>
 
     <!-- TAB: GENERATE -->
@@ -232,20 +233,42 @@ Examples:
               <input type="text" id="askingPrice" placeholder="e.g. $499" />
             </div>
           </div>
-          <div class="form-row">
-            <label>Tone</label>
-            <select id="tone">
-              <option value="professional and persuasive">Professional & Persuasive</option>
-              <option value="warm and friendly">Warm & Friendly</option>
-              <option value="firm but respectful">Firm but Respectful</option>
-              <option value="concise and direct">Concise & Direct</option>
-              <option value="empathetic and understanding">Empathetic</option>
-            </select>
+          <div class="inline-row" style="margin-top:.5rem">
+            <div class="field">
+              <label class="field-label">Prospect Name (optional)</label>
+              <input type="text" id="prospectName" placeholder="e.g. John" />
+            </div>
+            <div class="field">
+              <label class="field-label">Your Name (signature)</label>
+              <input type="text" id="senderName" placeholder="e.g. Alex" />
+            </div>
           </div>
-          <div style="display:flex;gap:.6rem;margin-top:.9rem">
-            <button class="btn btn-primary" id="generateBtn" onclick="generateReply()" style="flex:1">
+          <div class="inline-row" style="margin-top:.5rem">
+            <div class="field">
+              <label class="field-label">Tone</label>
+              <select id="tone">
+                <option value="professional and persuasive">Professional &amp; Persuasive</option>
+                <option value="warm and friendly">Warm &amp; Friendly</option>
+                <option value="firm but respectful">Firm but Respectful</option>
+                <option value="concise and direct">Concise &amp; Direct</option>
+                <option value="empathetic and understanding">Empathetic</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label">Mode</label>
+              <select id="genMode">
+                <option value="ai">🤖 AI (full)</option>
+                <option value="hybrid">⚡ Hybrid (template→AI)</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:.6rem;margin-top:.9rem;flex-wrap:wrap">
+            <button class="btn btn-primary" id="generateBtn" onclick="generateReply()" style="flex:1;min-width:130px">
               <span id="btnText">Generate Reply</span>
               <span class="spinner" id="btnSpinner"></span>
+            </button>
+            <button class="btn btn-secondary" id="regenBtn" onclick="regenerateReply()" title="Regenerate with different variations" style="min-width:44px">
+              ↺ Retry
             </button>
             <button class="btn btn-secondary" id="altBtn" onclick="generateAlternatives()">
               <span id="altBtnText">3 Angles</span>
@@ -255,10 +278,23 @@ Examples:
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" id="outputCard" style="display:none">
         <div class="card-header"><span class="card-icon">💬</span><span class="card-title">Generated Reply</span></div>
         <div class="card-body">
+
+          <!-- Subject line -->
+          <div id="subjectWrap" style="display:none;margin-bottom:.8rem;padding:.6rem .9rem;background:var(--cream);border:1px solid var(--border);border-radius:var(--radius)">
+            <div style="font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin-bottom:.2rem">Subject Line</div>
+            <div id="subjectLine" style="font-size:.88rem;font-weight:500;color:var(--ink-1)"></div>
+          </div>
+
+          <!-- Variation tabs: Safe / Persuasive / Short -->
+          <div id="variationTabs" style="display:none;display:flex;gap:.35rem;margin-bottom:.6rem;flex-wrap:wrap"></div>
+
+          <!-- Reply body -->
           <div id="outputBox" class="output-box empty">Your generated reply will appear here…</div>
+
+          <!-- Confidence bar -->
           <div id="confidenceBar" style="display:none;margin-top:.8rem">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.25rem">
               <span style="font-size:.72rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2)">Confidence</span>
@@ -269,19 +305,146 @@ Examples:
             </div>
             <div id="confidenceReason" style="font-size:.76rem;color:var(--ink-3);margin-top:.3rem;font-style:italic"></div>
           </div>
+
+          <!-- Alternatives panel (3 Angles) -->
           <div id="alternativesPanel" style="display:none;margin-top:.9rem"></div>
-          <div id="outputActions" class="output-actions">
+
+          <!-- Actions row -->
+          <div id="outputActions" class="output-actions" style="margin-top:.7rem;flex-wrap:wrap;gap:.4rem">
             <button class="btn btn-secondary btn-sm" onclick="copyReply()">⎘ Copy</button>
             <button class="btn btn-secondary btn-sm" onclick="clearAll()">↺ Clear</button>
+            <button class="btn btn-secondary btn-sm" id="saveReplyBtn" onclick="saveCurrentReply()" style="display:none">💾 Save</button>
             <span class="intent-badge" id="intentBadge"></span>
             <span class="retrieval-badge" id="retrievalBadge"></span>
             <span class="model-tag" id="modelTag"></span>
           </div>
+
+          <!-- Save confirmation -->
+          <div id="saveConfirm" style="display:none;font-size:.78rem;color:var(--green);margin-top:.4rem;font-weight:500">✓ Saved to knowledge base</div>
+
           <div id="examplesUsed" class="examples-pills"></div>
         </div>
       </div>
     </div><!-- /tab-generate -->
 
+
+
+    <!-- TAB: SITUATION -->
+    <div class="tab-panel" id="tab-situation">
+      <div class="card" style="margin-top:1px;border-top-left-radius:0">
+        <div class="card-header"><span class="card-icon">🎯</span><span class="card-title">Situation Mode — Proactive &amp; Outbound</span></div>
+        <div class="card-body">
+          <div id="notifSituation" class="notif"></div>
+          <p style="font-size:.8rem;color:var(--ink-2);margin-bottom:.9rem;line-height:1.6">
+            Describe <strong>what's happening</strong> — no prospect quote needed. 
+            The system interprets the situation, selects the right intent and pitch intensity, then writes the message.
+          </p>
+
+          <!-- Quick-pick situations -->
+          <div class="quick-pick">
+            <button class="qp-btn" onclick="fillSituation('No response after 3 days of sending initial offer')">No Reply 3 Days</button>
+            <button class="qp-btn" onclick="fillSituation('Prospect said not interested last week')">Said Not Interested</button>
+            <button class="qp-btn" onclick="fillSituation('First contact — never emailed this prospect before')">First Outreach</button>
+            <button class="qp-btn" onclick="fillSituation('Cold lead from 3 months ago, no contact since')">Cold Lead Revival</button>
+            <button class="qp-btn" onclick="fillSituation('Prospect asked about price but hasn\'t replied in 2 days')">Asked Price, Gone Quiet</button>
+            <button class="qp-btn" onclick="fillSituation('Prospect seems hesitant and unsure if they need the domain')">Hesitant Prospect</button>
+            <button class="qp-btn" onclick="fillSituation('Agreed to buy but hasn\'t paid yet, 5 days passed')">Agreed, No Payment</button>
+            <button class="qp-btn" onclick="fillSituation('Second follow-up, still no response')">2nd Follow-Up</button>
+          </div>
+
+          <textarea id="sitMessage" placeholder="Describe the situation... e.g. 'prospect said not interested' or 'no response after 3 days'" style="min-height:100px"></textarea>
+
+          <!-- Domain + Price -->
+          <div class="inline-row">
+            <div class="field"><label class="field-label">Domain Name (optional)</label><input type="text" id="sitDomain" placeholder="e.g. LondonPlumber.com" /></div>
+            <div class="field"><label class="field-label">Asking Price (optional)</label><input type="text" id="sitPrice" placeholder="e.g. $650" /></div>
+          </div>
+
+          <!-- Controls row -->
+          <div style="margin-top:.9rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end">
+            <div class="field" style="flex:1;min-width:160px;margin:0">
+              <label class="field-label">Tone</label>
+              <select id="sitTone">
+                <option value="professional and persuasive">Professional &amp; Persuasive</option>
+                <option value="warm and friendly">Warm &amp; Friendly</option>
+                <option value="firm but respectful">Firm but Respectful</option>
+                <option value="concise and direct">Concise &amp; Direct</option>
+                <option value="empathetic and understanding">Empathetic</option>
+              </select>
+            </div>
+            <div class="field" style="flex:1;min-width:140px;margin:0">
+              <label class="field-label">Override Intent</label>
+              <select id="sitForceIntent">
+                <option value="">Auto-detect</option>
+                <option value="follow_up">Follow Up</option>
+                <option value="sales_pitch">Sales Pitch</option>
+                <option value="re_engagement">Re-Engagement</option>
+                <option value="objection_handling">Objection Handling</option>
+                <option value="no_thanks">No Thanks</option>
+                <option value="price_inquiry">Price Inquiry</option>
+                <option value="price_too_high">Price Too High</option>
+                <option value="negotiation">Negotiation</option>
+                <option value="trust_issue">Trust Issue</option>
+                <option value="have_website">Has Website</option>
+                <option value="not_now">Not Now</option>
+                <option value="agreed_no_pay">Agreed No Pay</option>
+              </select>
+            </div>
+            <div class="field" style="flex:1;min-width:130px;margin:0">
+              <label class="field-label">Override Intensity</label>
+              <select id="sitForceIntensity">
+                <option value="">Auto-select</option>
+                <option value="low">🟢 Low — Subtle</option>
+                <option value="medium">🟡 Medium — Clear</option>
+                <option value="high">🔴 High — Full Pitch</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Urgency toggle -->
+          <div style="margin-top:.75rem;display:flex;align-items:center;gap:.6rem">
+            <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer;font-size:.82rem;font-weight:500;color:var(--ink-2)">
+              <input type="checkbox" id="sitUrgency" style="width:auto;accent-color:var(--gold)" />
+              Add light urgency
+            </label>
+            <span style="font-size:.75rem;color:var(--ink-3)">(only for medium/high intensity)</span>
+          </div>
+
+          <button class="btn btn-primary btn-full" id="sitBtn" onclick="generateSituation()" style="margin-top:.9rem">
+            <span id="sitBtnText">Generate Reply</span>
+            <span class="spinner" id="sitSpinner"></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Output card -->
+      <div class="card" id="sitOutputCard" style="display:none">
+        <div class="card-header"><span class="card-icon">💬</span><span class="card-title">Generated Reply</span></div>
+        <div class="card-body">
+          <!-- Meta strip -->
+          <div id="sitMetaStrip" style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.7rem;align-items:center"></div>
+
+          <div id="sitOutputBox" class="output-box" style="min-height:80px"></div>
+
+          <!-- Score bar -->
+          <div id="sitScoreWrap" style="display:none;margin-top:.6rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem">
+              <span style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)">Confidence</span>
+              <span id="sitScoreNum" style="font-size:.82rem;font-weight:700;color:var(--ink-1)"></span>
+            </div>
+            <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
+              <div id="sitScoreBar" style="height:100%;border-radius:4px;transition:width .5s ease;background:var(--green)"></div>
+            </div>
+            <div id="sitScoreReason" style="font-size:.75rem;color:var(--ink-3);margin-top:.3rem;line-height:1.5"></div>
+          </div>
+
+          <div style="margin-top:.7rem;display:flex;gap:.5rem">
+            <button class="btn btn-secondary btn-sm" onclick="copySituation()">⎘ Copy</button>
+            <button class="btn btn-secondary btn-sm" onclick="clearSituation()">↺ Clear</button>
+          </div>
+        </div>
+      </div>
+    </div><!-- /tab-situation -->
 
     <!-- TAB: TEMPLATE -->
     <div class="tab-panel" id="tab-template">
@@ -471,87 +634,116 @@ Examples:
     document.getElementById('customerMessage').focus();
   }
 
-  /* ── GENERATE REPLY ── */
+  /* ── GENERATE REPLY (v6) ── */
+  var _lastReplies     = [];
+  var _lastSubject     = '';
+  var _lastIntent      = '';
+  var _lastSituation   = '';
+  var _activeVariation = 0;
+
+  function buildGenerateBody() {
+    var body = {
+      customer_message: document.getElementById('customerMessage').value.trim(),
+      tone:             document.getElementById('tone').value,
+      api_key:          document.getElementById('apiKey').value.trim(),
+      mode:             document.getElementById('genMode').value,
+      num_variations:   3,
+    };
+    var d  = document.getElementById('domainName').value.trim();
+    var p  = document.getElementById('askingPrice').value.trim();
+    var pn = document.getElementById('prospectName').value.trim();
+    var sn = document.getElementById('senderName').value.trim();
+    if (d)  body.domain_name   = d;
+    if (p)  body.asking_price  = p;
+    if (pn) body.prospect_name = pn;
+    if (sn) body.sender_name   = sn;
+    return body;
+  }
+
   async function generateReply() {
-    var message     = document.getElementById('customerMessage').value.trim();
-    var tone        = document.getElementById('tone').value;
-    var apiKey      = document.getElementById('apiKey').value.trim();
-    var domainName  = document.getElementById('domainName').value.trim();
-    var askingPrice = document.getElementById('askingPrice').value.trim();
+    var body = buildGenerateBody();
+    if (!body.customer_message) return showNotif('notifGenerate', 'Please describe the situation first.', 'error');
+    if (!body.api_key)          return showNotif('notifGenerate', 'Please enter your Anthropic API key.', 'error');
+    _lastSituation = body.customer_message;
+    await _doGenerate('/generate-reply', body);
+  }
 
-    if (!message) return showNotif('notifGenerate', 'Please describe the situation first.', 'error');
-    if (!apiKey)  return showNotif('notifGenerate', 'Please enter your Anthropic API key.', 'error');
+  async function regenerateReply() {
+    var body = buildGenerateBody();
+    if (!body.customer_message) return showNotif('notifGenerate', 'Nothing to regenerate.', 'error');
+    if (!body.api_key)          return showNotif('notifGenerate', 'Please enter your Anthropic API key.', 'error');
+    await _doGenerate('/generate-reply/regenerate', body);
+  }
 
+  async function _doGenerate(endpoint, body) {
     clearNotif('notifGenerate');
     setLoading(true);
 
     var box = document.getElementById('outputBox');
-    box.textContent = '';
+    box.textContent = 'Generating…';
     box.classList.remove('empty');
     box.classList.add('generating');
-    document.getElementById('outputActions').style.display  = 'none';
-    document.getElementById('examplesUsed').innerHTML       = '';
-    document.getElementById('intentBadge').style.display    = 'none';
-    document.getElementById('retrievalBadge').style.display = 'none';
-    document.getElementById('confidenceBar').style.display  = 'none';
-
-    var body = { customer_message: message, tone: tone, api_key: apiKey };
-    if (domainName)  body.domain_name  = domainName;
-    if (askingPrice) body.asking_price = askingPrice;
+    document.getElementById('outputCard').style.display      = 'block';
+    document.getElementById('subjectWrap').style.display     = 'none';
+    document.getElementById('variationTabs').innerHTML       = '';
+    document.getElementById('variationTabs').style.display   = 'none';
+    document.getElementById('outputActions').style.display   = 'none';
+    document.getElementById('saveReplyBtn').style.display    = 'none';
+    document.getElementById('saveConfirm').style.display     = 'none';
+    document.getElementById('examplesUsed').innerHTML        = '';
+    document.getElementById('confidenceBar').style.display   = 'none';
+    document.getElementById('alternativesPanel').style.display = 'none';
 
     try {
-      var res = await fetch(API_BASE + '/generate-reply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      var res  = await fetch(API_BASE + endpoint, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
 
-      if (!res.ok) {
-        var err = await res.json();
-        throw new Error(err.detail || 'HTTP ' + res.status);
+      _lastReplies     = data.replies || [];
+      _lastSubject     = data.subject || '';
+      _lastIntent      = data.detected_intent || '';
+      _activeVariation = 0;
+
+      if (_lastSubject) {
+        document.getElementById('subjectLine').textContent   = _lastSubject;
+        document.getElementById('subjectWrap').style.display = 'block';
       }
 
-      var contentType = res.headers.get('content-type') || '';
-      if (contentType.includes('text/event-stream') || contentType.includes('text/plain')) {
-        var reader  = res.body.getReader();
-        var decoder = new TextDecoder();
-        box.classList.remove('generating');
-        var fullText = '';
-        while (true) {
-          var chunk = await reader.read();
-          if (chunk.done) break;
-          var lines = decoder.decode(chunk.value, { stream: true }).split('\n');
-          for (var line of lines) {
-            if (!line.startsWith('data: ')) continue;
-            var payload = line.slice(6).trim();
-            if (!payload || payload === '[DONE]') continue;
-            try {
-              var parsed = JSON.parse(payload);
-              if (parsed.chunk)   { fullText += parsed.chunk; box.textContent = fullText; }
-              if (parsed.intent)  { document.getElementById('intentBadge').textContent = parsed.intent; document.getElementById('intentBadge').style.display = 'inline-block'; }
-              if (parsed.retrieval_method) showRetrievalBadge(parsed.retrieval_method);
-              if (parsed.examples_used && parsed.examples_used.length) {
-                document.getElementById('examplesUsed').innerHTML = parsed.examples_used.map(function(e) { return '<span class="pill">' + e + '</span>'; }).join('');
-              }
-              if (parsed.confidence_score != null) showConfidence(parsed.confidence_score, parsed.confidence_reason);
-              if (parsed.model) document.getElementById('modelTag').textContent = parsed.model;
-            } catch(e) {}
-          }
-        }
-      } else {
-        var data   = await res.json();
-        var result = data.result || data;
-        box.textContent = result.reply || result.generated_reply || JSON.stringify(result);
-        box.classList.remove('generating');
-        if (result.intent)           { document.getElementById('intentBadge').textContent = result.intent; document.getElementById('intentBadge').style.display = 'inline-block'; }
-        if (result.retrieval_method)  showRetrievalBadge(result.retrieval_method);
-        if (result.examples_used && result.examples_used.length) {
-          document.getElementById('examplesUsed').innerHTML = result.examples_used.map(function(e) { return '<span class="pill">' + e + '</span>'; }).join('');
-        }
-        if (result.confidence_score != null) showConfidence(result.confidence_score, result.confidence_reason);
-        document.getElementById('modelTag').textContent = result.model || 'claude-sonnet-4-6';
+      if (_lastReplies.length > 1) {
+        var tabs = document.getElementById('variationTabs');
+        tabs.style.display = 'flex';
+        tabs.innerHTML = _lastReplies.map(function(r, i) {
+          var active = i === 0
+            ? 'background:var(--ink);color:var(--paper)'
+            : 'background:var(--cream);color:var(--ink-2)';
+          return '<button onclick="switchVariation(' + i + ')" id="vTab' + i + '" '
+            + 'style="font-size:.76rem;font-weight:600;padding:.3rem .75rem;border-radius:20px;'
+            + 'border:1px solid var(--border);cursor:pointer;transition:all .2s;' + active + '">'
+            + (r.label || ('Option ' + (i + 1))) + '</button>';
+        }).join('');
       }
+
+      showVariation(0);
+
+      if (_lastIntent) {
+        document.getElementById('intentBadge').textContent   = _lastIntent.replace(/_/g, ' ');
+        document.getElementById('intentBadge').style.display = 'inline-block';
+      }
+      if (data.retrieval_method) showRetrievalBadge(data.retrieval_method);
+      document.getElementById('modelTag').textContent = data.model_used || 'claude-sonnet-4-6';
+
+      if (data.similar_examples_used && data.similar_examples_used.length) {
+        document.getElementById('examplesUsed').innerHTML = data.similar_examples_used.map(function(e) {
+          return '<span class="pill">' + (e.category || e.snippet || e) + '</span>';
+        }).join('');
+      }
+
       document.getElementById('outputActions').style.display = 'flex';
+      document.getElementById('saveReplyBtn').style.display  = 'inline-block';
+
     } catch(err) {
       box.textContent = '';
       box.classList.add('empty');
@@ -559,6 +751,50 @@ Examples:
       showNotif('notifGenerate', 'Error: ' + err.message, 'error');
     } finally {
       setLoading(false);
+    }
+  }
+
+  function showVariation(index) {
+    if (!_lastReplies[index]) return;
+    var v   = _lastReplies[index];
+    var box = document.getElementById('outputBox');
+    box.textContent = v.reply;
+    box.classList.remove('empty', 'generating');
+    _activeVariation = index;
+    _lastReplies.forEach(function(_, i) {
+      var t = document.getElementById('vTab' + i);
+      if (!t) return;
+      t.style.background = i === index ? 'var(--ink)' : 'var(--cream)';
+      t.style.color      = i === index ? 'var(--paper)' : 'var(--ink-2)';
+    });
+    if (v.confidence_score != null) showConfidence(v.confidence_score, v.confidence_reason);
+    document.getElementById('saveConfirm').style.display = 'none';
+  }
+
+  function switchVariation(index) { showVariation(index); }
+
+  async function saveCurrentReply() {
+    var v       = _lastReplies[_activeVariation];
+    var message = document.getElementById('customerMessage').value.trim();
+    if (!v || !message) return;
+    var body = {
+      category:         _lastIntent || 'general',
+      customer_message: message,
+      reply:            v.reply,
+      subject:          _lastSubject,
+    };
+    try {
+      var res  = await fetch(API_BASE + '/replies/save-generated', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Save failed');
+      document.getElementById('saveConfirm').style.display    = 'block';
+      document.getElementById('saveReplyBtn').disabled        = true;
+      document.getElementById('saveReplyBtn').textContent     = '✓ Saved';
+    } catch(err) {
+      showNotif('notifGenerate', 'Save failed: ' + err.message, 'error');
     }
   }
 
@@ -745,6 +981,139 @@ Examples:
 </body>
 </html>
 <script>
+  /* ── SITUATION MODE ── */
+  var INTENT_LABELS = {
+    follow_up: 'Follow Up', sales_pitch: 'Sales Pitch',
+    re_engagement: 'Re-Engagement', objection_handling: 'Objection Handling',
+    no_thanks: 'No Thanks', price_inquiry: 'Price Inquiry',
+    price_too_high: 'Price Too High', negotiation: 'Negotiation',
+    trust_issue: 'Trust Issue', have_website: 'Has Website',
+    not_now: 'Not Now', agreed_no_pay: 'Agreed No Pay', general: 'General',
+  };
+
+  var INTENSITY_STYLES = {
+    low:    { label: '🟢 Low',    bg: '#e8f5ee', color: '#2d7a4f', border: '#b7dfca' },
+    medium: { label: '🟡 Medium', bg: '#fef9e7', color: '#8a6800', border: '#f0d87a' },
+    high:   { label: '🔴 High',   bg: '#fdecea', color: '#a93226', border: '#f5b7b1' },
+  };
+
+  function fillSituation(text) {
+    document.getElementById('sitMessage').value = text;
+    document.getElementById('sitMessage').focus();
+  }
+
+  async function generateSituation() {
+    var situation = document.getElementById('sitMessage').value.trim();
+    if (!situation) return showNotif('notifSituation', 'Please describe the situation first.', 'error');
+
+    var apiKey = document.getElementById('apiKey').value.trim();
+    if (!apiKey) return showNotif('notifSituation', 'API key required for AI generation.', 'error');
+
+    clearNotif('notifSituation');
+    document.getElementById('sitBtn').disabled = true;
+    document.getElementById('sitBtnText').textContent = 'Generating…';
+    document.getElementById('sitSpinner').style.display = 'inline-block';
+    document.getElementById('sitOutputCard').style.display = 'none';
+
+    var body = {
+      situation: situation,
+      api_key: apiKey,
+      tone: document.getElementById('sitTone').value,
+      include_urgency: document.getElementById('sitUrgency').checked,
+    };
+    var domain = document.getElementById('sitDomain').value.trim();
+    var price  = document.getElementById('sitPrice').value.trim();
+    var fi     = document.getElementById('sitForceIntent').value;
+    var fint   = document.getElementById('sitForceIntensity').value;
+    if (domain) body.domain_name    = domain;
+    if (price)  body.asking_price   = price;
+    if (fi)     body.force_intent   = fi;
+    if (fint)   body.force_intensity = fint;
+
+    try {
+      var res  = await fetch(API_BASE + '/generate-reply/situation', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
+
+      // Render output
+      document.getElementById('sitOutputBox').textContent = data.result.reply;
+      document.getElementById('sitOutputCard').style.display = 'block';
+
+      // Meta strip — intent badge + intensity badge + interpreted label
+      var meta = document.getElementById('sitMetaStrip');
+      meta.innerHTML = '';
+
+      var intentKey = data.detected_intent || 'general';
+      var intentEl  = document.createElement('span');
+      intentEl.className = 'intent-badge';
+      intentEl.textContent = INTENT_LABELS[intentKey] || intentKey;
+      meta.appendChild(intentEl);
+
+      var intensity = data.pitch_intensity || 'medium';
+      var ist = INTENSITY_STYLES[intensity] || INTENSITY_STYLES.medium;
+      var intEl = document.createElement('span');
+      intEl.style.cssText = 'font-size:.7rem;font-weight:600;padding:.2rem .65rem;border-radius:12px;border:1px solid ' + ist.border + ';background:' + ist.bg + ';color:' + ist.color;
+      intEl.textContent = ist.label + ' intensity';
+      meta.appendChild(intEl);
+
+      if (data.situation_interpreted) {
+        var interpEl = document.createElement('span');
+        interpEl.style.cssText = 'font-size:.72rem;color:var(--ink-3);margin-left:.2rem';
+        interpEl.textContent = data.situation_interpreted;
+        meta.appendChild(interpEl);
+      }
+
+      // Score bar
+      var score = data.result && data.result.confidence_score;
+      if (score != null) {
+        document.getElementById('sitScoreWrap').style.display = 'block';
+        document.getElementById('sitScoreNum').textContent = score + ' / 100';
+        var bar = document.getElementById('sitScoreBar');
+        bar.style.width = score + '%';
+        bar.style.background = score >= 75 ? 'var(--green)' : score >= 50 ? '#f0c040' : '#e05a5a';
+        document.getElementById('sitScoreReason').textContent = data.result.confidence_reason || '';
+      }
+
+      document.getElementById('sitOutputCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    } catch(err) {
+      showNotif('notifSituation', 'Error: ' + err.message, 'error');
+    } finally {
+      document.getElementById('sitBtn').disabled = false;
+      document.getElementById('sitBtnText').textContent = 'Generate Reply';
+      document.getElementById('sitSpinner').style.display = 'none';
+    }
+  }
+
+  function copySituation() {
+    var text = document.getElementById('sitOutputBox').textContent;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() {
+        var btn = event.target;
+        btn.textContent = '✓ Copied!';
+        setTimeout(function() { btn.textContent = '⎘ Copy'; }, 1800);
+      });
+    } else {
+      try { Android.copyToClipboard(text); } catch(e) {}
+    }
+  }
+
+  function clearSituation() {
+    document.getElementById('sitMessage').value = '';
+    document.getElementById('sitDomain').value  = '';
+    document.getElementById('sitPrice').value   = '';
+    document.getElementById('sitForceIntent').value    = '';
+    document.getElementById('sitForceIntensity').value = '';
+    document.getElementById('sitUrgency').checked = false;
+    document.getElementById('sitOutputCard').style.display = 'none';
+    document.getElementById('sitMetaStrip').innerHTML = '';
+    document.getElementById('sitScoreWrap').style.display = 'none';
+    clearNotif('notifSituation');
+  }
+
   /* ── TEMPLATE MODE ── */
   function fillTemplate(text) {
     document.getElementById('tplMessage').value = text;
