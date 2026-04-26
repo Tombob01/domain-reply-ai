@@ -196,7 +196,6 @@
   <div>
     <div class="tabs">
       <button class="tab active" data-tab="generate">✉ Generate</button>
-      <button class="tab" data-tab="situation">🎯 Situation</button>
       <button class="tab" data-tab="template">⚡ Template</button>
       <button class="tab" data-tab="knowledge">📚 KB</button>
     </div>
@@ -208,14 +207,14 @@
         <div class="card-body">
           <div id="notifGenerate" class="notif"></div>
           <div class="quick-pick">
-            <button class="qp-btn" onclick="fillSituation('Prospect replied: No thanks, not interested.')">No Thanks</button>
-            <button class="qp-btn" onclick="fillSituation('Prospect asked: How much are you selling it for?')">Price Inquiry</button>
-            <button class="qp-btn" onclick="fillSituation('Prospect said: That price is too high.')">Too Expensive</button>
-            <button class="qp-btn" onclick="fillSituation('Prospect said: We already have a website.')">Have One</button>
-            <button class="qp-btn" onclick="fillSituation('Prospect said: This looks like a scam.')">Scam Concern</button>
-            <button class="qp-btn" onclick="fillSituation('No reply after initial pitch — sending follow-up.')">Follow Up</button>
-            <button class="qp-btn" onclick="fillSituation('Prospect said: I need to discuss with my partner first.')">Need to Discuss</button>
-            <button class="qp-btn" onclick="fillSituation('We agreed on a price but the buyer has not made payment yet.')">Agreed, No Payment</button>
+            <button class="qp-btn" onclick="fillGenerate('Prospect replied: No thanks, not interested.')">No Thanks</button>
+            <button class="qp-btn" onclick="fillGenerate('Prospect asked: How much are you selling it for?')">Price Inquiry</button>
+            <button class="qp-btn" onclick="fillGenerate('Prospect said: That price is too high.')">Too Expensive</button>
+            <button class="qp-btn" onclick="fillGenerate('Prospect said: We already have a website.')">Have One</button>
+            <button class="qp-btn" onclick="fillGenerate('Prospect said: This looks like a scam.')">Scam Concern</button>
+            <button class="qp-btn" onclick="fillGenerate('No reply after initial pitch — sending follow-up.')">Follow Up</button>
+            <button class="qp-btn" onclick="fillGenerate('Prospect said: I need to discuss with my partner first.')">Need to Discuss</button>
+            <button class="qp-btn" onclick="fillGenerate('We agreed on a price but the buyer has not made payment yet.')">Agreed, No Payment</button>
           </div>
           <textarea id="customerMessage" placeholder="Describe the situation or paste what the prospect said…
 
@@ -329,42 +328,52 @@ Examples:
 
 
 
-    <!-- TAB: SITUATION -->
-    <div class="tab-panel" id="tab-situation">
+
+
+    <!-- TAB: TEMPLATE -->
+    <div class="tab-panel" id="tab-template">
       <div class="card" style="margin-top:1px;border-top-left-radius:0">
-        <div class="card-header"><span class="card-icon">🎯</span><span class="card-title">Situation Mode — Proactive &amp; Outbound</span></div>
+        <div class="card-header"><span class="card-icon">⚡</span><span class="card-title">Template Mode — No API Key Required</span></div>
         <div class="card-body">
-          <div id="notifSituation" class="notif"></div>
-          <p style="font-size:.8rem;color:var(--ink-2);margin-bottom:.9rem;line-height:1.6">
-            Describe <strong>what's happening</strong> — no prospect quote needed. 
-            The system interprets the situation, selects the right intent and pitch intensity, then writes the message.
-          </p>
+          <div id="notifTemplate" class="notif"></div>
+          <p style="font-size:.8rem;color:var(--ink-2);margin-bottom:.9rem;line-height:1.6">Instant replies using keyword matching — zero AI cost. Describe what the prospect said <em>or</em> the situation you're in. Enable <strong>AI Polish</strong> to have Claude refine the result (API key required).</p>
 
-          <!-- Quick-pick situations -->
+          <!-- Quick-pick: prospect replies -->
+          <div style="font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:.35rem">Prospect Replies</div>
           <div class="quick-pick">
-            <button class="qp-btn" onclick="fillSituation('No response after 3 days of sending initial offer')">No Reply 3 Days</button>
-            <button class="qp-btn" onclick="fillSituation('Prospect said not interested last week')">Said Not Interested</button>
-            <button class="qp-btn" onclick="fillSituation('First contact — never emailed this prospect before')">First Outreach</button>
-            <button class="qp-btn" onclick="fillSituation('Cold lead from 3 months ago, no contact since')">Cold Lead Revival</button>
-            <button class="qp-btn" onclick="fillSituation('Prospect asked about price but hasn\'t replied in 2 days')">Asked Price, Gone Quiet</button>
-            <button class="qp-btn" onclick="fillSituation('Prospect seems hesitant and unsure if they need the domain')">Hesitant Prospect</button>
-            <button class="qp-btn" onclick="fillSituation('Agreed to buy but hasn\'t paid yet, 5 days passed')">Agreed, No Payment</button>
-            <button class="qp-btn" onclick="fillSituation('Second follow-up, still no response')">2nd Follow-Up</button>
+            <button class="qp-btn" onclick="fillTemplate('How much is the domain?')">Price Inquiry</button>
+            <button class="qp-btn" onclick="fillTemplate('Not interested, thanks.')">No Thanks</button>
+            <button class="qp-btn" onclick="fillTemplate('This looks like a scam.')">Scam Concern</button>
+            <button class="qp-btn" onclick="fillTemplate('We already have a website.')">Have Website</button>
+            <button class="qp-btn" onclick="fillTemplate('That price is too expensive.')">Too Expensive</button>
+            <button class="qp-btn" onclick="fillTemplate('I need to think about it.')">Not Now</button>
           </div>
 
-          <textarea id="sitMessage" placeholder="Describe the situation... e.g. 'prospect said not interested' or 'no response after 3 days'" style="min-height:100px"></textarea>
+          <!-- Quick-pick: proactive situations -->
+          <div style="font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:.35rem;margin-top:.75rem">Proactive Situations</div>
+          <div class="quick-pick">
+            <button class="qp-btn" onclick="fillTemplate('No response after 3 days of sending initial offer')">No Reply 3 Days</button>
+            <button class="qp-btn" onclick="fillTemplate('Prospect said not interested last week')">Said Not Interested</button>
+            <button class="qp-btn" onclick="fillTemplate('First contact — never emailed this prospect before')">First Outreach</button>
+            <button class="qp-btn" onclick="fillTemplate('Cold lead from 3 months ago, no contact since')">Cold Lead Revival</button>
+            <button class="qp-btn" onclick="fillTemplate('Prospect asked about price but hasn\'t replied in 2 days')">Asked Price, Gone Quiet</button>
+            <button class="qp-btn" onclick="fillTemplate('Prospect seems hesitant and unsure if they need the domain')">Hesitant Prospect</button>
+            <button class="qp-btn" onclick="fillTemplate('Agreed to buy but hasn\'t paid yet, 5 days passed')">Agreed, No Payment</button>
+            <button class="qp-btn" onclick="fillTemplate('Second follow-up, still no response')">2nd Follow-Up</button>
+          </div>
 
-          <!-- Domain + Price -->
+          <textarea id="tplMessage" placeholder="What did the prospect say, or describe the situation…&#10;&#10;Examples:&#10;• 'How much is the domain?'&#10;• 'No response after 3 days of sending initial offer'&#10;• 'Agreed to buy but hasn't paid yet'" style="min-height:100px;margin-top:.75rem"></textarea>
+
           <div class="inline-row">
-            <div class="field"><label class="field-label">Domain Name (optional)</label><input type="text" id="sitDomain" placeholder="e.g. LondonPlumber.com" /></div>
-            <div class="field"><label class="field-label">Asking Price (optional)</label><input type="text" id="sitPrice" placeholder="e.g. $650" /></div>
+            <div class="field"><label class="field-label">Domain Name (optional)</label><input type="text" id="tplDomain" placeholder="e.g. LondonPlumber.com" /></div>
+            <div class="field"><label class="field-label">Asking Price (optional)</label><input type="text" id="tplPrice" placeholder="e.g. $650" /></div>
           </div>
 
-          <!-- Controls row -->
+          <!-- Tone + Intent override + Intensity override -->
           <div style="margin-top:.9rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end">
-            <div class="field" style="flex:1;min-width:160px;margin:0">
+            <div class="field" style="flex:1;min-width:150px;margin:0">
               <label class="field-label">Tone</label>
-              <select id="sitTone">
+              <select id="tplTone" style="font-size:.82rem">
                 <option value="professional and persuasive">Professional &amp; Persuasive</option>
                 <option value="warm and friendly">Warm &amp; Friendly</option>
                 <option value="firm but respectful">Firm but Respectful</option>
@@ -374,7 +383,7 @@ Examples:
             </div>
             <div class="field" style="flex:1;min-width:140px;margin:0">
               <label class="field-label">Override Intent</label>
-              <select id="sitForceIntent">
+              <select id="tplForceIntent">
                 <option value="">Auto-detect</option>
                 <option value="follow_up">Follow Up</option>
                 <option value="sales_pitch">Sales Pitch</option>
@@ -392,7 +401,7 @@ Examples:
             </div>
             <div class="field" style="flex:1;min-width:130px;margin:0">
               <label class="field-label">Override Intensity</label>
-              <select id="sitForceIntensity">
+              <select id="tplForceIntensity">
                 <option value="">Auto-select</option>
                 <option value="low">🟢 Low — Subtle</option>
                 <option value="medium">🟡 Medium — Clear</option>
@@ -401,84 +410,18 @@ Examples:
             </div>
           </div>
 
-          <!-- Urgency toggle -->
-          <div style="margin-top:.75rem;display:flex;align-items:center;gap:.6rem">
-            <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer;font-size:.82rem;font-weight:500;color:var(--ink-2)">
-              <input type="checkbox" id="sitUrgency" style="width:auto;accent-color:var(--gold)" />
-              Add light urgency
-            </label>
-            <span style="font-size:.75rem;color:var(--ink-3)">(only for medium/high intensity)</span>
-          </div>
-
-          <button class="btn btn-primary btn-full" id="sitBtn" onclick="generateSituation()" style="margin-top:.9rem">
-            <span id="sitBtnText">Generate Reply</span>
-            <span class="spinner" id="sitSpinner"></span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Output card -->
-      <div class="card" id="sitOutputCard" style="display:none">
-        <div class="card-header"><span class="card-icon">💬</span><span class="card-title">Generated Reply</span></div>
-        <div class="card-body">
-          <!-- Meta strip -->
-          <div id="sitMetaStrip" style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.7rem;align-items:center"></div>
-
-          <div id="sitOutputBox" class="output-box" style="min-height:80px"></div>
-
-          <!-- Score bar -->
-          <div id="sitScoreWrap" style="display:none;margin-top:.6rem">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem">
-              <span style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)">Confidence</span>
-              <span id="sitScoreNum" style="font-size:.82rem;font-weight:700;color:var(--ink-1)"></span>
-            </div>
-            <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
-              <div id="sitScoreBar" style="height:100%;border-radius:4px;transition:width .5s ease;background:var(--green)"></div>
-            </div>
-            <div id="sitScoreReason" style="font-size:.75rem;color:var(--ink-3);margin-top:.3rem;line-height:1.5"></div>
-          </div>
-
-          <div style="margin-top:.7rem;display:flex;gap:.5rem">
-            <button class="btn btn-secondary btn-sm" onclick="copySituation()">⎘ Copy</button>
-            <button class="btn btn-secondary btn-sm" onclick="clearSituation()">↺ Clear</button>
-          </div>
-        </div>
-      </div>
-    </div><!-- /tab-situation -->
-
-    <!-- TAB: TEMPLATE -->
-    <div class="tab-panel" id="tab-template">
-      <div class="card" style="margin-top:1px;border-top-left-radius:0">
-        <div class="card-header"><span class="card-icon">⚡</span><span class="card-title">Template Mode — No API Key Required</span></div>
-        <div class="card-body">
-          <div id="notifTemplate" class="notif"></div>
-          <p style="font-size:.8rem;color:var(--ink-2);margin-bottom:.9rem;line-height:1.6">Instant replies using keyword matching — zero AI cost. Enable <strong>AI Polish</strong> to have Claude refine the result (API key required).</p>
-          <div class="quick-pick">
-            <button class="qp-btn" onclick="fillTemplate('How much is the domain?')">Price Inquiry</button>
-            <button class="qp-btn" onclick="fillTemplate('Not interested, thanks.')">No Thanks</button>
-            <button class="qp-btn" onclick="fillTemplate('This looks like a scam.')">Scam Concern</button>
-            <button class="qp-btn" onclick="fillTemplate('We already have a website.')">Have Website</button>
-            <button class="qp-btn" onclick="fillTemplate('That price is too expensive.')">Too Expensive</button>
-            <button class="qp-btn" onclick="fillTemplate('I need to think about it.')">Not Now</button>
-          </div>
-          <textarea id="tplMessage" placeholder="What did the prospect say?" style="min-height:90px"></textarea>
-          <div class="inline-row">
-            <div class="field"><label class="field-label">Domain Name (optional)</label><input type="text" id="tplDomain" placeholder="e.g. LondonPlumber.com" /></div>
-            <div class="field"><label class="field-label">Asking Price (optional)</label><input type="text" id="tplPrice" placeholder="e.g. $650" /></div>
-          </div>
-          <div style="margin-top:.9rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+          <!-- AI Polish + Urgency row -->
+          <div style="margin-top:.75rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
             <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer;font-size:.82rem;font-weight:500;color:var(--ink-2)">
               <input type="checkbox" id="tplPolish" style="width:auto;accent-color:var(--gold)" /> AI Polish
+              <span style="font-size:.72rem;color:var(--ink-3);font-weight:300">(uses API key)</span>
             </label>
-            <span style="font-size:.75rem;color:var(--ink-3)">(uses API key above)</span>
-            <select id="tplTone" style="flex:1;min-width:150px;font-size:.82rem">
-              <option value="professional and persuasive">Professional &amp; Persuasive</option>
-              <option value="warm and friendly">Warm &amp; Friendly</option>
-              <option value="firm but respectful">Firm but Respectful</option>
-              <option value="concise and direct">Concise &amp; Direct</option>
-              <option value="empathetic and understanding">Empathetic</option>
-            </select>
+            <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer;font-size:.82rem;font-weight:500;color:var(--ink-2)">
+              <input type="checkbox" id="tplUrgency" style="width:auto;accent-color:var(--gold)" /> Add light urgency
+              <span style="font-size:.72rem;color:var(--ink-3);font-weight:300">(medium/high only)</span>
+            </label>
           </div>
+
           <button class="btn btn-primary btn-full" id="tplBtn" onclick="generateTemplate()" style="margin-top:.9rem">
             <span id="tplBtnText">Generate Template Reply</span>
             <span class="spinner" id="tplSpinner"></span>
@@ -489,12 +432,28 @@ Examples:
       <div class="card" id="tplOutputCard" style="display:none">
         <div class="card-header"><span class="card-icon">💬</span><span class="card-title">Template Reply</span></div>
         <div class="card-body">
+          <!-- Meta strip: intent + intensity + interpreted label -->
+          <div id="tplMetaStrip" style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.7rem;align-items:center"></div>
+
           <div id="tplOriginalWrap" style="display:none;margin-bottom:.75rem">
             <div style="font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:.35rem">Original Template</div>
             <div id="tplOriginalBox" style="font-size:.83rem;color:var(--ink-3);background:var(--cream);border:1px solid var(--border);border-radius:var(--radius);padding:.7rem .9rem;line-height:1.7;white-space:pre-wrap"></div>
           </div>
           <div id="tplPolishedLabel" style="display:none;font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--green);margin-bottom:.35rem">✨ AI Polished</div>
           <div id="tplOutputBox" class="output-box" style="min-height:80px"></div>
+
+          <!-- Score bar -->
+          <div id="tplScoreWrap" style="display:none;margin-top:.6rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem">
+              <span style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)">Confidence</span>
+              <span id="tplScoreNum" style="font-size:.82rem;font-weight:700;color:var(--ink)"></span>
+            </div>
+            <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
+              <div id="tplScoreBar" style="height:100%;border-radius:4px;transition:width .5s ease;background:var(--green)"></div>
+            </div>
+            <div id="tplScoreReason" style="font-size:.75rem;color:var(--ink-3);margin-top:.3rem;line-height:1.5"></div>
+          </div>
+
           <div style="margin-top:.5rem;display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
             <span id="tplIntentBadge" class="intent-badge"></span>
             <span id="tplModeBadge" style="display:none;font-size:.7rem;font-weight:500;padding:.2rem .6rem;border-radius:12px;background:var(--green-lt);color:var(--green);border:1px solid #b7dfca"></span>
@@ -629,7 +588,7 @@ Examples:
   loadHealth();
 
   /* ── QUICK-PICK ── */
-  function fillSituation(text) {
+  function fillGenerate(text) {
     document.getElementById('customerMessage').value = text;
     document.getElementById('customerMessage').focus();
   }
@@ -981,8 +940,8 @@ Examples:
 </body>
 </html>
 <script>
-  /* ── SITUATION MODE ── */
-  var INTENT_LABELS = {
+  /* ── TEMPLATE MODE (merged from Situation + Template) ── */
+  var TPL_INTENT_LABELS = {
     follow_up: 'Follow Up', sales_pitch: 'Sales Pitch',
     re_engagement: 'Re-Engagement', objection_handling: 'Objection Handling',
     no_thanks: 'No Thanks', price_inquiry: 'Price Inquiry',
@@ -991,130 +950,12 @@ Examples:
     not_now: 'Not Now', agreed_no_pay: 'Agreed No Pay', general: 'General',
   };
 
-  var INTENSITY_STYLES = {
+  var TPL_INTENSITY_STYLES = {
     low:    { label: '🟢 Low',    bg: '#e8f5ee', color: '#2d7a4f', border: '#b7dfca' },
     medium: { label: '🟡 Medium', bg: '#fef9e7', color: '#8a6800', border: '#f0d87a' },
     high:   { label: '🔴 High',   bg: '#fdecea', color: '#a93226', border: '#f5b7b1' },
   };
 
-  function fillSituation(text) {
-    document.getElementById('sitMessage').value = text;
-    document.getElementById('sitMessage').focus();
-  }
-
-  async function generateSituation() {
-    var situation = document.getElementById('sitMessage').value.trim();
-    if (!situation) return showNotif('notifSituation', 'Please describe the situation first.', 'error');
-
-    var apiKey = document.getElementById('apiKey').value.trim();
-    if (!apiKey) return showNotif('notifSituation', 'API key required for AI generation.', 'error');
-
-    clearNotif('notifSituation');
-    document.getElementById('sitBtn').disabled = true;
-    document.getElementById('sitBtnText').textContent = 'Generating…';
-    document.getElementById('sitSpinner').style.display = 'inline-block';
-    document.getElementById('sitOutputCard').style.display = 'none';
-
-    var body = {
-      situation: situation,
-      api_key: apiKey,
-      tone: document.getElementById('sitTone').value,
-      include_urgency: document.getElementById('sitUrgency').checked,
-    };
-    var domain = document.getElementById('sitDomain').value.trim();
-    var price  = document.getElementById('sitPrice').value.trim();
-    var fi     = document.getElementById('sitForceIntent').value;
-    var fint   = document.getElementById('sitForceIntensity').value;
-    if (domain) body.domain_name    = domain;
-    if (price)  body.asking_price   = price;
-    if (fi)     body.force_intent   = fi;
-    if (fint)   body.force_intensity = fint;
-
-    try {
-      var res  = await fetch(API_BASE + '/generate-reply/situation', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      var data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
-
-      // Render output
-      document.getElementById('sitOutputBox').textContent = data.result.reply;
-      document.getElementById('sitOutputCard').style.display = 'block';
-
-      // Meta strip — intent badge + intensity badge + interpreted label
-      var meta = document.getElementById('sitMetaStrip');
-      meta.innerHTML = '';
-
-      var intentKey = data.detected_intent || 'general';
-      var intentEl  = document.createElement('span');
-      intentEl.className = 'intent-badge';
-      intentEl.textContent = INTENT_LABELS[intentKey] || intentKey;
-      meta.appendChild(intentEl);
-
-      var intensity = data.pitch_intensity || 'medium';
-      var ist = INTENSITY_STYLES[intensity] || INTENSITY_STYLES.medium;
-      var intEl = document.createElement('span');
-      intEl.style.cssText = 'font-size:.7rem;font-weight:600;padding:.2rem .65rem;border-radius:12px;border:1px solid ' + ist.border + ';background:' + ist.bg + ';color:' + ist.color;
-      intEl.textContent = ist.label + ' intensity';
-      meta.appendChild(intEl);
-
-      if (data.situation_interpreted) {
-        var interpEl = document.createElement('span');
-        interpEl.style.cssText = 'font-size:.72rem;color:var(--ink-3);margin-left:.2rem';
-        interpEl.textContent = data.situation_interpreted;
-        meta.appendChild(interpEl);
-      }
-
-      // Score bar
-      var score = data.result && data.result.confidence_score;
-      if (score != null) {
-        document.getElementById('sitScoreWrap').style.display = 'block';
-        document.getElementById('sitScoreNum').textContent = score + ' / 100';
-        var bar = document.getElementById('sitScoreBar');
-        bar.style.width = score + '%';
-        bar.style.background = score >= 75 ? 'var(--green)' : score >= 50 ? '#f0c040' : '#e05a5a';
-        document.getElementById('sitScoreReason').textContent = data.result.confidence_reason || '';
-      }
-
-      document.getElementById('sitOutputCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-    } catch(err) {
-      showNotif('notifSituation', 'Error: ' + err.message, 'error');
-    } finally {
-      document.getElementById('sitBtn').disabled = false;
-      document.getElementById('sitBtnText').textContent = 'Generate Reply';
-      document.getElementById('sitSpinner').style.display = 'none';
-    }
-  }
-
-  function copySituation() {
-    var text = document.getElementById('sitOutputBox').textContent;
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(function() {
-        var btn = event.target;
-        btn.textContent = '✓ Copied!';
-        setTimeout(function() { btn.textContent = '⎘ Copy'; }, 1800);
-      });
-    } else {
-      try { Android.copyToClipboard(text); } catch(e) {}
-    }
-  }
-
-  function clearSituation() {
-    document.getElementById('sitMessage').value = '';
-    document.getElementById('sitDomain').value  = '';
-    document.getElementById('sitPrice').value   = '';
-    document.getElementById('sitForceIntent').value    = '';
-    document.getElementById('sitForceIntensity').value = '';
-    document.getElementById('sitUrgency').checked = false;
-    document.getElementById('sitOutputCard').style.display = 'none';
-    document.getElementById('sitMetaStrip').innerHTML = '';
-    document.getElementById('sitScoreWrap').style.display = 'none';
-    clearNotif('notifSituation');
-  }
-
-  /* ── TEMPLATE MODE ── */
   function fillTemplate(text) {
     document.getElementById('tplMessage').value = text;
     document.getElementById('tplMessage').focus();
@@ -1124,24 +965,31 @@ Examples:
     var message = document.getElementById('tplMessage').value.trim();
     if (!message) return showNotif('notifTemplate', 'Please describe the situation first.', 'error');
 
-    var polish  = document.getElementById('tplPolish').checked;
-    var apiKey  = document.getElementById('apiKey').value.trim();
+    var polish = document.getElementById('tplPolish').checked;
+    var apiKey = document.getElementById('apiKey').value.trim();
     if (polish && !apiKey) return showNotif('notifTemplate', 'AI Polish requires your Anthropic API key (enter it above).', 'error');
 
     clearNotif('notifTemplate');
     document.getElementById('tplBtn').disabled = true;
     document.getElementById('tplBtnText').textContent = 'Generating…';
     document.getElementById('tplSpinner').style.display = 'inline-block';
+    document.getElementById('tplMetaStrip').innerHTML = '';
+    document.getElementById('tplScoreWrap').style.display = 'none';
 
     var body = {
       customer_message: message,
       ai_polish: polish,
-      tone: document.getElementById('tplTone').value
+      tone: document.getElementById('tplTone').value,
+      include_urgency: document.getElementById('tplUrgency').checked,
     };
     var domain = document.getElementById('tplDomain').value.trim();
     var price  = document.getElementById('tplPrice').value.trim();
-    if (domain) body.domain_name  = domain;
-    if (price)  body.asking_price = price;
+    var fi     = document.getElementById('tplForceIntent').value;
+    var fint   = document.getElementById('tplForceIntensity').value;
+    if (domain) body.domain_name     = domain;
+    if (price)  body.asking_price    = price;
+    if (fi)     body.force_intent    = fi;
+    if (fint)   body.force_intensity = fint;
     if (polish && apiKey) body.api_key = apiKey;
 
     try {
@@ -1156,13 +1004,39 @@ Examples:
       var card      = document.getElementById('tplOutputCard');
       card.style.display = 'block';
 
-      // Show intent badge
-      var intentBadge = document.getElementById('tplIntentBadge');
-      intentBadge.textContent = data.detected_intent || '';
-      intentBadge.style.display = data.detected_intent ? 'inline-block' : 'none';
+      // Meta strip — intent badge + intensity badge + interpreted label
+      var meta = document.getElementById('tplMetaStrip');
+      meta.innerHTML = '';
+      var intentKey = data.detected_intent || '';
+      if (intentKey) {
+        var intentEl = document.createElement('span');
+        intentEl.className = 'intent-badge';
+        intentEl.style.display = 'inline-block';
+        intentEl.textContent = TPL_INTENT_LABELS[intentKey] || intentKey;
+        meta.appendChild(intentEl);
+      }
+      var intensity = data.pitch_intensity || '';
+      if (intensity) {
+        var ist   = TPL_INTENSITY_STYLES[intensity] || TPL_INTENSITY_STYLES.medium;
+        var intEl = document.createElement('span');
+        intEl.style.cssText = 'font-size:.7rem;font-weight:600;padding:.2rem .65rem;border-radius:12px;border:1px solid ' + ist.border + ';background:' + ist.bg + ';color:' + ist.color;
+        intEl.textContent = ist.label + ' intensity';
+        meta.appendChild(intEl);
+      }
+      if (data.situation_interpreted) {
+        var interpEl = document.createElement('span');
+        interpEl.style.cssText = 'font-size:.72rem;color:var(--ink-3);margin-left:.2rem';
+        interpEl.textContent = data.situation_interpreted;
+        meta.appendChild(interpEl);
+      }
 
+      // Legacy intent badge (below output box)
+      var intentBadge = document.getElementById('tplIntentBadge');
+      intentBadge.textContent = intentKey;
+      intentBadge.style.display = intentKey ? 'inline-block' : 'none';
+
+      // Reply body
       if (polish && data.polished_reply) {
-        // Show original template collapsed, polished reply prominent
         document.getElementById('tplOriginalBox').textContent = data.original_template_reply || '';
         document.getElementById('tplOriginalWrap').style.display = 'block';
         document.getElementById('tplPolishedLabel').style.display = 'block';
@@ -1175,6 +1049,18 @@ Examples:
         outputBox.textContent = data.reply || JSON.stringify(data);
         document.getElementById('tplModeBadge').textContent = 'template only';
         document.getElementById('tplModeBadge').style.display = 'inline-block';
+      }
+
+      // Score bar (if server returns replies[0] with confidence)
+      var firstReply = data.replies && data.replies[0];
+      var score = firstReply && firstReply.confidence_score;
+      if (score != null) {
+        document.getElementById('tplScoreWrap').style.display = 'block';
+        document.getElementById('tplScoreNum').textContent = score + ' / 100';
+        var bar = document.getElementById('tplScoreBar');
+        bar.style.width = score + '%';
+        bar.style.background = score >= 75 ? 'var(--green)' : score >= 50 ? '#f0c040' : '#e05a5a';
+        document.getElementById('tplScoreReason').textContent = (firstReply && firstReply.confidence_reason) || '';
       }
 
       outputBox.classList.remove('empty');
@@ -1206,9 +1092,14 @@ Examples:
     document.getElementById('tplMessage').value = '';
     document.getElementById('tplDomain').value  = '';
     document.getElementById('tplPrice').value   = '';
-    document.getElementById('tplPolish').checked = false;
+    document.getElementById('tplPolish').checked  = false;
+    document.getElementById('tplUrgency').checked = false;
+    document.getElementById('tplForceIntent').value    = '';
+    document.getElementById('tplForceIntensity').value = '';
     document.getElementById('tplOutputCard').style.display = 'none';
     document.getElementById('tplOutputBox').textContent = '';
+    document.getElementById('tplMetaStrip').innerHTML = '';
+    document.getElementById('tplScoreWrap').style.display = 'none';
     clearNotif('notifTemplate');
   }
 </script>

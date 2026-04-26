@@ -720,6 +720,141 @@ COMPONENTS: dict[str, dict[str, list[str]]] = {
     },
 
     # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: sales_pitch  [SITUATION MODE]
+    # First contact / proactive outreach — no prior message from prospect
+    # ─────────────────────────────────────────────────────────────────────────
+    "sales_pitch": {
+        "acknowledgment": [
+            "I'm reaching out because this domain is closely related to your business.",
+            "I came across your business while researching potential buyers for a domain I own.",
+            "I own a domain that could add real value to your online presence.",
+        ],
+        "body": [
+            (
+                "This domain is an exact keyword match for your service and city. "
+                "Every time someone in your area searches for what you offer, "
+                "owning this domain puts your website in front of them — "
+                "and you can redirect it to your current site in minutes, no new website needed."
+            ),
+            (
+                "Geo-targeted domains like this one do three things for your business: "
+                "they capture direct type-in traffic from people who never knew your URL, "
+                "they signal local authority to search engines, "
+                "and they stop a competitor from owning the name and using it against you. "
+                "Any one of those is worth the cost alone."
+            ),
+            (
+                "I'm contacting businesses in your niche because this domain is the best fit for someone "
+                "already operating in this city and service area. "
+                "The asking price is competitive, offers are welcome, "
+                "and the whole transaction is handled by a secure escrow marketplace."
+            ),
+            (
+                "The domain contains the exact keywords your customers type when they're ready to buy. "
+                "Redirecting it to your existing website is a one-minute setup — "
+                "no coding, no rebuilding, no disruption to what you already have. "
+                "It simply sends more of the right people to your door."
+            ),
+        ],
+        "closing": [
+            "Visit the listing to purchase or make an offer. Happy to answer any questions.",
+            "Reply with any questions, or head to the listing for immediate ownership.",
+            "Interested? Let me know and I'll walk you through the process. Best regards.",
+            "This is first-come-first-served — I'm reaching out to a few businesses today. Let me know.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: re_engagement  [SITUATION MODE]
+    # Prospect went cold / long gap / dormant lead
+    # ─────────────────────────────────────────────────────────────────────────
+    "re_engagement": {
+        "acknowledgment": [
+            "It's been a while since we last spoke — I wanted to reach back out.",
+            "I know some time has passed since we were last in touch.",
+            "Coming back to you on this after some time — hope things are going well.",
+        ],
+        "body": [
+            (
+                "The domain is still available, and I wanted to give you the first opportunity "
+                "before I reach out to other businesses in your space. "
+                "If the timing or price was the issue before, I'm open to a fresh conversation — "
+                "just let me know where things stand."
+            ),
+            (
+                "A lot can change in a few months — and the opportunity here hasn't. "
+                "This domain is still sitting unclaimed, and it's still the best match "
+                "for a business like yours in this area. "
+                "If you're in a better position now to move forward, I'd love to hear from you."
+            ),
+            (
+                "I haven't moved this to anyone else yet — and I wanted to check in "
+                "before I do. If you're still interested at all, even at a different price, "
+                "just reply and we can pick up where we left off."
+            ),
+            (
+                "In case things have shifted since we last spoke: "
+                "the domain can be redirected to your current website in minutes, "
+                "the transaction is fully protected by escrow, "
+                "and the price is still negotiable. "
+                "I'd rather it go to you than to a competitor."
+            ),
+        ],
+        "closing": [
+            "Just a yes or no helps — either way I'll respect your decision. Best regards.",
+            "If the timing still isn't right, no problem — just let me know. Kind regards.",
+            "Reply whenever you're ready. The door is still open.",
+            "Visit the listing if you'd like to move forward, or just drop me a reply.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: objection_handling  [SITUATION MODE]
+    # Prospect is hesitant, unsure, or on the fence
+    # ─────────────────────────────────────────────────────────────────────────
+    "objection_handling": {
+        "acknowledgment": [
+            "I hear you — and I want to make sure I address your concern properly.",
+            "That's a fair point, and I appreciate you being upfront about it.",
+            "I understand the hesitation — let me try to address it directly.",
+        ],
+        "body": [
+            (
+                "The most common concern I hear is price — and it's a fair one. "
+                "What I'd say is this: a domain registration costs $10 because it has no history, "
+                "no keyword value, and no existing traffic. "
+                "This domain has all three. That's what the premium reflects. "
+                "That said, if you have a number in mind, share it — I'd rather make a deal."
+            ),
+            (
+                "If the hesitation is about whether this will actually work for your business: "
+                "the redirect takes two minutes to set up, "
+                "you keep your existing website exactly as it is, "
+                "and any visitor who types this domain lands on your current site automatically. "
+                "There's genuinely nothing to lose in trying it."
+            ),
+            (
+                "If you're unsure whether you need it — consider the alternative. "
+                "If a competitor buys this domain, their site gets the traffic you're missing out on. "
+                "That's not a scare tactic — it's just how exact-match geo domains work in local search. "
+                "Owning it costs far less than losing that traffic permanently."
+            ),
+            (
+                "Whatever the hesitation is, I'd rather you tell me than stay on the fence. "
+                "Is it price? Timing? Not sure how it works? "
+                "Reply with your actual concern and I'll give you a straight answer — "
+                "no pressure, no pitch, just an honest response."
+            ),
+        ],
+        "closing": [
+            "What's the specific concern? Reply and I'll address it directly. Best regards.",
+            "Tell me what's holding you back and we'll work through it together.",
+            "Happy to answer any questions — just ask. Kind regards.",
+            "No pressure at all — just let me know what would make this easier for you.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
     # INTENT: not_interested_ask_why (specific sub-intent)
     # ─────────────────────────────────────────────────────────────────────────
     "not_interested_ask_why": {
@@ -1184,6 +1319,19 @@ TEMPLATE_INTENT_KEYWORDS: dict[str, list[str]] = {
     "development":           ["build a website", "build a new site", "develop it",
                               "create a website", "make a site", "new website on",
                               "host a site", "build on this", "develop the domain"],
+    # ── SITUATION-MODE INTENTS ─────────────────────────────────────────────
+    "sales_pitch":           ["first contact", "cold email", "initial outreach",
+                              "new prospect", "reaching out", "never contacted",
+                              "introduce", "presenting", "first time emailing",
+                              "first pitch", "haven't spoken before"],
+    "re_engagement":         ["cold lead", "went cold", "lost contact", "stopped replying",
+                              "months ago", "long time", "reconnect", "revive",
+                              "dormant", "inactive", "old lead", "previous conversation",
+                              "been a while", "haven't heard", "time has passed"],
+    "objection_handling":    ["hesitant", "unsure", "not convinced", "on the fence",
+                              "needs convincing", "doubtful", "skeptical",
+                              "thinking about it", "considering", "not sure if",
+                              "hard to decide", "difficult to commit"],
 }
 
 
@@ -1224,10 +1372,13 @@ def detect_template_intent(message: str) -> str:
         "domain_metrics",
         "related_domains",
         "identity",
+        "objection_handling",
+        "re_engagement",
         "follow_up",
         "not_interested_ask_why",
         "no_thanks",
         "price_inquiry",
+        "sales_pitch",
         "cold_outreach",
     ]
 
@@ -1316,7 +1467,7 @@ def build_template_reply(
     ]
 
     # Clean and join
-    reply = " ".join(p.strip() for p in parts if p.strip())
+    reply = "\n\n".join(p.strip() for p in parts if p.strip())
     reply = _strip_filler(reply)
 
     return {
@@ -1437,6 +1588,108 @@ def ai_polish_reply(
             "ai_polish":               False,
             "error":                   str(e),
         }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PART 5 — Extract reusable components from past_replies.json
+# Call this to see what greetings / bodies / closings live in your data.
+# Use it to grow COMPONENTS over time without manual editing.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def extract_template_components(data_file: str = None) -> dict:
+    """
+    Reads past_replies.json and organises reply text into:
+      - greetings     : opening lines
+      - body_sections : middle paragraphs
+      - closings      : final sign-off lines
+      - stats         : counts of what was found
+
+    Deduplicates exact matches and removes phrases that are substrings
+    of longer phrases (keeps the richest version).
+
+    Usage:
+        from template_engine import extract_template_components
+        components = extract_template_components()
+        for g in components['greetings']:
+            print(g)
+    """
+    from pathlib import Path as _Path
+
+    if data_file is None:
+        data_file = _Path(__file__).parent / "past_replies.json"
+    else:
+        data_file = _Path(data_file)
+
+    if not data_file.exists():
+        print(f"[extract_template_components] File not found: {data_file}")
+        return {}
+
+    import json as _json
+    with open(data_file, "r", encoding="utf-8") as f:
+        replies = _json.load(f)
+
+    greetings:     set = set()
+    body_sections: set = set()
+    closings:      set = set()
+
+    GREETING_STARTS = ("hi,", "hello,", "good day,", "hi there,", "hello there,",
+                       "dear sir", "good morning,", "hey,")
+    CLOSING_STARTS  = ("best regards", "kind regards", "warm regards", "regards,",
+                       "thanks for your", "thank you for", "looking forward",
+                       "take care", "wishing you", "cheers")
+
+    for entry in replies:
+        raw = entry.get("reply", "").strip()
+        if not raw:
+            continue
+
+        paragraphs = [p.strip() for p in re.split(r"\n\n|\n", raw) if p.strip()]
+        sentences  = re.split(r"(?<=[.!?])\s+", raw)
+
+        # Greetings — first sentence starting with a greeting word
+        if sentences:
+            first = sentences[0].strip()
+            if any(first.lower().startswith(g) for g in GREETING_STARTS):
+                greetings.add(first.rstrip(".,").rstrip() + ",")
+
+        # Closings — last paragraph or sentence starting with a closing word
+        if paragraphs:
+            last_para = paragraphs[-1].strip()
+            if any(last_para.lower().startswith(c) for c in CLOSING_STARTS):
+                closings.add(last_para)
+        if len(sentences) >= 2:
+            last_sent = sentences[-1].strip()
+            if any(last_sent.lower().startswith(c) for c in CLOSING_STARTS):
+                closings.add(last_sent)
+
+        # Body sections — middle paragraphs only (not first, not last)
+        if len(paragraphs) >= 3:
+            for para in paragraphs[1:-1]:
+                if len(para.split()) >= 8:
+                    body_sections.add(para)
+        elif len(paragraphs) == 2 and len(paragraphs[1].split()) >= 8:
+            body_sections.add(paragraphs[1])
+
+    def dedupe_subsets(phrases: set) -> list:
+        """Keep only phrases that are not substrings of a longer phrase."""
+        ranked = sorted(phrases, key=len, reverse=True)
+        kept = []
+        for phrase in ranked:
+            if not any(phrase in longer for longer in kept):
+                kept.append(phrase)
+        return kept
+
+    return {
+        "greetings":     dedupe_subsets(greetings),
+        "body_sections": dedupe_subsets(body_sections),
+        "closings":      dedupe_subsets(closings),
+        "total_replies": len(replies),
+        "stats": {
+            "greetings_found":     len(greetings),
+            "body_sections_found": len(body_sections),
+            "closings_found":      len(closings),
+        },
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────

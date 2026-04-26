@@ -1229,6 +1229,18 @@ async def save_generated_reply(req: SaveReplyRequest):
     If make_template=True, also logs it as a template for reuse.
     """
     all_r  = load_replies()
+
+    # Duplicate check — skip if identical reply already exists
+    reply_text_clean = req.reply.strip().lower()
+    for existing in all_r:
+        if existing.get("reply", "").strip().lower() == reply_text_clean:
+            return {
+                "message": "Reply already exists in knowledge base (duplicate skipped).",
+                "id": existing.get("id"),
+                "entry": existing,
+                "duplicate": True,
+            }
+
     new_id = max((r.get("id", 0) for r in all_r), default=0) + 1
     entry  = {
         "id":               new_id,
