@@ -34,8 +34,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, field_validator
-from intent_utils import INTENT_KEYWORDS, detect_intent
 from intent_registry import INTENT_REGISTRY, full_pipeline, registry_for
+from pipeline import analyse, build_flow_instruction, InputAnalysis
 from template_engine import build_template_reply, ai_polish_reply, detect_template_intent, TEMPLATE_INTENT_KEYWORDS
 from quality_control import build_strategy_block, run_full_qc, check_variation_uniqueness, log_variation_check
 
@@ -156,9 +156,26 @@ URGENCY_LAYER: dict[str, str] = {
 # INTENT + TONE + PERSUASION MAPS
 # ─────────────────────────────────────────────────────────────────────────────
 
-# INTENT_KEYWORDS and detect_intent have been moved to intent_utils.py
-# They are imported at the top of this file via:
-#   from intent_utils import INTENT_KEYWORDS, detect_intent
+INTENT_KEYWORDS: dict[str, list[str]] = {
+    "no_thanks":      ["no thanks", "not interested", "pass", "decline", "don't need"],
+    "price_inquiry":  ["how much", "price", "cost", "what are you asking", "rate", "fee"],
+    "price_too_high": ["too expensive", "too high", "too much", "can't afford", "$10", "register for"],
+    "negotiation":    ["offer", "counter", "negotiate", "lower", "discount", "best price", "bottom"],
+    "follow_up":      ["follow up", "following up", "no reply", "no response", "checking in", "reminder"],
+    "trust_issue":    ["scam", "fake", "not real", "legitimate", "trust", "verify", "proof",
+                       "fraud", "suspicious", "doubt", "worried", "concern"],
+    "have_website":   ["already have", "have a website", "have a domain", "don't need another"],
+    "rank_well":      ["already rank", "rank fine", "seo is fine", "first page already"],
+    "how_it_works":   ["how does", "redirect", "forward", "how do i", "technical", "it guy", "developer"],
+    "why_buy":        ["why", "benefits", "what's the point", "explain", "value", "help my business"],
+    "not_now":        ["later", "not now", "maybe", "not the right time", "future"],
+    "partner":        ["partner", "team", "discuss", "boss", "colleague", "approval"],
+    "agreed_no_pay":  ["agreed", "deal", "haven't paid", "no payment", "still waiting"],
+    "payment_issue":  ["link not working", "payment failed", "can't checkout", "portal", "error"],
+    "angry":          ["stop emailing", "spam", "harassment", "angry", "annoying", "unsubscribe"],
+    "expired_owner":  ["used to be", "our domain", "how did you get", "previously owned"],
+    "extension":      [".net", ".org", ".io", "other extension", "already own the"],
+}
 
 TONE_INSTRUCTIONS: dict[str, str] = {
     "professional and persuasive": "Write in a confident, professional tone. Use persuasive but respectful language. Lead with value, not pressure.",
@@ -481,6 +498,14 @@ def save_replies(data: list[dict]) -> None:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
+def detect_intent(msg: str) -> str:
+    low = msg.lower()
+    for intent, phrases in INTENT_KEYWORDS.items():
+        if any(p in low for p in phrases):
+            return intent
+    return "general"
+
+
 def detect_situation_intent(situation: str) -> str:
     """Checks SITUATION_KEYWORDS first (proactive), then falls back to standard detection."""
     low = situation.lower()
@@ -599,7 +624,8 @@ SCORE_SYSTEM = (
 
 
 def build_reply_prompt(message, intent, examples, tone, domain_name, asking_price,
-                       retrieval_method, angle_instruction=None):
+                       retrieval_method, angle_instruction=None,
+                       analysis: Optional[InputAnalysis] = None):
     tone_inst   = TONE_INSTRUCTIONS.get(tone, f"Tone: {tone}.")
     method_note = "by semantic meaning" if retrieval_method == "semantic" else "by keyword"
 
@@ -620,7 +646,7 @@ def build_reply_prompt(message, intent, examples, tone, domain_name, asking_pric
     closing = CLOSING_TECHNIQUES.get(intent, "- End with a clear next step.")
     angle_block = f"\nANGLE TO USE:\n{angle_instruction}\n" if angle_instruction else ""
 
-    # ── PART 1: Strategy block injected before writing ──────────────────────
+    # ── PART 1: Strategy block ───────────────────────────────────────────────
     strategy_block = build_strategy_block(intent)
 
     quality_gate = (
@@ -631,13 +657,26 @@ def build_reply_prompt(message, intent, examples, tone, domain_name, asking_pric
         "  - Sounds like a real person\n"
     )
 
+    # ── PART 2: Pipeline analysis (question detection + multi-intent) ────────
+    if analysis is None:
+        analysis = analyse(message)
+
+    question_section     = f"\n{analysis.question_block}\n" if analysis.question_block else ""
+    multi_intent_section = f"\n{analysis.multi_intent_note}\n" if analysis.multi_intent_note else ""
+    flow_instruction     = build_flow_instruction(analysis)
+    debug_note           = f"\n{analysis.debug_block}\n" if analysis.debug_block else ""
+
     return (
-        f"TONE: {tone_inst}\nDETECTED INTENT: {intent.replace('_',' ').title()}\n\n"
+        f"TONE: {tone_inst}\nDETECTED INTENT: {intent.replace('_',' ').title()}\n"
+        f"{debug_note}"
         f"{strategy_block}\n\n"
+        f"{multi_intent_section}"
         f"{domain_block}{ex_block}{angle_block}"
         f"\n─────────────────────────────────────────────\n"
         f"CURRENT SITUATION:\n\"\"\"{strip_filler(message)}\"\"\"\n"
         f"─────────────────────────────────────────────\n\n"
+        f"{question_section}"
+        f"{flow_instruction}\n\n"
         f"WRITING RULES:\n{rules}\n"
         f"CLOSING TECHNIQUE: {closing}\n\n"
         f"HARD RULES:\n"
@@ -645,12 +684,13 @@ def build_reply_prompt(message, intent, examples, tone, domain_name, asking_pric
         f"- Do NOT open with filler\n"
         f"- Do NOT use placeholders like [Name] or [Link]\n"
         f"- Write ONLY the reply body\n"
+        f"- If questions are listed above, answer them BEFORE anything else\n"
         f"{quality_gate}\nWrite the reply now:"
     )
 
-
 def build_situation_prompt(situation, intent, intensity, examples, tone,
-                           domain_name, asking_price, retrieval_method, include_urgency=False):
+                           domain_name, asking_price, retrieval_method, include_urgency=False,
+                           analysis: Optional[InputAnalysis] = None):
     """Prompt for situation-mode — injects pitch intensity, value props, soft CTAs, urgency."""
     tone_inst   = TONE_INSTRUCTIONS.get(tone, f"Tone: {tone}.")
     method_note = "by semantic meaning" if retrieval_method == "semantic" else "by keyword"
@@ -682,19 +722,32 @@ def build_situation_prompt(situation, intent, intensity, examples, tone,
 
     urgency_block = f"\nURGENCY GUIDANCE:\n{urgency}" if urgency else ""
 
-    # ── PART 1: Strategy block injected before writing ──────────────────────
+    # ── PART 1: Strategy block ───────────────────────────────────────────────
     strategy_block = build_strategy_block(intent)
+
+    # ── PART 2: Pipeline analysis (question detection + multi-intent) ────────
+    if analysis is None:
+        analysis = analyse(situation)
+
+    question_section     = f"\n{analysis.question_block}\n" if analysis.question_block else ""
+    multi_intent_section = f"\n{analysis.multi_intent_note}\n" if analysis.multi_intent_note else ""
+    flow_instruction     = build_flow_instruction(analysis)
+    debug_note           = f"\n{analysis.debug_block}\n" if analysis.debug_block else ""
 
     return (
         f"TONE: {tone_inst}\n"
         f"DETECTED INTENT: {intent.replace('_',' ').title()}\n"
-        f"PITCH INTENSITY: {intensity.upper()} — {intensity_desc}\n\n"
+        f"PITCH INTENSITY: {intensity.upper()} — {intensity_desc}\n"
+        f"{debug_note}"
         f"{strategy_block}\n\n"
+        f"{multi_intent_section}"
         f"{domain_block}{ex_block}"
         f"\n─────────────────────────────────────────────\n"
         f"SITUATION (described by the sender — there may be no direct quote from the prospect):\n"
         f"\"\"\"{strip_filler(situation)}\"\"\"\n"
         f"─────────────────────────────────────────────\n\n"
+        f"{question_section}"
+        f"{flow_instruction}\n\n"
         f"CONTEXT: Write the appropriate email on behalf of the domain broker. "
         f"This could be a follow-up, first pitch, re-engagement, or response to an indirect signal. "
         f"Infer what the right message is from the situation above.\n\n"
@@ -707,7 +760,8 @@ def build_situation_prompt(situation, intent, intensity, examples, tone,
         f"- No filler openers\n"
         f"- No placeholders like [Name] or [Link]\n"
         f"- Write ONLY the email body\n"
-        f"- Match intensity: {intensity.upper()} means {intensity_desc}\n\n"
+        f"- Match intensity: {intensity.upper()} means {intensity_desc}\n"
+        f"- If questions are listed above, answer them BEFORE anything else\n\n"
         f"Write the reply now:"
     )
 
@@ -1040,7 +1094,9 @@ async def generate_reply(req: GenerateRequest):
     Supports mode="hybrid" to run template→AI polish instead of pure AI.
     """
     api_key  = get_api_key(req.api_key)
-    intent   = detect_intent(req.customer_message)
+    # Run full pipeline analysis once — shared by prompt builder + response
+    analysis = analyse(req.customer_message)
+    intent   = analysis.primary_intent  # use pipeline's scored primary intent
     tone     = req.tone or "professional and persuasive"
     replies  = load_replies()
     examples, method = retrieve(req.customer_message, replies, intent, api_key, TOP_K)
@@ -1058,10 +1114,11 @@ async def generate_reply(req: GenerateRequest):
         score, reason = score_reply(client, req.customer_message, fixed)
         variations = [ReplyResult(reply=fixed, label="Hybrid", confidence_score=score, confidence_reason=reason)]
     else:
-        # Standard AI mode — build base prompt, generate N variations
+        # Standard AI mode — pass analysis into prompt builder (no double-compute)
         base_prompt = build_reply_prompt(
             req.customer_message, intent, examples, tone,
             req.domain_name, req.asking_price, method,
+            analysis=analysis,
         )
         variations = generate_variations(
             client, base_prompt,
@@ -1086,7 +1143,6 @@ async def generate_reply(req: GenerateRequest):
         tone_applied=tone,
     )
 
-
 @app.post("/generate-reply/situation", response_model=SituationResponse)
 async def generate_reply_situation(req: SituationRequest):
     """
@@ -1095,6 +1151,8 @@ async def generate_reply_situation(req: SituationRequest):
     Returns subject + 2-3 formatted variations with quality guard.
     """
     api_key   = get_api_key(req.api_key)
+    # Run full pipeline analysis once — shared by intent detection + prompt builder
+    analysis  = analyse(req.situation)
     intent    = req.force_intent or detect_situation_intent(req.situation)
     intensity = req.force_intensity or INTENT_TO_INTENSITY.get(intent, "medium")
     tone      = req.tone or "professional and persuasive"
@@ -1107,6 +1165,7 @@ async def generate_reply_situation(req: SituationRequest):
         examples=examples, tone=tone,
         domain_name=req.domain_name, asking_price=req.asking_price,
         retrieval_method=method, include_urgency=req.include_urgency,
+        analysis=analysis,
     )
     variations = generate_variations(
         client, base_prompt,
@@ -1119,6 +1178,15 @@ async def generate_reply_situation(req: SituationRequest):
     )
     subject = generate_subject_ai(client, intent, variations[0].reply, req.domain_name)
 
+    # Build situation_interpreted including question + multi-intent signals
+    signals = []
+    if analysis.has_questions:
+        signals.append(f"Questions: {len(analysis.questions)} detected")
+    if analysis.has_multiple_intents:
+        secondary_labels = ", ".join(s.replace("_", " ").title() for s in analysis.secondary_intents)
+        signals.append(f"Secondary signals: {secondary_labels}")
+    signals_note = " · ".join(signals)
+
     return SituationResponse(
         subject=subject,
         replies=variations,
@@ -1128,10 +1196,13 @@ async def generate_reply_situation(req: SituationRequest):
             f"Intent: {intent.replace('_', ' ').title()} · "
             f"Intensity: {intensity.title()} pitch · "
             f"Urgency: {'on' if req.include_urgency else 'off'}"
+            + (f" · {signals_note}" if signals_note else "")
         ),
         model_used=MODEL,
         tone_applied=tone,
     )
+
+
 
 
 @app.post("/generate-reply/template")
