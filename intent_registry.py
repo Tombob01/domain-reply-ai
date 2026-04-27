@@ -53,7 +53,7 @@ from typing import Optional
 
 # Layer 1 — Trigger phrases (intent detection)
 # Source: main.py  →  INTENT_KEYWORDS + detect_intent()
-from main import INTENT_KEYWORDS, detect_intent
+from intent_utils import INTENT_KEYWORDS, detect_intent
 
 # Layer 2 — Strategy (how to respond)
 # Source: quality_control.py  →  INTENT_STRATEGY + get_strategy() + build_strategy_block()

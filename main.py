@@ -34,6 +34,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, field_validator
+from intent_utils import INTENT_KEYWORDS, detect_intent
 from intent_registry import INTENT_REGISTRY, full_pipeline, registry_for
 from template_engine import build_template_reply, ai_polish_reply, detect_template_intent, TEMPLATE_INTENT_KEYWORDS
 from quality_control import build_strategy_block, run_full_qc, check_variation_uniqueness, log_variation_check
@@ -155,26 +156,9 @@ URGENCY_LAYER: dict[str, str] = {
 # INTENT + TONE + PERSUASION MAPS
 # ─────────────────────────────────────────────────────────────────────────────
 
-INTENT_KEYWORDS: dict[str, list[str]] = {
-    "no_thanks":      ["no thanks", "not interested", "pass", "decline", "don't need"],
-    "price_inquiry":  ["how much", "price", "cost", "what are you asking", "rate", "fee"],
-    "price_too_high": ["too expensive", "too high", "too much", "can't afford", "$10", "register for"],
-    "negotiation":    ["offer", "counter", "negotiate", "lower", "discount", "best price", "bottom"],
-    "follow_up":      ["follow up", "following up", "no reply", "no response", "checking in", "reminder"],
-    "trust_issue":    ["scam", "fake", "not real", "legitimate", "trust", "verify", "proof",
-                       "fraud", "suspicious", "doubt", "worried", "concern"],
-    "have_website":   ["already have", "have a website", "have a domain", "don't need another"],
-    "rank_well":      ["already rank", "rank fine", "seo is fine", "first page already"],
-    "how_it_works":   ["how does", "redirect", "forward", "how do i", "technical", "it guy", "developer"],
-    "why_buy":        ["why", "benefits", "what's the point", "explain", "value", "help my business"],
-    "not_now":        ["later", "not now", "maybe", "not the right time", "future"],
-    "partner":        ["partner", "team", "discuss", "boss", "colleague", "approval"],
-    "agreed_no_pay":  ["agreed", "deal", "haven't paid", "no payment", "still waiting"],
-    "payment_issue":  ["link not working", "payment failed", "can't checkout", "portal", "error"],
-    "angry":          ["stop emailing", "spam", "harassment", "angry", "annoying", "unsubscribe"],
-    "expired_owner":  ["used to be", "our domain", "how did you get", "previously owned"],
-    "extension":      [".net", ".org", ".io", "other extension", "already own the"],
-}
+# INTENT_KEYWORDS and detect_intent have been moved to intent_utils.py
+# They are imported at the top of this file via:
+#   from intent_utils import INTENT_KEYWORDS, detect_intent
 
 TONE_INSTRUCTIONS: dict[str, str] = {
     "professional and persuasive": "Write in a confident, professional tone. Use persuasive but respectful language. Lead with value, not pressure.",
@@ -495,14 +479,6 @@ def save_replies(data: list[dict]) -> None:
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
-
-
-def detect_intent(msg: str) -> str:
-    low = msg.lower()
-    for intent, phrases in INTENT_KEYWORDS.items():
-        if any(p in low for p in phrases):
-            return intent
-    return "general"
 
 
 def detect_situation_intent(situation: str) -> str:
