@@ -1242,6 +1242,461 @@ COMPONENTS: dict[str, dict[str, list[str]]] = {
             "The domain is yours to shape. Visit the listing for immediate ownership.",
         ],
     },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: request_info  [NEW]
+    # "Can you tell me more?" / "A few questions before I decide"
+    # ─────────────────────────────────────────────────────────────────────────
+    "request_info": {
+        "acknowledgment": [
+            "Before I make a decision either way, I just wanted to get a bit more detail.",
+            "Thanks for reaching out — happy to answer your questions directly.",
+            "Good question — let me give you exactly what you need to decide.",
+        ],
+        "body": [
+            (
+                "The domain is listed on Dan.com with full escrow protection — "
+                "your payment is held until the domain is in your account. "
+                "You can verify ownership right now: type it into your browser and it redirects to the marketplace listing. "
+                "Run a WHOIS lookup and you'll see the registration details."
+            ),
+            (
+                "The transfer process is fully protected. "
+                "You pay through the marketplace escrow, the domain transfers to your account within a few hours, "
+                "and then you redirect it to your existing website in two minutes. "
+                "No payment leaves escrow until you confirm delivery."
+            ),
+            (
+                "Happy to answer any specific questions you have — "
+                "whether that's about the process, the pricing, how the redirect works, "
+                "or anything else. "
+                "I'd rather you have the full picture before deciding."
+            ),
+        ],
+        "closing": [
+            "What specific questions do you have? Reply and I'll answer each one directly.",
+            "Happy to share the listing link or provide any details you need.",
+            "Ask away — no question is too small.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: demo_offer  [NEW]
+    # "Can I see what it would look like?" / offer to show a visual
+    # ─────────────────────────────────────────────────────────────────────────
+    "demo_offer": {
+        "acknowledgment": [
+            "Rather than just telling you the domain is a good fit, I'd like to show you.",
+            "I can put together a quick visual so you can see exactly what this would look like for your business.",
+            "Sometimes it helps to see it rather than read about it — so let me show you.",
+        ],
+        "body": [
+            (
+                "I can put together a quick mock-up — your business name, your service, your city — "
+                "so you can see how it would look in a browser bar and in a Google result. "
+                "It takes me about ten minutes and costs you nothing."
+            ),
+            (
+                "If you look at it and it doesn't move the needle, no harm done. "
+                "But if it does, we can talk numbers. "
+                "There's no obligation — just a visual so you can judge for yourself."
+            ),
+            (
+                "Seeing is more convincing than reading. "
+                "I'll show you the domain in context — as a browser URL, as a search result — "
+                "and let the domain speak for itself."
+            ),
+        ],
+        "closing": [
+            "Interested? Just say the word and I'll have it over to you today.",
+            "Reply with a yes and I'll get started on it immediately.",
+            "No obligation — just let me know if you'd like to see it.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: meeting_request  [NEW]
+    # "Can we get on a call?" / "Five minutes this week?"
+    # ─────────────────────────────────────────────────────────────────────────
+    "meeting_request": {
+        "acknowledgment": [
+            "I'll keep this short — I think a quick conversation would be more useful than another email.",
+            "I'd rather talk you through this briefly than keep exchanging messages.",
+            "Some things are easier to explain in five minutes than in five emails.",
+        ],
+        "body": [
+            (
+                "Do you have five minutes this week for a quick call? I'm flexible on timing. "
+                "I'll explain the value, answer your questions, "
+                "and if it still doesn't make sense after that, I'll leave you alone."
+            ),
+            (
+                "A short call lets me understand your situation better "
+                "and give you a straight answer rather than a generic pitch. "
+                "Five minutes is all I need — no preparation required on your end."
+            ),
+            (
+                "I think this domain is a better fit for your business than it might appear on paper. "
+                "A call is the quickest way to find out if I'm right — "
+                "and if I'm wrong, you'll know immediately."
+            ),
+        ],
+        "closing": [
+            "Let me know a time that works this week.",
+            "Reply with a day and time and I'll make myself available.",
+            "Five minutes. That's all I'm asking for.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: price_negotiation  [NEW]
+    # "Can you come down?" / "Meet me in the middle"
+    # ─────────────────────────────────────────────────────────────────────────
+    "price_negotiation": {
+        "acknowledgment": [
+            "I appreciate the offer — and I want to work something out, which is why I'm going to be straight with you.",
+            "Thanks for coming back with a number. Here's where I stand.",
+            "I respect the counter — let me be equally direct.",
+        ],
+        "body": [
+            (
+                "The number you sent is below what I need to make this worthwhile, "
+                "but I'm not going to counter with something unreasonable. "
+                "Here's my honest position: I can come down to meet you somewhere in the middle, "
+                "but I can't go as low as you've suggested."
+            ),
+            (
+                "What if we split the difference? "
+                "That's the fairest way to close this without either of us feeling like we lost. "
+                "Give me your absolute best number and I'll give you a straight yes or no within the hour."
+            ),
+            (
+                "I've already passed on a higher number, so I can't go lower than my floor. "
+                "But there's room between where we both are — "
+                "tell me your maximum and I'll tell you if we can make it work."
+            ),
+        ],
+        "closing": [
+            "What's your best number? Send it and I'll give you a straight answer.",
+            "Reply with your maximum and let's close this today.",
+            "Give me a number and I'll meet you there if I can.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: competitor_comparison  [NEW]
+    # "What if a competitor buys it?" / competitive risk framing
+    # ─────────────────────────────────────────────────────────────────────────
+    "competitor_comparison": {
+        "acknowledgment": [
+            "I want to ask you something directly: do you know who your closest competitor is in this city for your service?",
+            "There's a competitive angle to this that I haven't raised yet — and I think it matters.",
+            "Let me frame this differently, because the most important angle here isn't just about you.",
+        ],
+        "body": [
+            (
+                "I've been reaching out to businesses in your niche today, "
+                "and if you don't take this domain, the next email I send goes to your competitor. "
+                "This isn't a scare tactic — it's just how it works. "
+                "An exact-match geo domain in a competitor's hands means their site shows up where yours doesn't."
+            ),
+            (
+                "Owning this domain is a defensive move as much as an offensive one. "
+                "It removes a weapon from your competitor's arsenal permanently. "
+                "If they own it and build on it, the traffic they gain comes directly at your expense — "
+                "and that's not reversible."
+            ),
+            (
+                "The first business to claim this locks everyone else out. "
+                "That advantage compounds every month. "
+                "A one-time purchase eliminates a permanent competitive risk. "
+                "You don't just gain traffic — you prevent someone else from using it against you."
+            ),
+        ],
+        "closing": [
+            "Visit the listing if you'd like to move on this before I contact anyone else.",
+            "You know your market better than I do. Make the call that makes sense.",
+            "Reply or visit the listing — your call.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: trust_building  [NEW]
+    # "Let me show you how to verify everything" / building credibility
+    # ─────────────────────────────────────────────────────────────────────────
+    "trust_building": {
+        "acknowledgment": [
+            "I want to make it easy for you to check everything before you decide.",
+            "I understand the hesitation — unsolicited domain emails don't exactly scream legitimacy. So let me be transparent.",
+            "Let me walk you through exactly how to verify this for yourself — independently, right now.",
+        ],
+        "body": [
+            (
+                "Type the domain into your browser — it redirects to the marketplace listing, confirming I own it. "
+                "Run a WHOIS lookup and you'll see the registration details. "
+                "Search 'Dan.com Trustpilot' and read what real buyers say. "
+                "Three steps, all public, all verifiable — no trust required, just checking."
+            ),
+            (
+                "I'm a domain investor. I buy domains at expired auctions — the same way GoDaddy and Afternic do — "
+                "and sell them to businesses that can use them. "
+                "All sales go through third-party escrow. "
+                "I never handle payment directly. Your money is held until the domain lands in your account."
+            ),
+            (
+                "The domain is listed publicly on Dan.com right now. "
+                "You can see it, verify it, and read thousands of Trustpilot reviews from real buyers. "
+                "I'm not asking you to trust me — I'm asking you to verify for yourself. "
+                "The tools to do that are right there."
+            ),
+        ],
+        "closing": [
+            "Let me know which platform you'd prefer and I'll set it up.",
+            "Search 'Dan.com Trustpilot' to see what real buyers say. Then let's proceed.",
+            "Once you've checked, I think you'll feel differently. Happy to hear from you then.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: feature_explanation  [NEW]
+    # "What does redirecting a domain mean?" / plain-language explanation
+    # ─────────────────────────────────────────────────────────────────────────
+    "feature_explanation": {
+        "acknowledgment": [
+            "Let me explain this in plain terms — no jargon.",
+            "Happy to explain exactly what this means without the technical language.",
+            "I realise I've been using technical terms without explaining them — let me fix that.",
+        ],
+        "body": [
+            (
+                "When you redirect a domain, you're setting up a forwarding rule. "
+                "It works exactly like a postal redirect: anyone who types or clicks that address "
+                "gets sent straight to your current website. "
+                "Your existing site doesn't change. You don't need to build anything new."
+            ),
+            (
+                "The redirect takes about two minutes to set up in your domain settings. "
+                "It's a text box where you paste your current website URL and click save. "
+                "No developer needed, no downtime, no special knowledge required."
+            ),
+            (
+                "Once it's set up, every person who types this domain ends up on your current site — "
+                "automatically, instantly, permanently. "
+                "You get all the traffic benefits of owning a premium domain "
+                "without changing a single thing about your existing website."
+            ),
+        ],
+        "closing": [
+            "Any other questions about how this works? Happy to explain anything in plain language.",
+            "If you'd like me to walk you through it personally after purchase, just ask — it's free.",
+            "The process is genuinely straightforward. Let me know when you're ready.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: soft_pitch  [NEW]
+    # Low-pressure first contact / "just wanted to let you know"
+    # ─────────────────────────────────────────────────────────────────────────
+    "soft_pitch": {
+        "acknowledgment": [
+            "I'll keep this brief — I own a domain that closely matches your business and wanted to offer it to you first.",
+            "No hard sell here — I just thought this was worth a mention.",
+            "I own a domain name that might be useful for your business. I'll let you decide.",
+        ],
+        "body": [
+            (
+                "It can redirect to your existing site in minutes — nothing to build, nothing to change. "
+                "If the timing is wrong or the price doesn't work, just say so and that's that. "
+                "No follow-ups, no pressure."
+            ),
+            (
+                "I'm not going to tell you your business needs this. "
+                "You know your situation better than I do. "
+                "But it might be worth a look — and I'd rather you have it than someone who won't put it to use."
+            ),
+            (
+                "The domain matches the exact keywords your customers search, "
+                "and redirecting it is a two-minute setup. "
+                "There's a version of this that works for you, and a version that doesn't. "
+                "I'd like to find out which one this is."
+            ),
+        ],
+        "closing": [
+            "Happy to answer questions or share the listing link. Just reply.",
+            "No pressure — just wanted you to have the option.",
+            "Let me know either way — both answers are fine with me.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: value_reminder  [NEW]
+    # Re-state value before a lead goes cold / "here's the full picture"
+    # ─────────────────────────────────────────────────────────────────────────
+    "value_reminder": {
+        "acknowledgment": [
+            "Before I move on, I want to make sure I've actually made the case clearly.",
+            "Let me recap the value in plain terms, because I may have buried it in earlier emails.",
+            "Just to make sure you have the full picture before deciding either way.",
+        ],
+        "body": [
+            (
+                "Three things this domain does that a generic domain can't: "
+                "it captures local type-in traffic from people who will never know your current URL, "
+                "it signals location authority to search engines without building backlinks, "
+                "and it locks a competitor out of owning it permanently. "
+                "Any one of those alone justifies the cost."
+            ),
+            (
+                "Local type-in traffic. Search authority. Competitor lockout. "
+                "One-time cost, permanent advantage — those three things compound every month. "
+                "This isn't about features. It's about what changes for your business "
+                "if someone in your market owns this instead of you."
+            ),
+            (
+                "The value doesn't depreciate — it compounds as more people search online for local services. "
+                "Redirect to your existing site in two minutes. "
+                "That's the only technical step between you and all of that."
+            ),
+        ],
+        "closing": [
+            "If none of that changes your thinking, I completely respect that. But if it does, the listing is still live.",
+            "Reply or visit the listing — either way, I appreciate the consideration.",
+            "Just let me know either way so I can plan accordingly.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: follow_up_no_response  [NEW — splits follow_up]
+    # No reply after initial email
+    # ─────────────────────────────────────────────────────────────────────────
+    "follow_up_no_response": {
+        "acknowledgment": [
+            "I sent an email last week and haven't heard back — just wanted to make sure it didn't get buried.",
+            "Quick follow-up to my previous message — no pressure, just checking in.",
+            "Following up in case my last email got lost in the inbox.",
+        ],
+        "body": [
+            (
+                "The domain is still available, and I'd rather give you the first opportunity "
+                "before reaching out to others in your area. "
+                "A yes or a no both work for me — I just need to know which direction to go."
+            ),
+            (
+                "I know inboxes get busy. "
+                "I haven't moved forward with anyone else yet — I've been waiting to hear from you first. "
+                "If the price was the sticking point, I'm open to a fresh conversation."
+            ),
+            (
+                "I'm not trying to be a nuisance — I genuinely believe this domain could add value, "
+                "and I haven't been able to reach you yet. "
+                "If you'd prefer I stop reaching out, just say the word."
+            ),
+        ],
+        "closing": [
+            "Just let me know where things stand.",
+            "A yes or a no both work for me. Either way I'll follow your lead.",
+            "No pressure at all. Thanks for your time either way.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: follow_up_after_pricing  [NEW — splits follow_up]
+    # Following up after a price quote was sent
+    # ─────────────────────────────────────────────────────────────────────────
+    "follow_up_after_pricing": {
+        "acknowledgment": [
+            "I sent over pricing information a few days ago and wanted to follow up in case you had questions.",
+            "Following up on the quote I sent — just wanted to make sure it landed.",
+            "Checking back in after sharing the price — happy to discuss if anything gave you pause.",
+        ],
+        "body": [
+            (
+                "If the number doesn't work, I'd genuinely like to hear your counter — "
+                "I'd rather make a deal than leave this name sitting unused. "
+                "If the price was fine but something else gave you pause, let me know what it was."
+            ),
+            (
+                "The price reflects the domain's keyword value, geo-targeting, and existing traffic — "
+                "not just the registration cost. "
+                "That said, I'd rather talk than lose the deal over a number. "
+                "Share your counter and we'll see what's possible."
+            ),
+            (
+                "Sometimes the pricing raises questions rather than answers them — "
+                "happy to address any of those directly. "
+                "A quick back-and-forth is all it takes to find a number that works for both of us."
+            ),
+        ],
+        "closing": [
+            "Happy to answer anything directly. No pitch, no pressure.",
+            "Reply with a counter or a question — either one moves this forward.",
+            "Let me know if the price works, or share your number and we'll go from there.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: follow_up_after_interest  [NEW — splits follow_up]
+    # Prospect expressed interest but then went quiet
+    # ─────────────────────────────────────────────────────────────────────────
+    "follow_up_after_interest": {
+        "acknowledgment": [
+            "You mentioned you were considering this — I just wanted to check in.",
+            "Following up after your last message, where you seemed interested.",
+            "You expressed interest in this a while back and I haven't heard since — I'd love to know where things landed.",
+        ],
+        "body": [
+            (
+                "I haven't moved forward with anyone else yet. "
+                "I've been giving you the first shot because your business is genuinely the best fit. "
+                "I can't hold it indefinitely, and I'd hate for you to miss out on something you were actually interested in."
+            ),
+            (
+                "If something came up — price, timing, a question — just tell me and we can work through it. "
+                "The domain is still available at the same terms we discussed. "
+                "Nothing has changed on my end."
+            ),
+            (
+                "If the situation on your end has shifted — budget, timing, priorities — "
+                "I'm open to a fresh conversation. "
+                "You were already interested. "
+                "The only thing standing between you and owning it is a reply."
+            ),
+        ],
+        "closing": [
+            "If you're still thinking it over, I'm happy to wait a little longer. Just let me know.",
+            "Reply and we can pick up where we left off.",
+            "Hope to hear from you soon — no pressure either way.",
+        ],
+    },
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # INTENT: general_response  [NEW — alias of general, more specific label]
+    # ─────────────────────────────────────────────────────────────────────────
+    "general_response": {
+        "acknowledgment": [
+            "Thanks for getting in touch.",
+            "Thank you for your message — happy to help.",
+            "Appreciate you reaching out.",
+        ],
+        "body": [
+            (
+                "The domain is currently listed for sale at a competitive price on a trusted marketplace. "
+                "It can be redirected to your current website in minutes — "
+                "no new site needed, no technical knowledge required. "
+                "All transactions are handled through escrow, so the purchase is fully protected."
+            ),
+            (
+                "Offers are welcome. The price is competitive, and I'm open to a reasonable discussion. "
+                "The domain carries strong keyword and geo value — "
+                "and it can be yours in a matter of hours."
+            ),
+        ],
+        "closing": [
+            "Let me know if you have any questions or if you'd like the listing link.",
+            "Visit the listing or reply here — happy to help with whatever you need.",
+            "Happy to answer anything. Just ask.",
+        ],
+    },
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1255,14 +1710,20 @@ TEMPLATE_INTENT_KEYWORDS: dict[str, list[str]] = {
                               "what's the price", "pricing"],
     "price_too_high":        ["too expensive", "too high", "too much", "can't afford",
                               "register for", "just $10", "only $8", "only $10", "only $12",
-                              "costs nothing", "regular domain"],
+                              "costs nothing", "regular domain", "price was high",
+                              "price is high", "bit expensive", "quite expensive",
+                              "very expensive", "a lot of money", "that's a lot"],
     "negotiation":           ["offer", "counter", "negotiate", "lower", "discount",
                               "best price", "bottom", "lowest", "deal", "make an offer"],
     "follow_up":             ["follow up", "following up", "no reply", "no response",
-                              "checking in", "reminder", "still available", "any update"],
+                              "checking in", "reminder", "still available", "any update",
+                              "didn't reply", "didn't respond", "nothing back", "still silent",
+                              "disappeared", "no answer", "haven't replied", "not replied",
+                              "haven't responded", "not responded", "pinged", "silence",
+                              "went quiet", "ghosted", "nothing heard", "haven't heard back"],
     "trust_issue":           ["scam", "fake", "not real", "legitimate", "trust",
                               "verify", "proof", "fraud", "suspicious", "doubt",
-                              "worried", "concern", "is this real"],
+                              "worried", "concern", "is this real", "dodgy"],
     "have_website":          ["already have", "have a website", "have a domain",
                               "don't need another", "existing site", "current website"],
     "rank_well":             ["already rank", "rank fine", "seo is fine",
@@ -1272,8 +1733,8 @@ TEMPLATE_INTENT_KEYWORDS: dict[str, list[str]] = {
                               "buy it", "how to buy", "process"],
     "why_buy":               ["why", "benefits", "what's the point", "explain",
                               "value", "help my business", "what will it do", "how will it help"],
-    "not_now":               ["later", "not now", "maybe", "not the right time",
-                              "future", "check back", "few months"],
+    "not_now":               ["not now", "not the right time", "check back",
+                              "few months", "come back later", "try later"],
     "partner":               ["partner", "team", "discuss", "boss", "colleague",
                               "approval", "need to talk", "business partner"],
     "agreed_no_pay":         ["agreed", "deal", "haven't paid", "no payment",
@@ -1319,6 +1780,50 @@ TEMPLATE_INTENT_KEYWORDS: dict[str, list[str]] = {
     "development":           ["build a website", "build a new site", "develop it",
                               "create a website", "make a site", "new website on",
                               "host a site", "build on this", "develop the domain"],
+    # ── NEW EXPANDED INTENTS ───────────────────────────────────────────────
+    "request_info":          ["more information", "more info", "can you tell me",
+                              "before i decide", "questions about", "details please",
+                              "need to know", "curious about", "what exactly",
+                              "tell me more", "few questions", "quick question"],
+    "demo_offer":            ["show me", "can i see", "mock up", "mock-up", "example",
+                              "visual", "what would it look like", "proof of concept",
+                              "demonstrate", "show what", "see how it looks"],
+    "meeting_request":       ["can we talk", "quick call", "phone call", "schedule a call",
+                              "five minutes", "speak with you", "jump on a call",
+                              "available to talk", "book a call", "prefer to chat"],
+    "price_negotiation":     ["meet in the middle", "split the difference",
+                              "room to negotiate", "come down", "what's your bottom",
+                              "lowest you'll go", "any flexibility", "wiggle room"],
+    "competitor_comparison": ["competitor", "rival", "others in my space", "who else",
+                              "what about my competition", "what if someone else buys",
+                              "niche competitors", "beat competition"],
+    "trust_building":        ["how do i know", "prove it", "can you verify",
+                              "how can i trust", "show proof", "confirm ownership",
+                              "how do i verify", "is this legitimate"],
+    "feature_explanation":   ["what does redirect mean", "plain english",
+                              "explain simply", "layman terms", "what does it mean to",
+                              "i don't understand", "break it down", "in simple terms",
+                              "what exactly happens"],
+    "soft_pitch":            ["just wanted to mention", "thought this might",
+                              "no pressure", "take it or leave it",
+                              "in case it's useful", "just letting you know", "fyi"],
+    "value_reminder":        ["remind me why", "value recap", "full picture",
+                              "benefits again", "what's the value again",
+                              "summarize the value", "not convinced yet",
+                              "still not sure"],
+    "follow_up_no_response": ["no reply", "no response", "haven't heard back",
+                              "sent last week", "sent an email", "nothing back",
+                              "no answer", "still no response", "checking back in",
+                              "haven't responded", "silence after"],
+    "follow_up_after_pricing":["sent pricing", "price i quoted", "following up on price",
+                              "after quote", "sent the cost", "pricing information",
+                              "shared the rate", "sent the fee"],
+    "follow_up_after_interest":["you were interested", "you mentioned interest",
+                              "seemed keen", "expressed interest", "you said maybe",
+                              "after showing interest", "you seemed interested",
+                              "you were considering"],
+    "general_response":      ["general inquiry", "misc", "other question",
+                              "not sure which", "various questions"],
     # ── SITUATION-MODE INTENTS ─────────────────────────────────────────────
     "sales_pitch":           ["first contact", "cold email", "initial outreach",
                               "new prospect", "reaching out", "never contacted",
@@ -1356,8 +1861,10 @@ def detect_template_intent(message: str) -> str:
         "payment_method",
         "agreed_no_pay",
         "trust_issue",
+        "trust_building",
         "expired_owner",
         "price_too_high",
+        "price_negotiation",
         "extension",
         "rank_well",
         "have_website",
@@ -1366,20 +1873,31 @@ def detect_template_intent(message: str) -> str:
         "negotiation",
         "low_budget",
         "how_it_works",
+        "feature_explanation",
         "development",
         "why_buy",
+        "value_reminder",
         "renewal_fees",
         "domain_metrics",
         "related_domains",
         "identity",
+        "competitor_comparison",
         "objection_handling",
         "re_engagement",
+        "follow_up_after_interest",
+        "follow_up_after_pricing",
+        "follow_up_no_response",
         "follow_up",
         "not_interested_ask_why",
         "no_thanks",
         "price_inquiry",
+        "meeting_request",
+        "demo_offer",
+        "request_info",
         "sales_pitch",
+        "soft_pitch",
         "cold_outreach",
+        "general_response",
     ]
 
     scores: dict[str, int] = {intent: 0 for intent in priority_order}

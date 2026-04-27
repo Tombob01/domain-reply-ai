@@ -317,6 +317,8 @@ Examples:
             <span class="retrieval-badge" id="retrievalBadge"></span>
             <span class="model-tag" id="modelTag"></span>
           </div>
+          <!-- Intent debug label -->
+          <div id="intentDebugLabel" style="display:none;margin-top:.35rem;font-size:.72rem;font-family:'DM Mono',monospace;color:var(--ink-3);background:var(--cream);border:1px solid var(--border);border-radius:4px;padding:.3rem .6rem">🔍 <span id="intentDebugText"></span></div>
 
           <!-- Save confirmation -->
           <div id="saveConfirm" style="display:none;font-size:.78rem;color:var(--green);margin-top:.4rem;font-weight:500">✓ Saved to knowledge base</div>
@@ -435,22 +437,67 @@ Examples:
               <label class="field-label">Override Intent</label>
               <select id="tplForceIntent" onchange="tplOnIntentOverride(this.value)">
                 <option value="">Auto-detect</option>
-                <option value="follow_up">Follow Up</option>
-                <option value="sales_pitch">Sales Pitch</option>
-                <option value="re_engagement">Re-Engagement</option>
-                <option value="objection_handling">Objection Handling</option>
-                <option value="no_thanks">No Thanks</option>
-                <option value="price_inquiry">Price Inquiry</option>
-                <option value="price_too_high">Price Too High</option>
-                <option value="negotiation">Negotiation</option>
-                <option value="trust_issue">Trust Issue</option>
-                <option value="have_website">Has Website</option>
-                <option value="not_now">Not Now</option>
-                <option value="agreed_no_pay">Agreed No Pay</option>
-                <option value="low_budget">Low Budget</option>
-                <option value="identity">Who Are You</option>
-                <option value="how_it_works">How It Works</option>
-                <option value="post_purchase">Post Purchase</option>
+                <optgroup label="── Follow-Up ──">
+                  <option value="follow_up">Follow Up</option>
+                  <option value="follow_up_no_response">Follow-Up (No Response)</option>
+                  <option value="follow_up_after_pricing">Follow-Up After Pricing</option>
+                  <option value="follow_up_after_interest">Follow-Up (Was Interested)</option>
+                  <option value="agreed_no_pay">Agreed No Pay</option>
+                </optgroup>
+                <optgroup label="── Sales / Outreach ──">
+                  <option value="sales_pitch">Sales Pitch</option>
+                  <option value="cold_outreach">Cold Outreach</option>
+                  <option value="soft_pitch">Soft Pitch</option>
+                  <option value="demo_offer">Offer a Demo</option>
+                  <option value="meeting_request">Meeting Request</option>
+                  <option value="competitor_comparison">Competitor Risk</option>
+                  <option value="value_reminder">Value Reminder</option>
+                </optgroup>
+                <optgroup label="── Pricing / Negotiation ──">
+                  <option value="price_inquiry">Price Inquiry</option>
+                  <option value="price_too_high">Price Too High</option>
+                  <option value="negotiation">Negotiation</option>
+                  <option value="price_negotiation">Price Negotiation</option>
+                  <option value="low_budget">Low Budget</option>
+                  <option value="payment_method">Payment Method</option>
+                  <option value="renewal_fees">Renewal Fees</option>
+                </optgroup>
+                <optgroup label="── Objections / Trust ──">
+                  <option value="objection_handling">Objection Handling</option>
+                  <option value="no_thanks">No Thanks</option>
+                  <option value="trust_issue">Trust Issue</option>
+                  <option value="trust_building">Trust Building</option>
+                  <option value="feature_explanation">Explain Process</option>
+                  <option value="have_website">Has Website</option>
+                  <option value="rank_well">Already Ranks</option>
+                  <option value="extension">Has .net/.org</option>
+                </optgroup>
+                <optgroup label="── Re-Engagement ──">
+                  <option value="re_engagement">Re-Engagement</option>
+                  <option value="not_now">Not Now</option>
+                  <option value="partner">Needs Partner OK</option>
+                  <option value="not_interested_ask_why">Not Interested (Ask Why)</option>
+                </optgroup>
+                <optgroup label="── Information ──">
+                  <option value="request_info">Request for Info</option>
+                  <option value="how_it_works">How It Works</option>
+                  <option value="identity">Who Are You</option>
+                  <option value="why_buy">Why Buy?</option>
+                  <option value="domain_metrics">Domain Metrics</option>
+                  <option value="related_domains">Other Domains</option>
+                  <option value="development">Build On Domain</option>
+                </optgroup>
+                <optgroup label="── Post-Sale / Admin ──">
+                  <option value="post_purchase">Post Purchase</option>
+                  <option value="payment_issue">Payment Issue</option>
+                  <option value="refund">Refund Request</option>
+                  <option value="expired_owner">Previous Owner</option>
+                  <option value="angry">Angry / Stop Emailing</option>
+                </optgroup>
+                <optgroup label="── General ──">
+                  <option value="general_response">General Response</option>
+                  <option value="general">General (Legacy)</option>
+                </optgroup>
               </select>
             </div>
             <div class="field" style="flex:1;min-width:130px;margin:0">
@@ -788,6 +835,11 @@ Examples:
         document.getElementById('intentBadge').textContent   = _lastIntent.replace(/_/g, ' ');
         document.getElementById('intentBadge').style.display = 'inline-block';
       }
+      var debugLabel = data.intent_debug || '';
+      if (debugLabel) {
+        document.getElementById('intentDebugText').textContent  = debugLabel;
+        document.getElementById('intentDebugLabel').style.display = 'block';
+      }
       if (data.retrieval_method) showRetrievalBadge(data.retrieval_method);
       document.getElementById('modelTag').textContent = data.model_used || 'claude-sonnet-4-6';
 
@@ -969,6 +1021,8 @@ Examples:
     document.getElementById('examplesUsed').innerHTML          = '';
     document.getElementById('intentBadge').style.display       = 'none';
     document.getElementById('retrievalBadge').style.display    = 'none';
+    document.getElementById('intentDebugLabel').style.display  = 'none';
+    document.getElementById('intentDebugText').textContent     = '';
     document.getElementById('confidenceBar').style.display     = 'none';
     document.getElementById('alternativesPanel').style.display = 'none';
     document.getElementById('alternativesPanel').innerHTML     = '';
@@ -1057,17 +1111,31 @@ Examples:
     rank_well:'Already Ranks', why_buy:'Why Buy?', not_now:'Not Now',
     cold_outreach:'Cold Outreach', refund:'Refund Request',
     not_interested_ask_why:'Not Interested (Ask Why)',
+    // New expanded intents
+    request_info:'Request for Info',
+    demo_offer:'Offer a Demo',
+    meeting_request:'Meeting Request',
+    price_negotiation:'Price Negotiation',
+    competitor_comparison:'Competitor Risk',
+    trust_building:'Trust Building',
+    feature_explanation:'Explain the Process',
+    soft_pitch:'Soft Pitch',
+    value_reminder:'Value Reminder',
+    follow_up_no_response:'Follow-Up (No Reply)',
+    follow_up_after_pricing:'Follow-Up After Pricing',
+    follow_up_after_interest:'Follow-Up (Was Interested)',
+    general_response:'General Response',
   };
 
   /* Category → list of intents */
   var TPL_CATEGORIES = {
     all: null,
-    pricing:           ['price_inquiry','price_too_high','negotiation','low_budget','renewal_fees','payment_method'],
-    follow_up:         ['follow_up','agreed_no_pay','re_engagement','not_now','partner'],
-    sales:             ['sales_pitch','cold_outreach','why_buy','domain_metrics','related_domains','development'],
-    re_engagement:     ['re_engagement','cold_outreach','follow_up','not_interested_ask_why'],
-    objection_handling:['objection_handling','no_thanks','trust_issue','have_website','rank_well','extension','price_too_high','low_budget'],
-    general_response:  ['general','how_it_works','identity','post_purchase','payment_issue','refund','expired_owner','angry'],
+    pricing:           ['price_inquiry','price_too_high','negotiation','low_budget','renewal_fees','payment_method','price_negotiation'],
+    follow_up:         ['follow_up','agreed_no_pay','re_engagement','not_now','partner','follow_up_no_response','follow_up_after_pricing','follow_up_after_interest'],
+    sales:             ['sales_pitch','cold_outreach','why_buy','domain_metrics','related_domains','development','soft_pitch','demo_offer','competitor_comparison','value_reminder'],
+    re_engagement:     ['re_engagement','cold_outreach','follow_up','not_interested_ask_why','follow_up_no_response','follow_up_after_interest'],
+    objection_handling:['objection_handling','no_thanks','trust_issue','have_website','rank_well','extension','price_too_high','low_budget','trust_building','feature_explanation'],
+    general_response:  ['general','how_it_works','identity','post_purchase','payment_issue','refund','expired_owner','angry','request_info','meeting_request','general_response'],
   };
 
   /* Template card library — each card = one intent, with tags + score + preview */
@@ -1100,8 +1168,22 @@ Examples:
     { intent:'domain_metrics',  name:'Domain Authority / SEO', score:86, tags:['domain authority','da score','backlinks','traffic data','moz'],  preview:'The value comes primarily from keyword composition…' },
     { intent:'identity',        name:'Who Are You?',           score:89, tags:['who are you','what company','why are you contacting','who is this'], preview:'I\'m a domain name investor — I purchase expired or undervalued…' },
     { intent:'related_domains', name:'Other Domains Available',score:84, tags:['other domains','portfolio','similar domains','what else'],        preview:'I have a portfolio of geo-targeted keyword domains…' },
-    { intent:'development',     name:'Build Website on Domain',score:83, tags:['build a website','develop it','create a website','new website'],  preview:'Absolutely — that\'s the highest-value use of a domain like this…' },
-    { intent:'general',         name:'General Response',       score:70, tags:['general','other','misc'],                                        preview:'The domain is currently listed for sale at a domain marketplace…' },
+    { intent:'development',              name:'Build Website on Domain',       score:83, tags:['build a website','develop it','create a website','new website'],                           preview:'Absolutely — that\'s the highest-value use of a domain like this…' },
+    { intent:'general',                  name:'General Response',               score:70, tags:['general','other','misc'],                                                                    preview:'The domain is currently listed for sale at a domain marketplace…' },
+    // ── New expanded intents ─────────────────────────────────────────────────
+    { intent:'request_info',             name:'Request for Info',               score:88, tags:['more info','questions','before i decide','few questions','can you tell me'],                 preview:'Before I make a decision, I just wanted to get a bit more detail…' },
+    { intent:'demo_offer',               name:'Offer a Demo / Mock-up',         score:86, tags:['show me','visual','mock up','what would it look like','see how it looks'],                  preview:'Rather than just telling you, I\'d like to show you…' },
+    { intent:'meeting_request',          name:'Request a Quick Call',           score:84, tags:['quick call','five minutes','phone','speak with you','jump on a call'],                      preview:'I\'d rather talk you through this than keep exchanging emails…' },
+    { intent:'price_negotiation',        name:'Price Negotiation / Counter',    score:91, tags:['meet in the middle','split the difference','room to negotiate','any flexibility'],           preview:'I appreciate the offer — let me be straight with you…' },
+    { intent:'competitor_comparison',    name:'Competitor Risk Angle',          score:89, tags:['competitor','rival','who else','what if someone else buys','niche competitors'],             preview:'Do you know who your closest competitor is in this city?…' },
+    { intent:'trust_building',           name:'Build Trust / Verify',           score:93, tags:['how do i know','prove it','verify','is this legitimate','confirm ownership'],               preview:'Let me make it easy for you to check everything first…' },
+    { intent:'feature_explanation',      name:'Explain Redirect Plainly',       score:87, tags:['what does redirect mean','plain english','explain simply','i don\'t understand'],           preview:'When you redirect a domain, you\'re setting up a forwarding rule…' },
+    { intent:'soft_pitch',               name:'Low-Pressure Pitch',             score:82, tags:['no pressure','just wanted to mention','fyi','take it or leave it','in case useful'],        preview:'I\'ll keep this brief — I own a domain that might be useful…' },
+    { intent:'value_reminder',           name:'Value Summary / Recap',          score:85, tags:['remind me why','value recap','full picture','benefits again','still not sure'],             preview:'Before I move on, I want to make the case clearly…' },
+    { intent:'follow_up_no_response',    name:'Follow-Up (No Response)',        score:90, tags:['no reply','haven\'t heard back','sent last week','no answer','nothing back'],               preview:'Sent an email last week — just wanted to check it didn\'t get buried…' },
+    { intent:'follow_up_after_pricing',  name:'Follow-Up After Pricing',        score:88, tags:['sent pricing','quoted','after quote','price information','shared the rate'],                preview:'Sent over pricing a few days ago — following up in case you had questions…' },
+    { intent:'follow_up_after_interest', name:'Follow-Up (Was Interested)',     score:89, tags:['you were interested','seemed keen','expressed interest','you were considering'],            preview:'You mentioned you were considering this — just wanted to check in…' },
+    { intent:'general_response',         name:'General Response (Extended)',    score:71, tags:['general inquiry','misc','other question','various questions'],                               preview:'Thanks for getting in touch. The domain is currently listed…' },
   ];
 
   /* Current active category + selected card intent */
@@ -1114,24 +1196,36 @@ Examples:
 
   /* Keyword → intent mapping for smart suggestions */
   var TPL_SMART_KEYWORDS = {
-    'price|cost|how much|rate|fee':        'price_inquiry',
-    'expensive|too high|too much|just \\$': 'price_too_high',
-    'offer|counter|negotiate|lower|discount|deal': 'negotiation',
-    'no thanks|not interested|decline|pass|remove': 'no_thanks',
-    'follow up|no reply|no response|checking in|reminder': 'follow_up',
-    'cold lead|months ago|dormant|reconnect|been a while': 're_engagement',
-    'hesitant|unsure|fence|skeptical|not convinced': 'objection_handling',
-    'scam|fake|fraud|trust|verify|suspicious':  'trust_issue',
-    'already have|have a website|existing site': 'have_website',
-    'agreed|deal|haven\'t paid|we agreed':      'agreed_no_pay',
-    'first contact|cold email|initial|new prospect': 'sales_pitch',
-    'stop email|spam|angry|harassment|unsubscribe': 'angry',
-    'already paid|where is my domain|transfer': 'post_purchase',
-    'refund|money back|cancel order':            'refund',
-    'paypal|crypto|bank transfer|how do i pay':  'payment_method',
-    'annual fee|renewal|per year':               'renewal_fees',
-    'who are you|what company|why are you':       'identity',
-    'low budget|tight budget|can\'t afford':      'low_budget',
+    'price|cost|how much|rate|fee':                          'price_inquiry',
+    'expensive|too high|too much|just \\$':                  'price_too_high',
+    'offer|counter|negotiate|lower|discount|deal':           'negotiation',
+    'meet in the middle|split the difference|any flexibility|wiggle room': 'price_negotiation',
+    'no thanks|not interested|decline|pass|remove':          'no_thanks',
+    'follow up|no reply|no response|checking in|reminder':   'follow_up',
+    'haven\'t heard back|sent last week|no answer|nothing back':  'follow_up_no_response',
+    'sent pricing|sent the quote|after quote|price i sent':  'follow_up_after_pricing',
+    'you were interested|seemed keen|expressed interest|you were considering': 'follow_up_after_interest',
+    'cold lead|months ago|dormant|reconnect|been a while':   're_engagement',
+    'hesitant|unsure|fence|skeptical|not convinced':         'objection_handling',
+    'scam|fake|fraud|trust|verify|suspicious':               'trust_issue',
+    'how do i know|prove it|confirm ownership|is this legitimate': 'trust_building',
+    'what does redirect|plain english|explain simply|don\'t understand': 'feature_explanation',
+    'already have|have a website|existing site':             'have_website',
+    'agreed|deal|haven\'t paid|we agreed':                   'agreed_no_pay',
+    'first contact|cold email|initial|new prospect':         'sales_pitch',
+    'no pressure|just wanted to mention|fyi|take it or leave': 'soft_pitch',
+    'show me|mock up|visual|what would it look like':        'demo_offer',
+    'quick call|five minutes|phone call|speak with you':     'meeting_request',
+    'competitor|rival|what if someone else|beat competition': 'competitor_comparison',
+    'remind me why|value recap|full picture|benefits again': 'value_reminder',
+    'more info|before i decide|few questions|can you tell me': 'request_info',
+    'stop email|spam|angry|harassment|unsubscribe':          'angry',
+    'already paid|where is my domain|transfer':              'post_purchase',
+    'refund|money back|cancel order':                        'refund',
+    'paypal|crypto|bank transfer|how do i pay':              'payment_method',
+    'annual fee|renewal|per year':                           'renewal_fees',
+    'who are you|what company|why are you':                  'identity',
+    'low budget|tight budget|can\'t afford':                 'low_budget',
   };
 
   var TPL_LEN_HINTS = {

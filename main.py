@@ -34,7 +34,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, field_validator
+from intent_registry import INTENT_REGISTRY, full_pipeline, registry_for
 from template_engine import build_template_reply, ai_polish_reply, detect_template_intent, TEMPLATE_INTENT_KEYWORDS
+from quality_control import build_strategy_block, run_full_qc, check_variation_uniqueness, log_variation_check
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CONSTANTS
@@ -338,6 +340,15 @@ async def on_startup():
         print("[Startup] Index stale/missing — will build on first request.")
         _index.ready = False
 
+    # ── PART 4: Run QC test harness on startup ────────────────────────────────
+    # Prints a pass/fail report to logs so you can spot intent detection
+    # regressions every time the server restarts. Non-blocking.
+    try:
+        from quality_control import run_tests
+        run_tests(verbose=True)
+    except Exception as e:
+        print(f"[QC Tests] Could not run test harness: {e}")
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PYDANTIC MODELS
@@ -633,6 +644,9 @@ def build_reply_prompt(message, intent, examples, tone, domain_name, asking_pric
     closing = CLOSING_TECHNIQUES.get(intent, "- End with a clear next step.")
     angle_block = f"\nANGLE TO USE:\n{angle_instruction}\n" if angle_instruction else ""
 
+    # ── PART 1: Strategy block injected before writing ──────────────────────
+    strategy_block = build_strategy_block(intent)
+
     quality_gate = (
         "\nBEFORE YOU FINISH — check:\n"
         "  - Directly addresses the situation (not generic)\n"
@@ -643,6 +657,7 @@ def build_reply_prompt(message, intent, examples, tone, domain_name, asking_pric
 
     return (
         f"TONE: {tone_inst}\nDETECTED INTENT: {intent.replace('_',' ').title()}\n\n"
+        f"{strategy_block}\n\n"
         f"{domain_block}{ex_block}{angle_block}"
         f"\n─────────────────────────────────────────────\n"
         f"CURRENT SITUATION:\n\"\"\"{strip_filler(message)}\"\"\"\n"
@@ -691,10 +706,14 @@ def build_situation_prompt(situation, intent, intensity, examples, tone,
 
     urgency_block = f"\nURGENCY GUIDANCE:\n{urgency}" if urgency else ""
 
+    # ── PART 1: Strategy block injected before writing ──────────────────────
+    strategy_block = build_strategy_block(intent)
+
     return (
         f"TONE: {tone_inst}\n"
         f"DETECTED INTENT: {intent.replace('_',' ').title()}\n"
         f"PITCH INTENSITY: {intensity.upper()} — {intensity_desc}\n\n"
+        f"{strategy_block}\n\n"
         f"{domain_block}{ex_block}"
         f"\n─────────────────────────────────────────────\n"
         f"SITUATION (described by the sender — there may be no direct quote from the prospect):\n"
@@ -951,8 +970,10 @@ def generate_variations(
     Generate `num` reply variations (1-3), each with a different style.
     Each variation is:
       - formatted as a proper email
-      - quality-checked
+      - validated (Part 2: structural rules via quality_control)
+      - quality-checked (existing quality_guard for length/closing)
       - scored
+    After all variations are generated, a uniqueness check is run (Part 3).
     """
     num     = max(1, min(3, num))
     styles  = VARIATION_STYLES[:num]
@@ -976,8 +997,16 @@ def generate_variations(
 
         # Format as proper email
         formatted = format_email_body(raw, prospect_name=prospect_name, sender_name=sender_name)
-        # Quality guard
-        fixed     = quality_guard(client, formatted, situation)
+
+        # ── PART 2: Structural validation (greeting, CTA, paragraphs) ────────
+        qc = run_full_qc(formatted, intent=intent)
+        if not qc["validation"]["passed"]:
+            print(f"[ValidationQC] {style['label']}: {qc['summary']}")
+            formatted = qc["reply"]   # use inline-fixed version
+
+        # Existing quality_guard: handles length + closing via AI if needed
+        fixed = quality_guard(client, formatted, situation)
+
         # Score
         score, reason = score_reply(client, situation, fixed)
 
@@ -987,6 +1016,11 @@ def generate_variations(
             confidence_score=score,
             confidence_reason=reason,
         ))
+
+    # ── PART 3: Variation uniqueness check ────────────────────────────────────
+    if len(results) > 1:
+        uniqueness = check_variation_uniqueness([r.reply for r in results])
+        log_variation_check(uniqueness)
 
     return results
 
@@ -1339,6 +1373,53 @@ async def embed_rebuild(body: dict = None):
         return {"message": "Index rebuilt.", "total": len(_index.entries)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Rebuild failed: {str(e)}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# QUALITY CONTROL ENDPOINTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.get("/qc/test")
+async def qc_run_tests():
+    """
+    Run the full QC test harness and return structured pass/fail results.
+    Useful for checking intent detection health without restarting the server.
+    """
+    from quality_control import run_tests
+    results = run_tests(verbose=True)
+    return {
+        "total":  results["total"],
+        "passed": results["passed"],
+        "failed": results["failed"],
+        "pass_rate": f"{int(results['passed']/results['total']*100)}%" if results["total"] else "0%",
+        "results": [
+            {
+                "test":            r["test"],
+                "input":           r["input"],
+                "expected_intent": r["expected_intent"],
+                "detected_intent": r["detected_intent"],
+                "intent_match":    r["intent_match"],
+                "strategy_goal":   r["strategy_goal"],
+                "passed":          r["passed"],
+            }
+            for r in results["results"]
+        ],
+    }
+
+
+@app.post("/qc/validate")
+async def qc_validate_reply(body: dict):
+    """
+    Validate a single email reply against structural rules.
+    Pass: {"reply": "...", "intent": "follow_up"}
+    Returns validation result with issues, fixes applied, and summary.
+    """
+    from quality_control import run_full_qc
+    reply  = (body.get("reply") or "").strip()
+    intent = body.get("intent", "general")
+    if not reply:
+        raise HTTPException(status_code=400, detail="'reply' field is required.")
+    return run_full_qc(reply, intent=intent)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
