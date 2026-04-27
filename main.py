@@ -34,8 +34,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, field_validator
+from intent_utils import INTENT_KEYWORDS, detect_intent, classify_question, QUESTION_TYPES
 from intent_registry import INTENT_REGISTRY, full_pipeline, registry_for
-from pipeline import analyse, build_flow_instruction, InputAnalysis
+from pipeline import analyse, build_flow_instruction, InputAnalysis, print_analysis
 from template_engine import build_template_reply, ai_polish_reply, detect_template_intent, TEMPLATE_INTENT_KEYWORDS
 from quality_control import build_strategy_block, run_full_qc, check_variation_uniqueness, log_variation_check
 
@@ -156,26 +157,8 @@ URGENCY_LAYER: dict[str, str] = {
 # INTENT + TONE + PERSUASION MAPS
 # ─────────────────────────────────────────────────────────────────────────────
 
-INTENT_KEYWORDS: dict[str, list[str]] = {
-    "no_thanks":      ["no thanks", "not interested", "pass", "decline", "don't need"],
-    "price_inquiry":  ["how much", "price", "cost", "what are you asking", "rate", "fee"],
-    "price_too_high": ["too expensive", "too high", "too much", "can't afford", "$10", "register for"],
-    "negotiation":    ["offer", "counter", "negotiate", "lower", "discount", "best price", "bottom"],
-    "follow_up":      ["follow up", "following up", "no reply", "no response", "checking in", "reminder"],
-    "trust_issue":    ["scam", "fake", "not real", "legitimate", "trust", "verify", "proof",
-                       "fraud", "suspicious", "doubt", "worried", "concern"],
-    "have_website":   ["already have", "have a website", "have a domain", "don't need another"],
-    "rank_well":      ["already rank", "rank fine", "seo is fine", "first page already"],
-    "how_it_works":   ["how does", "redirect", "forward", "how do i", "technical", "it guy", "developer"],
-    "why_buy":        ["why", "benefits", "what's the point", "explain", "value", "help my business"],
-    "not_now":        ["later", "not now", "maybe", "not the right time", "future"],
-    "partner":        ["partner", "team", "discuss", "boss", "colleague", "approval"],
-    "agreed_no_pay":  ["agreed", "deal", "haven't paid", "no payment", "still waiting"],
-    "payment_issue":  ["link not working", "payment failed", "can't checkout", "portal", "error"],
-    "angry":          ["stop emailing", "spam", "harassment", "angry", "annoying", "unsubscribe"],
-    "expired_owner":  ["used to be", "our domain", "how did you get", "previously owned"],
-    "extension":      [".net", ".org", ".io", "other extension", "already own the"],
-}
+# INTENT_KEYWORDS and detect_intent are imported from intent_utils above.
+# The canonical full keyword set lives in intent_utils.py.
 
 TONE_INSTRUCTIONS: dict[str, str] = {
     "professional and persuasive": "Write in a confident, professional tone. Use persuasive but respectful language. Lead with value, not pressure.",
@@ -413,6 +396,8 @@ class GenerateResponse(BaseModel):
     similar_examples_used: list[dict]
     model_used: str
     tone_applied: str
+    # Pipeline debug — shows question types + secondary intents for testing
+    pipeline_debug: Optional[dict] = None
 
 
 class SituationResponse(BaseModel):
@@ -423,6 +408,8 @@ class SituationResponse(BaseModel):
     situation_interpreted: str
     model_used: str
     tone_applied: str
+    # Pipeline debug — shows question types + secondary intents for testing
+    pipeline_debug: Optional[dict] = None
 
 
 class AlternativesResponse(BaseModel):
@@ -498,13 +485,7 @@ def save_replies(data: list[dict]) -> None:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
-def detect_intent(msg: str) -> str:
-    low = msg.lower()
-    for intent, phrases in INTENT_KEYWORDS.items():
-        if any(p in low for p in phrases):
-            return intent
-    return "general"
-
+# detect_intent() is imported from intent_utils — no local definition needed.
 
 def detect_situation_intent(situation: str) -> str:
     """Checks SITUATION_KEYWORDS first (proactive), then falls back to standard detection."""
@@ -1141,6 +1122,15 @@ async def generate_reply(req: GenerateRequest):
         similar_examples_used=[{"category": ex.get("category",""), "snippet": ex["customer_message"][:80]} for ex in examples],
         model_used=MODEL,
         tone_applied=tone,
+        pipeline_debug={
+            "primary_intent":        analysis.primary_intent,
+            "secondary_intents":     analysis.secondary_intents,
+            "has_questions":         analysis.has_questions,
+            "questions":             analysis.questions,
+            "primary_question_type": analysis.primary_question_type,
+            "question_types":        {k: v for k, v in analysis.question_types.items() if v},
+            "answer_hints":          analysis.answer_hints,
+        },
     )
 
 @app.post("/generate-reply/situation", response_model=SituationResponse)
@@ -1200,6 +1190,15 @@ async def generate_reply_situation(req: SituationRequest):
         ),
         model_used=MODEL,
         tone_applied=tone,
+        pipeline_debug={
+            "primary_intent":        analysis.primary_intent,
+            "secondary_intents":     analysis.secondary_intents,
+            "has_questions":         analysis.has_questions,
+            "questions":             analysis.questions,
+            "primary_question_type": analysis.primary_question_type,
+            "question_types":        {k: v for k, v in analysis.question_types.items() if v},
+            "answer_hints":          analysis.answer_hints,
+        },
     )
 
 
@@ -1236,6 +1235,62 @@ async def detect_intent_template(req: TemplateRequest):
     intent = req.force_intent or detect_template_intent(req.customer_message)
     return {"customer_message": req.customer_message, "detected_intent": intent,
             "available_intents": list(TEMPLATE_INTENT_KEYWORDS.keys())}
+
+
+@app.post("/debug/analyse")
+async def debug_analyse(body: dict):
+    """
+    Debug endpoint — runs the full pipeline analysis on any message and
+    returns every layer of the decision process.
+
+    Useful for testing question detection, intent scoring, and flow logic.
+
+    Request body:
+        { "message": "Does it have traffic? Also can you come down on price?" }
+
+    Response includes:
+        - primary_intent + secondary_intents
+        - all matched intents with scores
+        - detected questions
+        - question type for each question (factual / how_to / clarification / comparison)
+        - answer hints per type
+        - the exact prompt blocks that will be injected into Claude
+        - the flow instruction that tells Claude the reply order
+    """
+    message = body.get("message", "")
+    if not message:
+        return {"error": "Provide a 'message' field in the request body."}
+
+    analysis = analyse(message)
+
+    return {
+        "input": message,
+        # ── Step 1: Intent ─────────────────────────────────────────────────
+        "step_1_intent": {
+            "primary_intent":     analysis.primary_intent,
+            "secondary_intents":  analysis.secondary_intents,
+            "all_intents_ranked": analysis.all_intents,
+            "has_multiple":       analysis.has_multiple_intents,
+        },
+        # ── Step 2: Questions ─────────────────────────────────────────────
+        "step_2_questions": {
+            "has_questions":          analysis.has_questions,
+            "questions_found":        analysis.questions,
+            "primary_question_type":  analysis.primary_question_type,
+            "by_type":                {k: v for k, v in analysis.question_types.items() if v},
+        },
+        # ── Step 3: Strategy ──────────────────────────────────────────────
+        "step_3_strategy": {
+            "answer_hints":  analysis.answer_hints,
+            "flow_order":    build_flow_instruction(analysis),
+        },
+        # ── Prompt blocks (what gets injected into Claude) ─────────────────
+        "prompt_blocks": {
+            "question_block":    analysis.question_block or "(none — no questions detected)",
+            "multi_intent_note": analysis.multi_intent_note or "(none — single intent)",
+            "debug_block":       analysis.debug_block,
+        },
+    }
 
 
 @app.post("/generate-reply/stream")
