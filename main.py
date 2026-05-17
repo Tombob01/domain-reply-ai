@@ -1513,12 +1513,25 @@ def build_reply_prompt_ai(
         f"intent={intent} questions={len(analysis.questions) if analysis.has_questions else 0}"
     )
 
+    # ── No-hallucination guard ────────────────────────────────────────────────
+    no_invent_note = ""
+    if not domain_name and not asking_price and intent in (
+        "general", "general_response", "how_it_works", "domain_metrics",
+        "renewal_fees", "payment_method", "feature_explanation", "request_info"
+    ):
+        no_invent_note = (
+            "No domain details have been provided. "
+            "Answer from general domain industry knowledge only. "
+            "Do NOT invent registration dates, ages, traffic numbers, or any specific facts.\n\n"
+        )
+
     return (
         f"{context_line}"
         f"{ex_block}"
         f"Message from prospect:\n\"{strip_filler(message)}\"\n\n"
         f"{question_note}"
         f"{emotion_note}"
+        f"{no_invent_note}"
         f"{intent_guidance}"
         f"{neg_block}"
         f"What to do: {frame_inst}\n\n"
@@ -1798,8 +1811,8 @@ def run_hybrid_mode(customer_message: str, intent: str,
                     domain_name: Optional[str], asking_price: Optional[str],
                     tone: str, model: str = MODEL) -> str:
     """
-    Hybrid flow: template → Ollama polish.
-    model defaults to global MODEL for backward compatibility.
+    Hybrid flow: template → polish.
+    Routes through _get_client_for_model so Groq and Ollama both work.
     """
     template_result = build_template_reply(
         customer_message=customer_message,
@@ -1810,20 +1823,44 @@ def run_hybrid_mode(customer_message: str, intent: str,
     template_reply = template_result.get("reply", "")
 
     print(f"[AI_BACKEND] backend={('groq' if model.startswith('groq:') else 'ollama')} model={model} mode=hybrid intent={intent}")
-    result = ai_polish_reply(
-        template_reply   = template_reply,
-        customer_message = customer_message,
-        intent           = intent,
-        api_key          = "",
-        domain_name      = domain_name,
-        asking_price     = asking_price,
-        tone             = tone,
-        backend          = "ollama",
-        ollama_model     = model,
-        ollama_base_url  = OLLAMA_BASE_URL,
-        ollama_timeout   = OLLAMA_TIMEOUT,
-    )
-    return result.get("polished_reply", template_reply)
+
+    if model.startswith("groq:"):
+        # Groq path — ai_polish_reply doesn't support Groq, polish directly
+        from quality_control import build_strategy_block
+        polish_prompt = (
+            f"You are polishing a domain sales email reply.\n\n"
+            f"Original prospect message:\n\"{customer_message}\"\n\n"
+            f"Template reply to polish:\n\"{template_reply}\"\n\n"
+            f"Improve the reply so it sounds natural and human. "
+            f"Keep the same intent and structure. "
+            f"Do not add facts not in the template. "
+            f"Tone: {tone}.\n\n"
+            f"Write only the polished email body:"
+        )
+        try:
+            client = _get_client_for_model(model)
+            sys = _select_system_prompt(model)
+            polished = client.generate(prompt=polish_prompt, system=sys,
+                                       temperature=0.7, max_tokens=MAX_TOKENS)
+            return polished.strip() if polished and polished.strip() else template_reply
+        except Exception as e:
+            print(f"[AI_BACKEND] Groq polish failed: {e} — returning template")
+            return template_reply
+    else:
+        result = ai_polish_reply(
+            template_reply   = template_reply,
+            customer_message = customer_message,
+            intent           = intent,
+            api_key          = "",
+            domain_name      = domain_name,
+            asking_price     = asking_price,
+            tone             = tone,
+            backend          = "ollama",
+            ollama_model     = model,
+            ollama_base_url  = OLLAMA_BASE_URL,
+            ollama_timeout   = OLLAMA_TIMEOUT,
+        )
+        return result.get("polished_reply", template_reply)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1982,7 +2019,7 @@ def select_effective_mode(
             return cleaned, False
         print(f"[ROUTER_EXECUTION] unknown mode '{requested_mode}' — treating as auto")
 
-    rec = (analysis.recommended_mode or "").strip().lower()
+    rec = (getattr(analysis, "recommended_mode", "") or "").strip().lower()
     if rec in _VALID_MODES:
         print(f"[ROUTER_EXECUTION] requested=auto effective={rec} decided_by=router reason={analysis.routing_reason}")
         return rec, True
@@ -2104,7 +2141,7 @@ async def generate_reply(req: GenerateRequest):
             "intent_scores":          {k: round(v, 3) for k, v in sorted(
                                         analysis.intent_scores.items(),
                                         key=lambda x: x[1], reverse=True)},
-            "recommended_mode":       analysis.recommended_mode,
+            "recommended_mode":       getattr(analysis, "recommended_mode", ""),
             "routing_reason":         analysis.routing_reason,
             "requested_mode":         req.mode if req.mode not in {None,"","auto"} else "auto",
             "effective_mode":         effective_mode,
@@ -2232,7 +2269,7 @@ async def generate_reply_situation(req: SituationRequest):
             "intent_scores":          {k: round(v, 3) for k, v in sorted(
                                         analysis.intent_scores.items(),
                                         key=lambda x: x[1], reverse=True)},
-            "recommended_mode":       analysis.recommended_mode,
+            "recommended_mode":       getattr(analysis, "recommended_mode", ""),
             "routing_reason":         analysis.routing_reason,
             "requested_mode":         getattr(req, "mode", None) or "auto",
             "effective_mode":         effective_mode,
@@ -2373,13 +2410,38 @@ async def generate_reply_template(req: TemplateRequest):
         tone_with_length += ". Keep the reply under 90 words — 2 to 3 sentences, direct and conversational."
 
     print(f"[MODEL_ROUTER] requested={req.model!r} effective={effective_model} endpoint=/generate-reply/template")
-    return ai_polish_reply(
-        template_reply=result["reply"], customer_message=req.customer_message,
-        intent=result["detected_intent"], api_key="",
-        domain_name=req.domain_name, asking_price=req.asking_price, tone=tone_with_length,
-        backend="ollama", ollama_model=effective_model,
-        ollama_base_url=OLLAMA_BASE_URL, ollama_timeout=OLLAMA_TIMEOUT,
-    )
+
+    if effective_model.startswith("groq:"):
+        # Groq path — polish directly
+        template_reply = result["reply"]
+        polish_prompt = (
+            f"You are polishing a domain sales email reply.\n\n"
+            f"Original prospect message:\n\"{req.customer_message}\"\n\n"
+            f"Template reply to polish:\n\"{template_reply}\"\n\n"
+            f"Improve the reply so it sounds natural and human. "
+            f"Keep the same intent and structure. "
+            f"Do not add facts not in the template. "
+            f"Tone: {tone_with_length}.\n\n"
+            f"Write only the polished email body:"
+        )
+        try:
+            client = _get_client_for_model(effective_model)
+            sys = _select_system_prompt(effective_model)
+            polished = client.generate(prompt=polish_prompt, system=sys,
+                                       temperature=0.7, max_tokens=MAX_TOKENS)
+            if polished and polished.strip():
+                return {**result, "polished_reply": polished.strip(), "ai_polish": True}
+        except Exception as e:
+            print(f"[AI_BACKEND] Groq template polish failed: {e} — returning template")
+        return result
+    else:
+        return ai_polish_reply(
+            template_reply=result["reply"], customer_message=req.customer_message,
+            intent=result["detected_intent"], api_key="",
+            domain_name=req.domain_name, asking_price=req.asking_price, tone=tone_with_length,
+            backend="ollama", ollama_model=effective_model,
+            ollama_base_url=OLLAMA_BASE_URL, ollama_timeout=OLLAMA_TIMEOUT,
+        )
 
 
 @app.post("/generate-reply/template/detect-intent")
@@ -2463,7 +2525,7 @@ async def debug_analyse(body: dict):
         },
         # ── Phase 3: Routing recommendation ───────────────────────────────
         "step_4_routing": {
-            "recommended_mode":  analysis.recommended_mode,
+            "recommended_mode":  getattr(analysis, "recommended_mode", ""),
             "routing_reason":    analysis.routing_reason,
             "explanation":       analysis.routing_explanation,
             "template_covered":  analysis.primary_intent in (
