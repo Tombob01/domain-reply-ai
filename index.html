@@ -19,10 +19,49 @@
       --green-lt: #e8f4ee;
       --red-lt:   #fce8e8;
       --red:      #c0392b;
+      --blue:     #2563eb;
+      --blue-lt:  #eff6ff;
+      --blue-mid: #bfdbfe;
       --border:   #ddd8cc;
       --shadow:   0 2px 16px rgba(26,26,24,.08);
       --radius:   6px;
     }
+
+    /* ── MODE PILLS ── */
+    .mode-pills { display:flex; gap:.4rem; }
+    .mode-pill { font-size:.78rem; font-weight:600; padding:.35rem .9rem; border-radius:20px; border:1px solid var(--border); background:var(--cream); color:var(--ink-2); cursor:pointer; transition:all .15s; -webkit-tap-highlight-color:transparent; }
+    .mode-pill.active-reply { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+    .mode-pill.active-assist { background:var(--blue); color:#fff; border-color:var(--blue); }
+
+    /* ── TONE CHIPS ── */
+    .tone-row { display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.4rem; }
+    .tone-chip { font-size:.74rem; font-weight:500; padding:.28rem .65rem; border-radius:20px; border:1px solid var(--border); background:var(--paper); color:var(--ink-2); cursor:pointer; transition:all .15s; -webkit-tap-highlight-color:transparent; }
+    .tone-chip.active { background:var(--gold); border-color:var(--gold); color:#fff; font-weight:600; }
+
+    /* ── CTRL ROW (toggles) ── */
+    .ctrl-row { display:flex; flex-wrap:wrap; gap:.6rem; margin-top:.75rem; align-items:center; }
+    .toggle-label { display:flex; align-items:center; gap:.4rem; cursor:pointer; font-size:.8rem; font-weight:500; color:var(--ink-2); -webkit-tap-highlight-color:transparent; }
+    .toggle-label input[type="checkbox"] { width:auto; accent-color:var(--gold); }
+
+    /* ── ELAPSED TIMER ── */
+    .elapsed-tag { font-family:'DM Mono',monospace; font-size:.68rem; color:var(--ink-3); margin-left:.3rem; }
+
+    /* ── ASSISTANT PANEL ── */
+    .assist-wrap { display:flex; flex-direction:column; gap:.6rem; }
+    .assist-box { min-height:120px; background:var(--paper); border:1px solid var(--border); border-radius:var(--radius); padding:.9rem 1rem; font-size:.9rem; line-height:1.8; color:var(--ink); white-space:pre-wrap; word-break:break-word; }
+    .assist-box.empty { color:var(--ink-3); font-style:italic; }
+    .assist-box.generating { background:var(--blue-lt); animation:breathe 1.5s ease-in-out infinite; }
+    .assist-meta { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; font-size:.72rem; color:var(--ink-3); font-family:'DM Mono',monospace; }
+
+    /* ── MODEL SELECTOR ── */
+    .model-toggle { display:flex; gap:.3rem; }
+    .model-btn { flex:1; font-size:.75rem; font-weight:600; padding:.3rem .6rem; border:1px solid var(--border); border-radius:6px; background:var(--paper); color:var(--ink-2); cursor:pointer; text-align:center; transition:all .15s; -webkit-tap-highlight-color:transparent; }
+    .model-btn.active { background:var(--ink); color:#fff; border-color:var(--ink); }
+
+    /* ── REPLY LENGTH TOGGLE ── */
+    .reply-length-toggle { display:flex; gap:.3rem; }
+    .rl-btn { flex:1; font-size:.74rem; font-weight:500; padding:.28rem .5rem; border:1px solid var(--border); border-radius:6px; background:var(--paper); color:var(--ink-2); cursor:pointer; text-align:center; transition:all .15s; -webkit-tap-highlight-color:transparent; }
+    .rl-btn.active { background:var(--ink-2); color:#fff; border-color:var(--ink-2); }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; font-size: 16px; -webkit-text-size-adjust: 100%; }
     body {
@@ -187,15 +226,32 @@
 
 <main>
 
-  <div class="api-strip">
-    <label>Anthropic API Key</label>
-    <input type="password" id="apiKey" placeholder="sk-ant-…" autocomplete="off" />
-    <span class="hint">Never stored · console.anthropic.com</span>
+  <!-- ── GLOBAL CONTROLS: Model + Mode ── -->
+  <div class="api-strip" id="globalControls">
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-start">
+      <div style="flex:1;min-width:160px">
+        <label class="field-label">Model</label>
+        <div class="model-toggle" id="modelToggle">
+          <button class="model-btn active" data-model="qwen2.5:3b" onclick="setModel('qwen2.5:3b',this)">qwen2.5:3b<br><span style="font-size:.64rem;font-weight:400;opacity:.7">Fast · Local</span></button>
+          <button class="model-btn" data-model="qwen2.5:7b" onclick="setModel('qwen2.5:7b',this)">qwen2.5:7b<br><span style="font-size:.64rem;font-weight:400;opacity:.7">Quality · Local</span></button>
+          <button class="model-btn" data-model="groq:llama3.1-70b" onclick="setModel('groq:llama3.1-70b',this)">Groq · Llama 70b<br><span style="font-size:.64rem;font-weight:400;opacity:.7">Smart · Cloud</span></button>
+        </div>
+      </div>
+      <div style="flex:1;min-width:160px">
+        <label class="field-label">Mode</label>
+        <div class="mode-pills">
+          <button class="mode-pill active-reply" id="modePillReply" onclick="setAppMode('reply')">✉ Reply</button>
+          <button class="mode-pill" id="modePillAssist" onclick="setAppMode('assistant')">🤖 Assistant</button>
+        </div>
+      </div>
+    </div>
+    <div id="modelHint" style="font-size:.72rem;color:var(--ink-3);margin-top:.3rem">Fast mode · 1 reply · template subject · no scoring</div>
   </div>
 
   <div>
     <div class="tabs">
-      <button class="tab active" data-tab="generate">✉ Generate</button>
+      <button class="tab active" data-tab="generate">✉ Reply</button>
+      <button class="tab" data-tab="assistant">🤖 Assistant</button>
       <button class="tab" data-tab="template">⚡ Template</button>
       <button class="tab" data-tab="knowledge">📚 KB</button>
     </div>
@@ -242,26 +298,47 @@ Examples:
               <input type="text" id="senderName" placeholder="e.g. Alex" />
             </div>
           </div>
-          <div class="inline-row" style="margin-top:.5rem">
-            <div class="field">
-              <label class="field-label">Tone</label>
-              <select id="tone">
-                <option value="professional and persuasive">Professional &amp; Persuasive</option>
-                <option value="warm and friendly">Warm &amp; Friendly</option>
-                <option value="firm but respectful">Firm but Respectful</option>
-                <option value="concise and direct">Concise &amp; Direct</option>
-                <option value="empathetic and understanding">Empathetic</option>
-              </select>
+
+          <!-- Tone chips -->
+          <div style="margin-top:.75rem">
+            <label class="field-label">Tone</label>
+            <div class="tone-row" id="toneChips"></div>
+          </div>
+
+          <!-- Reply length -->
+          <div style="margin-top:.75rem">
+            <label class="field-label">Reply Length</label>
+            <div class="reply-length-toggle">
+              <button class="rl-btn" data-len="short" onclick="setReplyLen('short',this)">Short</button>
+              <button class="rl-btn active" data-len="medium" onclick="setReplyLen('medium',this)">Medium</button>
+              <button class="rl-btn" data-len="long" onclick="setReplyLen('long',this)">Long</button>
             </div>
-            <div class="field">
-              <label class="field-label">Mode</label>
+          </div>
+
+          <!-- Generation mode + optional toggles -->
+          <div style="margin-top:.75rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end">
+            <div class="field" style="min-width:145px;margin:0">
+              <label class="field-label">Generation Mode</label>
               <select id="genMode">
-                <option value="ai">🤖 AI (full)</option>
-                <option value="hybrid">⚡ Hybrid (template→AI)</option>
+                <option value="">⚡ Auto (router decides)</option>
+                <option value="template">📄 Template (offline)</option>
+                <option value="hybrid">🔀 Hybrid (template→AI)</option>
+                <option value="ai">🤖 AI (full generation)</option>
               </select>
             </div>
           </div>
-          <div style="display:flex;gap:.6rem;margin-top:.9rem;flex-wrap:wrap">
+
+          <div class="ctrl-row">
+            <label class="toggle-label" id="fastModeToggle">
+              <input type="checkbox" id="fastMode" onchange="onFastModeChange()" />
+              Fast Mode <span style="font-size:.68rem;color:var(--ink-3);font-weight:300">(1 reply, no scoring)</span>
+            </label>
+            <label class="toggle-label">
+              <input type="checkbox" id="qualityMode" onchange="onQualityModeChange()" />
+              Quality Mode <span style="font-size:.68rem;color:var(--ink-3);font-weight:300">(slower, more careful)</span>
+            </label>
+          </div>
+          <div style="display:flex;gap:.6rem;margin-top:.9rem;flex-wrap:wrap;align-items:center">
             <button class="btn btn-primary" id="generateBtn" onclick="generateReply()" style="flex:1;min-width:130px">
               <span id="btnText">Generate Reply</span>
               <span class="spinner" id="btnSpinner"></span>
@@ -273,6 +350,7 @@ Examples:
               <span id="altBtnText">3 Angles</span>
               <span class="spinner" id="altSpinner" style="border-top-color:var(--ink-2)"></span>
             </button>
+            <span class="elapsed-tag" id="generateElapsed"></span>
           </div>
         </div>
       </div>
@@ -330,6 +408,95 @@ Examples:
 
 
 
+
+
+    <!-- TAB: ASSISTANT -->
+    <div class="tab-panel" id="tab-assistant">
+      <div class="card" style="margin-top:1px;border-top-left-radius:0">
+        <div class="card-header" style="background:var(--blue-lt);border-bottom-color:var(--blue-mid)">
+          <span class="card-icon">🤖</span>
+          <span class="card-title" style="color:var(--blue)">AI Assistant</span>
+          <span style="font-size:.68rem;color:var(--blue);margin-left:auto;font-family:'DM Mono',monospace" id="assistModelBadge">qwen2.5:3b</span>
+        </div>
+        <div class="card-body">
+          <div id="notifAssist" class="notif"></div>
+
+          <!-- System prompt (collapsed by default) -->
+          <div style="margin-bottom:.6rem">
+            <div style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-bottom:.3rem" onclick="toggleAssistSystem()">
+              <span style="font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)">System Prompt</span>
+              <span id="assistSysToggle" style="font-size:.68rem;color:var(--ink-3)">▼ expand</span>
+            </div>
+            <div id="assistSysWrap" style="display:none">
+              <textarea id="assistSystem" style="min-height:60px;font-size:.82rem" placeholder="Optional: Override the assistant's persona or instructions…"></textarea>
+            </div>
+          </div>
+
+          <!-- Prompt input -->
+          <label class="field-label">Your Prompt</label>
+          <textarea id="assistPrompt" placeholder="Ask anything — domain questions, general knowledge, writing help, explanations…
+
+Examples:
+• What is SEO domain authority and why does it matter?
+• Explain the domain transfer process step by step.
+• How do renewal fees work for .com domains?
+• Write a subject line for a follow-up email." style="min-height:110px"></textarea>
+
+          <!-- Tone chips for assistant -->
+          <div style="margin-top:.65rem">
+            <label class="field-label">Tone</label>
+            <div class="tone-row" id="assistToneChips"></div>
+          </div>
+
+          <!-- Controls -->
+          <div style="margin-top:.6rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+            <div style="flex:1;min-width:120px">
+              <label class="field-label">Max Length</label>
+              <select id="assistMaxTokens" style="font-size:.82rem">
+                <option value="200">Short (200)</option>
+                <option value="400" selected>Medium (400)</option>
+                <option value="800">Long (800)</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:120px">
+              <label class="field-label">Temperature</label>
+              <select id="assistTemp" style="font-size:.82rem">
+                <option value="0.3">Precise (0.3) — facts, negotiation</option>
+                <option value="0.7" selected>Balanced (0.7) — auto</option>
+                <option value="0.9">Creative (0.9) — brainstorming, pitches</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Buttons -->
+          <div style="display:flex;gap:.5rem;margin-top:.9rem;flex-wrap:wrap">
+            <button class="btn btn-primary" id="assistBtn" onclick="assistantSend()" style="flex:1;min-width:130px;background:var(--blue)">
+              <span id="assistBtnText">Ask Assistant</span>
+              <span class="spinner" id="assistSpinner"></span>
+            </button>
+            <button class="btn btn-secondary" onclick="assistantRegen()" id="assistRegenBtn" title="Regenerate" style="display:none">↺ Retry</button>
+            <button class="btn btn-secondary" onclick="assistantClear()">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Assistant output -->
+      <div class="card" id="assistOutputCard" style="display:none;margin-top:.75rem">
+        <div class="card-header" style="background:var(--blue-lt);border-bottom-color:var(--blue-mid)">
+          <span class="card-icon">💬</span>
+          <span class="card-title" style="color:var(--blue)">Response</span>
+          <span class="elapsed-tag" id="assistElapsed"></span>
+        </div>
+        <div class="card-body">
+          <div id="assistOutputBox" class="assist-box empty">Response will appear here…</div>
+          <div class="assist-meta" style="margin-top:.6rem" id="assistMeta"></div>
+          <div style="display:flex;gap:.4rem;margin-top:.65rem;flex-wrap:wrap">
+            <button class="btn btn-secondary btn-sm" onclick="assistCopy()">⎘ Copy</button>
+            <button class="btn btn-secondary btn-sm" onclick="assistantClear()">↺ Clear</button>
+          </div>
+        </div>
+      </div>
+    </div><!-- /tab-assistant -->
 
 
     <!-- TAB: TEMPLATE (v2 — Smart Template System) -->
@@ -515,7 +682,7 @@ Examples:
           <div style="margin-top:.75rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
             <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer;font-size:.82rem;font-weight:500;color:var(--ink-2)">
               <input type="checkbox" id="tplPolish" style="width:auto;accent-color:var(--gold)" /> AI Polish
-              <span style="font-size:.72rem;color:var(--ink-3);font-weight:300">(uses API key)</span>
+              <span style="font-size:.72rem;color:var(--ink-3);font-weight:300">(via Ollama)</span>
             </label>
             <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer;font-size:.82rem;font-weight:500;color:var(--ink-2)">
               <input type="checkbox" id="tplUrgency" style="width:auto;accent-color:var(--gold)" /> Add light urgency
@@ -646,28 +813,191 @@ Examples:
 
 </main>
 
-<footer>FastAPI + Anthropic <code>claude-sonnet-4-6</code></footer>
+<footer>FastAPI + <span id="footerBackend">Ollama</span> <code id="footerModel">qwen2.5:3b</code> · <span id="footerLocation">Local AI · No cloud required</span></footer>
 
 <script>
   // Since the HTML is served directly from the FastAPI server,
   // API calls go to the same origin — no CORS, no file:// issues.
   const API_BASE = window.location.origin;
 
-  /* ── TABS ── */
-  document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab, .tab-panel').forEach(el => el.classList.remove('active'));
+  /* ══════════════════════════════════════════════════════════════════
+     APP STATE
+  ══════════════════════════════════════════════════════════════════ */
+  var _activeModel      = 'qwen2.5:3b';
+  var _activeAppMode    = 'reply';
+  var _activeTone       = 'professional';
+  var _assistTone       = 'professional';
+  var _activeReplyLen   = 'medium';
+  var _lastReplies      = [];
+  var _lastSubject      = '';
+  var _lastIntent       = '';
+  var _lastSituation    = '';
+  var _activeVariation  = 0;
+  var _lastAssistPrompt = '';
+  var _elapsedTimer     = null;
+  var _elapsedStart     = 0;
+
+  /* ══════════════════════════════════════════════════════════════════
+     TONE SYSTEM
+  ══════════════════════════════════════════════════════════════════ */
+  var TONE_SYSTEM = {
+    professional: { label:'Professional', api_value:'professional and persuasive',     desc:'Clear, confident, business-focused' },
+    friendly:     { label:'Friendly',     api_value:'warm and friendly',               desc:'Approachable, conversational, warm' },
+    persuasive:   { label:'Persuasive',   api_value:'highly persuasive and compelling',desc:'Strong CTA, value-forward, compelling' },
+    soft:         { label:'Soft',         api_value:'empathetic and understanding',    desc:'Gentle, non-pushy, understanding' },
+    urgent:       { label:'Urgent',       api_value:'urgent and time-sensitive',       desc:'Creates urgency without pressure' },
+    direct:       { label:'Direct',       api_value:'concise and direct',              desc:'Short, blunt, no filler' },
+    premium:      { label:'Premium',      api_value:'premium and exclusive',           desc:'Luxury framing, high-value positioning' },
+  };
+
+  function initToneChips(containerId, stateKey, defaultTone) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    Object.keys(TONE_SYSTEM).forEach(function(key) {
+      var t    = TONE_SYSTEM[key];
+      var chip = document.createElement('button');
+      chip.className    = 'tone-chip' + (key === defaultTone ? ' active' : '');
+      chip.textContent  = t.label;
+      chip.title        = t.desc;
+      chip.dataset.tone = key;
+      chip.onclick = function() {
+        if (stateKey === 'reply') _activeTone = key;
+        else _assistTone = key;
+        container.querySelectorAll('.tone-chip').forEach(function(c){ c.classList.remove('active'); });
+        chip.classList.add('active');
+      };
+      container.appendChild(chip);
+    });
+  }
+
+  function getApiTone(stateKey) {
+    var key = stateKey === 'reply' ? _activeTone : _assistTone;
+    return (TONE_SYSTEM[key] || TONE_SYSTEM.professional).api_value;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MODEL CONTROL
+  ══════════════════════════════════════════════════════════════════ */
+  var MODEL_HINTS = {
+    'qwen2.5:3b': 'Fast mode · 1 reply · template subject · no scoring',
+    'qwen2.5:7b': 'Quality mode · 1 reply · more careful generation · slower',
+    'groq:llama3.1-70b': 'Cloud mode · Llama 70b · smarter replies · requires internet',
+  };
+
+  function setModel(model, btn) {
+    _activeModel = model;
+    document.querySelectorAll('.model-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    var hint = document.getElementById('modelHint');
+    if (hint) hint.textContent = MODEL_HINTS[model] || '';
+    var footer = document.getElementById('footerModel');
+    if (footer) footer.textContent = model;
+    var badge = document.getElementById('assistModelBadge');
+    if (badge) badge.textContent = model;
+    var isGroq = model.startsWith('groq:');
+    var footerBackend = document.getElementById('footerBackend');
+    var footerLocation = document.getElementById('footerLocation');
+    if (footerBackend) footerBackend.textContent = isGroq ? 'Groq' : 'Ollama';
+    if (footerLocation) footerLocation.textContent = isGroq ? 'Cloud AI · Requires internet' : 'Local AI · No cloud required';
+    if (model === 'qwen2.5:7b') {
+      var qm = document.getElementById('qualityMode');
+      var fm = document.getElementById('fastMode');
+      if (qm) qm.checked = true;
+      if (fm) fm.checked = false;
+    } else {
+      var qm2 = document.getElementById('qualityMode');
+      if (qm2) qm2.checked = false;
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     APP MODE (Reply ↔ Assistant)
+  ══════════════════════════════════════════════════════════════════ */
+  function setAppMode(mode) {
+    _activeAppMode = mode;
+    var pr = document.getElementById('modePillReply');
+    var pa = document.getElementById('modePillAssist');
+    if (pr) pr.className = 'mode-pill' + (mode === 'reply' ? ' active-reply' : '');
+    if (pa) pa.className = 'mode-pill' + (mode === 'assistant' ? ' active-assist' : '');
+    var tabKey = mode === 'assistant' ? 'assistant' : 'generate';
+    document.querySelectorAll('.tab, .tab-panel').forEach(function(el){ el.classList.remove('active'); });
+    var tabEl = document.querySelector('[data-tab="' + tabKey + '"]');
+    var panEl = document.getElementById('tab-' + tabKey);
+    if (tabEl) tabEl.classList.add('active');
+    if (panEl) panEl.classList.add('active');
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     TABS
+  ══════════════════════════════════════════════════════════════════ */
+  document.querySelectorAll('.tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.tab, .tab-panel').forEach(function(el){ el.classList.remove('active'); });
       tab.classList.add('active');
       document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
       if (tab.dataset.tab === 'knowledge') loadKB();
+      var pr = document.getElementById('modePillReply');
+      var pa = document.getElementById('modePillAssist');
+      if (tab.dataset.tab === 'assistant') {
+        _activeAppMode = 'assistant';
+        if (pr) pr.className = 'mode-pill';
+        if (pa) pa.className = 'mode-pill active-assist';
+      } else {
+        _activeAppMode = 'reply';
+        if (pr) pr.className = 'mode-pill active-reply';
+        if (pa) pa.className = 'mode-pill';
+      }
     });
   });
 
-  /* ── WAKE-UP BANNER ── */
-  const WAKE_TIMEOUT_MS = 60000;
-  const RETRY_INTERVAL  = 3000;
-  let _wakeTimer = null;
-  let _wakeStart = 0;
+  /* ══════════════════════════════════════════════════════════════════
+     REPLY LENGTH
+  ══════════════════════════════════════════════════════════════════ */
+  function setReplyLen(len, btn) {
+    _activeReplyLen = len;
+    document.querySelectorAll('.rl-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     FAST / QUALITY TOGGLES
+  ══════════════════════════════════════════════════════════════════ */
+  function onFastModeChange() {
+    if (document.getElementById('fastMode').checked)
+      document.getElementById('qualityMode').checked = false;
+  }
+  function onQualityModeChange() {
+    if (document.getElementById('qualityMode').checked)
+      document.getElementById('fastMode').checked = false;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     ELAPSED TIMER
+  ══════════════════════════════════════════════════════════════════ */
+  function startElapsed(labelId) {
+    stopElapsed();
+    _elapsedStart = Date.now();
+    _elapsedTimer = setInterval(function() {
+      var el = document.getElementById(labelId);
+      if (el) el.textContent = ((Date.now() - _elapsedStart) / 1000).toFixed(1) + 's';
+    }, 200);
+  }
+  function stopElapsed(labelId) {
+    if (_elapsedTimer) { clearInterval(_elapsedTimer); _elapsedTimer = null; }
+    if (labelId) {
+      var el = document.getElementById(labelId);
+      if (el) el.textContent = ((Date.now() - _elapsedStart) / 1000).toFixed(1) + 's';
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     WAKE-UP BANNER
+  ══════════════════════════════════════════════════════════════════ */
+  var WAKE_TIMEOUT_MS = 60000;
+  var RETRY_INTERVAL  = 3000;
+  var _wakeTimer = null;
+  var _wakeStart = 0;
 
   function showWakeBanner() {
     if (_wakeTimer) return;
@@ -690,7 +1020,6 @@ Examples:
     if (reason === 'timed out') document.getElementById('kbCount').textContent = 'offline';
   }
 
-  // No AbortSignal — use Promise.race to avoid Android WebView cloning bug
   function fetchWithTimeout(url, opts, ms) {
     var timeout = new Promise(function(_, reject) {
       setTimeout(function() { reject(new Error('timeout')); }, ms || 10000);
@@ -698,7 +1027,6 @@ Examples:
     return Promise.race([fetch(url, opts || {}), timeout]);
   }
 
-  // Retries every 3 s for up to 60 s while server cold-starts
   async function fetchWithWake(url, opts) {
     var deadline = Date.now() + WAKE_TIMEOUT_MS;
     var lastErr;
@@ -707,17 +1035,17 @@ Examples:
         var res = await fetchWithTimeout(url, opts, 10000);
         if (res.ok) { hideWakeBanner('ok'); return res; }
         lastErr = new Error('HTTP ' + res.status);
-      } catch(e) {
-        lastErr = e;
-      }
+      } catch(e) { lastErr = e; }
       showWakeBanner();
-      await new Promise(function(r) { setTimeout(r, RETRY_INTERVAL); });
+      await new Promise(function(r){ setTimeout(r, RETRY_INTERVAL); });
     }
     hideWakeBanner('timed out');
     throw lastErr || new Error('Server did not respond in time.');
   }
 
-  /* ── HEALTH CHECK ── */
+  /* ══════════════════════════════════════════════════════════════════
+     HEALTH CHECK
+  ══════════════════════════════════════════════════════════════════ */
   async function loadHealth() {
     try {
       var res  = await fetchWithWake(API_BASE + '/health');
@@ -731,26 +1059,31 @@ Examples:
   }
   loadHealth();
 
-  /* ── QUICK-PICK ── */
+  /* ══════════════════════════════════════════════════════════════════
+     QUICK-PICK
+  ══════════════════════════════════════════════════════════════════ */
   function fillGenerate(text) {
     document.getElementById('customerMessage').value = text;
     document.getElementById('customerMessage').focus();
   }
 
-  /* ── GENERATE REPLY (v6) ── */
-  var _lastReplies     = [];
-  var _lastSubject     = '';
-  var _lastIntent      = '';
-  var _lastSituation   = '';
-  var _activeVariation = 0;
-
+  /* ══════════════════════════════════════════════════════════════════
+     GENERATE REPLY
+  ══════════════════════════════════════════════════════════════════ */
   function buildGenerateBody() {
+    var fastMode = document.getElementById('fastMode').checked;
+    var qualMode = document.getElementById('qualityMode').checked;
+    var is7b     = _activeModel === 'qwen2.5:7b';
+    var numVars  = (is7b || fastMode) ? 1 : (qualMode ? 1 : 3);
+    var modeEl   = document.getElementById('genMode');
+    var modeVal  = modeEl ? (modeEl.value || null) : null;
+
     var body = {
       customer_message: document.getElementById('customerMessage').value.trim(),
-      tone:             document.getElementById('tone').value,
-      api_key:          document.getElementById('apiKey').value.trim(),
-      mode:             document.getElementById('genMode').value,
-      num_variations:   3,
+      tone:             getApiTone('reply'),
+      mode:             modeVal,
+      num_variations:   numVars,
+      model:            _activeModel,
     };
     var d  = document.getElementById('domainName').value.trim();
     var p  = document.getElementById('askingPrice').value.trim();
@@ -760,13 +1093,17 @@ Examples:
     if (p)  body.asking_price  = p;
     if (pn) body.prospect_name = pn;
     if (sn) body.sender_name   = sn;
+    if (_activeReplyLen === 'short') {
+      body.tone = (body.tone || '') + '. Keep the reply under 90 words — 2 to 3 sentences, direct and conversational.';
+    } else if (_activeReplyLen === 'long') {
+      body.tone = (body.tone || '') + '. Write a full response of 160–320 words across 2–3 natural paragraphs. Sound human and direct — no bullet points, no hype language.';
+    }
     return body;
   }
 
   async function generateReply() {
     var body = buildGenerateBody();
     if (!body.customer_message) return showNotif('notifGenerate', 'Please describe the situation first.', 'error');
-    if (!body.api_key)          return showNotif('notifGenerate', 'Please enter your Anthropic API key.', 'error');
     _lastSituation = body.customer_message;
     await _doGenerate('/generate-reply', body);
   }
@@ -774,27 +1111,27 @@ Examples:
   async function regenerateReply() {
     var body = buildGenerateBody();
     if (!body.customer_message) return showNotif('notifGenerate', 'Nothing to regenerate.', 'error');
-    if (!body.api_key)          return showNotif('notifGenerate', 'Please enter your Anthropic API key.', 'error');
     await _doGenerate('/generate-reply/regenerate', body);
   }
 
   async function _doGenerate(endpoint, body) {
     clearNotif('notifGenerate');
     setLoading(true);
+    startElapsed('generateElapsed');
 
     var box = document.getElementById('outputBox');
-    box.textContent = 'Generating…';
+    box.textContent = 'Generating with ' + _activeModel + '…';
     box.classList.remove('empty');
     box.classList.add('generating');
-    document.getElementById('outputCard').style.display      = 'block';
-    document.getElementById('subjectWrap').style.display     = 'none';
-    document.getElementById('variationTabs').innerHTML       = '';
-    document.getElementById('variationTabs').style.display   = 'none';
-    document.getElementById('outputActions').style.display   = 'none';
-    document.getElementById('saveReplyBtn').style.display    = 'none';
-    document.getElementById('saveConfirm').style.display     = 'none';
-    document.getElementById('examplesUsed').innerHTML        = '';
-    document.getElementById('confidenceBar').style.display   = 'none';
+    document.getElementById('outputCard').style.display        = 'block';
+    document.getElementById('subjectWrap').style.display       = 'none';
+    document.getElementById('variationTabs').innerHTML         = '';
+    document.getElementById('variationTabs').style.display     = 'none';
+    document.getElementById('outputActions').style.display     = 'none';
+    document.getElementById('saveReplyBtn').style.display      = 'none';
+    document.getElementById('saveConfirm').style.display       = 'none';
+    document.getElementById('examplesUsed').innerHTML          = '';
+    document.getElementById('confidenceBar').style.display     = 'none';
     document.getElementById('alternativesPanel').style.display = 'none';
 
     try {
@@ -819,9 +1156,7 @@ Examples:
         var tabs = document.getElementById('variationTabs');
         tabs.style.display = 'flex';
         tabs.innerHTML = _lastReplies.map(function(r, i) {
-          var active = i === 0
-            ? 'background:var(--ink);color:var(--paper)'
-            : 'background:var(--cream);color:var(--ink-2)';
+          var active = i === 0 ? 'background:var(--ink);color:var(--paper)' : 'background:var(--cream);color:var(--ink-2)';
           return '<button onclick="switchVariation(' + i + ')" id="vTab' + i + '" '
             + 'style="font-size:.76rem;font-weight:600;padding:.3rem .75rem;border-radius:20px;'
             + 'border:1px solid var(--border);cursor:pointer;transition:all .2s;' + active + '">'
@@ -837,11 +1172,19 @@ Examples:
       }
       var debugLabel = data.intent_debug || '';
       if (debugLabel) {
-        document.getElementById('intentDebugText').textContent  = debugLabel;
+        document.getElementById('intentDebugText').textContent    = debugLabel;
         document.getElementById('intentDebugLabel').style.display = 'block';
       }
       if (data.retrieval_method) showRetrievalBadge(data.retrieval_method);
-      document.getElementById('modelTag').textContent = data.model_used || 'claude-sonnet-4-6';
+
+      var usedModel = data.model_used || _activeModel;
+      var dbg       = data.pipeline_debug || {};
+      document.getElementById('modelTag').textContent =
+        usedModel + (dbg.effective_mode ? ' · ' + dbg.effective_mode : '');
+
+      // Update footer from backend truth, not local UI state
+      var footer = document.getElementById('footerModel');
+      if (footer) footer.textContent = usedModel;
 
       if (data.similar_examples_used && data.similar_examples_used.length) {
         document.getElementById('examplesUsed').innerHTML = data.similar_examples_used.map(function(e) {
@@ -859,6 +1202,7 @@ Examples:
       showNotif('notifGenerate', 'Error: ' + err.message, 'error');
     } finally {
       setLoading(false);
+      stopElapsed('generateElapsed');
     }
   }
 
@@ -886,10 +1230,10 @@ Examples:
     var message = document.getElementById('customerMessage').value.trim();
     if (!v || !message) return;
     var body = {
-      category:         _lastIntent || 'general',
+      category: _lastIntent || 'general',
       customer_message: message,
-      reply:            v.reply,
-      subject:          _lastSubject,
+      reply: v.reply,
+      subject: _lastSubject,
     };
     try {
       var res  = await fetch(API_BASE + '/replies/save-generated', {
@@ -898,34 +1242,34 @@ Examples:
       });
       var data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Save failed');
-      document.getElementById('saveConfirm').style.display    = 'block';
-      document.getElementById('saveReplyBtn').disabled        = true;
-      document.getElementById('saveReplyBtn').textContent     = '✓ Saved';
+      document.getElementById('saveConfirm').style.display = 'block';
+      document.getElementById('saveReplyBtn').disabled     = true;
+      document.getElementById('saveReplyBtn').textContent  = '✓ Saved';
     } catch(err) {
       showNotif('notifGenerate', 'Save failed: ' + err.message, 'error');
     }
   }
 
-  /* ── CONFIDENCE METER ── */
+  /* ══════════════════════════════════════════════════════════════════
+     CONFIDENCE METER
+  ══════════════════════════════════════════════════════════════════ */
   function showConfidence(score, reason) {
-    document.getElementById('confidenceBar').style.display = 'block';
-    document.getElementById('confidenceScore').textContent = score + '/100';
-    document.getElementById('confidenceReason').textContent = reason || '';
+    document.getElementById('confidenceBar').style.display    = 'block';
+    document.getElementById('confidenceScore').textContent    = score + '/100';
+    document.getElementById('confidenceReason').textContent   = reason || '';
     var fill = document.getElementById('confidenceFill');
-    fill.style.width = score + '%';
+    fill.style.width      = score + '%';
     fill.style.background = score >= 80 ? '#16a34a' : score >= 60 ? '#ca8a04' : '#dc2626';
   }
 
-  /* ── 3 ALTERNATIVES ── */
+  /* ══════════════════════════════════════════════════════════════════
+     3 ALTERNATIVES
+  ══════════════════════════════════════════════════════════════════ */
   async function generateAlternatives() {
     var message     = document.getElementById('customerMessage').value.trim();
-    var tone        = document.getElementById('tone').value;
-    var apiKey      = document.getElementById('apiKey').value.trim();
     var domainName  = document.getElementById('domainName').value.trim();
     var askingPrice = document.getElementById('askingPrice').value.trim();
-
     if (!message) return showNotif('notifGenerate', 'Please describe the situation first.', 'error');
-    if (!apiKey)  return showNotif('notifGenerate', 'Please enter your Anthropic API key.', 'error');
 
     clearNotif('notifGenerate');
     setAltLoading(true);
@@ -933,7 +1277,7 @@ Examples:
     panel.style.display = 'block';
     panel.innerHTML = '<div style="font-size:.78rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2);margin-bottom:.7rem">⟳ Generating 3 alternatives…</div>';
 
-    var body = { customer_message: message, tone: tone, api_key: apiKey };
+    var body = { customer_message: message, tone: getApiTone('reply'), model: _activeModel };
     if (domainName)  body.domain_name  = domainName;
     if (askingPrice) body.asking_price = askingPrice;
 
@@ -943,7 +1287,6 @@ Examples:
       });
       var data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Unknown error');
-
       panel.innerHTML = '<div style="font-size:.78rem;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2);margin-bottom:.7rem">3 Alternative Angles — tap to use</div>' +
         data.alternatives.map(function(alt, i) {
           var color = alt.confidence_score >= 80 ? '#16a34a' : alt.confidence_score >= 60 ? '#ca8a04' : '#dc2626';
@@ -971,22 +1314,24 @@ Examples:
     box.classList.remove('empty', 'generating');
     showConfidence(score, reason);
     document.getElementById('outputActions').style.display = 'flex';
-    document.getElementById('modelTag').textContent = 'claude-sonnet-4-6';
-    cards.forEach(function(c) { c.style.opacity = '0.5'; });
-    card.style.opacity = '1';
+    document.getElementById('modelTag').textContent = _activeModel;
+    cards.forEach(function(c){ c.style.opacity = '0.5'; });
+    card.style.opacity     = '1';
     card.style.borderColor = 'var(--gold)';
   }
 
-  /* ── LOADING STATES ── */
+  /* ══════════════════════════════════════════════════════════════════
+     LOADING STATES
+  ══════════════════════════════════════════════════════════════════ */
   function setLoading(on) {
-    document.getElementById('generateBtn').disabled = on;
-    document.getElementById('btnText').textContent      = on ? 'Generating…' : 'Generate Reply';
-    document.getElementById('btnSpinner').style.display = on ? 'inline-block' : 'none';
+    document.getElementById('generateBtn').disabled          = on;
+    document.getElementById('btnText').textContent           = on ? 'Generating…' : 'Generate Reply';
+    document.getElementById('btnSpinner').style.display      = on ? 'inline-block' : 'none';
   }
   function setAltLoading(on) {
-    document.getElementById('altBtn').disabled = on;
-    document.getElementById('altBtnText').textContent    = on ? '…' : '3 Angles';
-    document.getElementById('altSpinner').style.display  = on ? 'inline-block' : 'none';
+    document.getElementById('altBtn').disabled               = on;
+    document.getElementById('altBtnText').textContent        = on ? '…' : '3 Angles';
+    document.getElementById('altSpinner').style.display      = on ? 'inline-block' : 'none';
   }
   function showRetrievalBadge(method) {
     var badge = document.getElementById('retrievalBadge');
@@ -996,14 +1341,15 @@ Examples:
     badge.style.display = 'inline-block';
   }
 
-  /* ── COPY / CLEAR ── */
+  /* ══════════════════════════════════════════════════════════════════
+     COPY / CLEAR
+  ══════════════════════════════════════════════════════════════════ */
   function copyReply() {
     var text = document.getElementById('outputBox').textContent;
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text).then(function() {
-        var btn = event.target;
-        btn.textContent = '✓ Copied!';
-        setTimeout(function() { btn.textContent = '⎘ Copy'; }, 1800);
+        var btn = event.target; btn.textContent = '✓ Copied!';
+        setTimeout(function(){ btn.textContent = '⎘ Copy'; }, 1800);
       });
     } else {
       try { Android.copyToClipboard(text); } catch(e) {}
@@ -1026,10 +1372,128 @@ Examples:
     document.getElementById('confidenceBar').style.display     = 'none';
     document.getElementById('alternativesPanel').style.display = 'none';
     document.getElementById('alternativesPanel').innerHTML     = '';
+    var ge = document.getElementById('generateElapsed');
+    if (ge) ge.textContent = '';
     clearNotif('notifGenerate');
   }
 
-  /* ── KNOWLEDGE BASE ── */
+  /* ══════════════════════════════════════════════════════════════════
+     ASSISTANT MODE
+  ══════════════════════════════════════════════════════════════════ */
+  function toggleAssistSystem() {
+    var wrap   = document.getElementById('assistSysWrap');
+    var toggle = document.getElementById('assistSysToggle');
+    var visible = wrap.style.display !== 'none';
+    wrap.style.display = visible ? 'none' : 'block';
+    toggle.textContent = visible ? '▼ expand' : '▲ collapse';
+  }
+
+  async function assistantSend() {
+    var prompt = document.getElementById('assistPrompt').value.trim();
+    if (!prompt) return showNotif('notifAssist', 'Please enter a prompt.', 'error');
+    _lastAssistPrompt = prompt;
+    await _doAssistant(prompt);
+  }
+
+  async function assistantRegen() {
+    if (!_lastAssistPrompt) return;
+    await _doAssistant(_lastAssistPrompt);
+  }
+
+  async function _doAssistant(prompt) {
+    clearNotif('notifAssist');
+    var btn = document.getElementById('assistBtn');
+    btn.disabled = true;
+    document.getElementById('assistBtnText').textContent   = 'Thinking…';
+    document.getElementById('assistSpinner').style.display = 'inline-block';
+    startElapsed('assistElapsed');
+
+    var outputCard = document.getElementById('assistOutputCard');
+    var outputBox  = document.getElementById('assistOutputBox');
+    outputCard.style.display = 'block';
+    outputBox.textContent    = 'Generating with ' + _activeModel + '…';
+    outputBox.className      = 'assist-box generating';
+    document.getElementById('assistMeta').innerHTML        = '';
+    document.getElementById('assistRegenBtn').style.display = 'none';
+
+    var systemVal = document.getElementById('assistSystem').value.trim();
+    var body = {
+      prompt:      prompt,
+      model:       _activeModel,
+      temperature: parseFloat(document.getElementById('assistTemp').value),
+      max_tokens:  parseInt(document.getElementById('assistMaxTokens').value),
+    };
+    if (systemVal) body.system = systemVal;
+
+    try {
+      var res  = await fetch(API_BASE + '/assistant/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
+
+      outputBox.textContent = data.reply || '(no response)';
+      outputBox.className   = 'assist-box';
+
+      document.getElementById('assistMeta').innerHTML =
+        '<span>' + (data.model_used || _activeModel) + '</span>' +
+        '<span>·</span>' +
+        '<span>~' + (data.prompt_tokens_est || '?') + ' tokens</span>' +
+        '<span>·</span>' +
+        '<span>' + (data.timing_ms || '?') + 'ms</span>';
+
+      // Update badge and footer from backend truth
+      var badge = document.getElementById('assistModelBadge');
+      if (badge) badge.textContent = data.model_used || _activeModel;
+      var footer = document.getElementById('footerModel');
+      if (footer) footer.textContent = data.model_used || _activeModel;
+
+      document.getElementById('assistRegenBtn').style.display = 'inline-flex';
+      outputCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    } catch(err) {
+      outputBox.textContent = 'Error: ' + err.message;
+      outputBox.className   = 'assist-box';
+      showNotif('notifAssist', 'Error: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      document.getElementById('assistBtnText').textContent   = 'Ask Assistant';
+      document.getElementById('assistSpinner').style.display = 'none';
+      stopElapsed('assistElapsed');
+    }
+  }
+
+  function assistantClear() {
+    var ap = document.getElementById('assistPrompt');
+    var as = document.getElementById('assistSystem');
+    if (ap) ap.value = '';
+    if (as) as.value = '';
+    document.getElementById('assistOutputCard').style.display  = 'none';
+    document.getElementById('assistOutputBox').textContent     = 'Response will appear here…';
+    document.getElementById('assistOutputBox').className       = 'assist-box empty';
+    document.getElementById('assistMeta').innerHTML            = '';
+    document.getElementById('assistElapsed').textContent       = '';
+    document.getElementById('assistRegenBtn').style.display    = 'none';
+    _lastAssistPrompt = '';
+    clearNotif('notifAssist');
+  }
+
+  function assistCopy() {
+    var text = document.getElementById('assistOutputBox').textContent;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() {
+        var btn = event.target; btn.textContent = '✓ Copied!';
+        setTimeout(function(){ btn.textContent = '⎘ Copy'; }, 1800);
+      });
+    } else {
+      try { Android.copyToClipboard(text); } catch(e) {}
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     KNOWLEDGE BASE
+  ══════════════════════════════════════════════════════════════════ */
   async function loadKB() {
     var list = document.getElementById('kbList');
     list.innerHTML = '<p style="color:var(--ink-3);font-size:.88rem">Loading…</p>';
@@ -1079,14 +1543,35 @@ Examples:
     loadKB(); loadHealth();
   }
 
-  /* ── UTILS ── */
+  /* ══════════════════════════════════════════════════════════════════
+     UTILS
+  ══════════════════════════════════════════════════════════════════ */
   function showNotif(id, msg, type) {
     var el = document.getElementById(id);
+    if (!el) return;
     el.textContent = msg;
     el.className   = 'notif ' + type + ' show';
-    setTimeout(function() { el.classList.remove('show'); }, 5000);
+    setTimeout(function(){ el.classList.remove('show'); }, 5000);
   }
-  function clearNotif(id) { document.getElementById(id).className = 'notif'; }
+  function clearNotif(id) {
+    var el = document.getElementById(id);
+    if (el) el.className = 'notif';
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     INIT
+  ══════════════════════════════════════════════════════════════════ */
+  (function init() {
+    initToneChips('toneChips',      'reply',  'professional');
+    initToneChips('assistToneChips','assist', 'professional');
+    // Add notifAssist placeholder if assistant tab exists
+    var notifAssist = document.getElementById('notifAssist');
+    if (!notifAssist) {
+      notifAssist = document.createElement('div');
+      notifAssist.id        = 'notifAssist';
+      notifAssist.className = 'notif';
+    }
+  })();
 </script>
 </body>
 </html>
@@ -1229,9 +1714,9 @@ Examples:
   };
 
   var TPL_LEN_HINTS = {
-    short:  '2–4 sentences — quick, direct reply',
-    medium: 'Standard professional email with multiple paragraphs',
-    long:   'Detailed persuasive email — full explanation, value, and call to action',
+    short:  'Under 90 words — quick, direct, conversational',
+    medium: '80–160 words — natural business email, room to reply',
+    long:   '160–320 words — full response, still human and concise',
   };
 
   var TPL_INTENSITY_STYLES = {
@@ -1404,9 +1889,9 @@ Examples:
   /* ── Build enhanced request body with length mode ── */
   function tplBuildLengthInstructions(len, intent) {
     var base = {
-      short:  'Write a short reply of 2–4 sentences maximum. Be direct and concise. No filler.',
-      medium: 'Write a professional email reply with 2–3 paragraphs. Each paragraph should add new information. Include a greeting, clear body, and closing line.',
-      long:   'Write a detailed, persuasive email reply of 4–6 paragraphs. Structure: (1) Greeting + opening acknowledgment. (2) Address the core concern. (3) Explain the value proposition with specifics. (4) Handle any objection or hesitation proactively. (5) Strong closing with a clear call to action. Every paragraph must add new value — no repetition.',
+      short:  'Keep this reply under 90 words. 2–3 sentences maximum. Be direct and conversational — this should feel like a quick, human message, not a formal email. No bullet points. No lengthy explanations.',
+      medium: 'Keep this reply between 80–160 words. Write in short natural paragraphs. Sound like a real person sending a quick business email — not a marketing copywriter. No bullet points unless explicitly needed. Leave room for a follow-up conversation rather than trying to close immediately.',
+      long:   'Keep this reply between 160–320 words. Write naturally across 2–3 short paragraphs. Address the situation fully but avoid repeating the same point twice. No bullet points. No hype language. Sound confident and direct — like someone who knows their business, not a landing page.',
     };
     return base[len] || base['medium'];
   }
@@ -1417,8 +1902,6 @@ Examples:
     if (!message) return showNotif('notifTemplate', 'Please describe the situation or what the prospect said.', 'error');
 
     var polish = document.getElementById('tplPolish').checked;
-    var apiKey = document.getElementById('apiKey') ? document.getElementById('apiKey').value.trim() : '';
-    if (polish && !apiKey) return showNotif('notifTemplate', 'AI Polish requires your Anthropic API key (enter it above).', 'error');
 
     clearNotif('notifTemplate');
     document.getElementById('tplBtn').disabled = true;
@@ -1435,6 +1918,7 @@ Examples:
       include_urgency: document.getElementById('tplUrgency').checked,
       response_length: _tplActiveLength,
       length_instructions: tplBuildLengthInstructions(_tplActiveLength, _tplSelectedIntent),
+      model: _activeModel,
     };
     var domain = document.getElementById('tplDomain').value.trim();
     var price  = document.getElementById('tplPrice').value.trim();
@@ -1444,7 +1928,6 @@ Examples:
     if (price)  body.asking_price    = price;
     if (fi)     body.force_intent    = fi;
     if (fint)   body.force_intensity = fint;
-    if (polish && apiKey) body.api_key = apiKey;
 
     try {
       var res  = await fetch(API_BASE + '/generate-reply/template', {
@@ -1511,19 +1994,6 @@ Examples:
         replyText = data.reply || JSON.stringify(data);
         document.getElementById('tplModeBadge').textContent = 'template only';
         document.getElementById('tplModeBadge').style.display = 'inline-block';
-      }
-
-      /* Enforce quality: never show single-sentence reply for medium/long */
-      if (_tplActiveLength !== 'short') {
-        var paraCount = replyText.split('\n\n').filter(function(p){ return p.trim().length > 0; }).length;
-        if (paraCount < 2) {
-          /* Split single block into paragraphs at sentence boundaries */
-          var sentences = replyText.match(/[^.!?]+[.!?]+/g) || [replyText];
-          if (sentences.length >= 3) {
-            var half = Math.ceil(sentences.length / 2);
-            replyText = sentences.slice(0, half).join(' ') + '\n\n' + sentences.slice(half).join(' ');
-          }
-        }
       }
 
       outputBox.textContent = replyText;
