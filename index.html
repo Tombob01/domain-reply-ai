@@ -204,6 +204,16 @@
 
     footer { text-align:center; padding:.9rem 1rem; font-size:.72rem; color:var(--ink-3); font-family:'DM Mono',monospace; border-top:1px solid var(--border); flex-shrink:0; }
     footer code { background:var(--cream); padding:.1rem .3rem; border-radius:3px; }
+
+    /* ── VARIATION REWRITE PANEL ── */
+    .vb-btn { font-size:.72rem; font-weight:600; padding:.28rem .6rem; border:1px solid var(--border); border-radius:20px; background:var(--paper); color:var(--ink-2); cursor:pointer; transition:all .15s; -webkit-tap-highlight-color:transparent; white-space:nowrap; }
+    .vb-btn.active { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+    .vb-btn.groq-active { background:#7c3aed; color:#fff; border-color:#7c3aed; }
+    .rw-btn { font-size:.74rem; font-weight:500; padding:.3rem .7rem; border-radius:20px; border:1px solid var(--border); background:var(--paper); color:var(--ink-2); cursor:pointer; transition:all .15s; -webkit-tap-highlight-color:transparent; }
+    .rw-btn:active { background:var(--gold-lt); border-color:var(--gold); }
+    .rw-btn.active { background:var(--gold); border-color:var(--gold); color:#fff; font-weight:600; }
+    .rw-btn:disabled { opacity:.45; cursor:not-allowed; }
+    #rewriteBox.generating { background:var(--cream); animation:breathe 1.5s ease-in-out infinite; }
   </style>
 </head>
 <body>
@@ -305,6 +315,12 @@ Examples:
             <div class="tone-row" id="toneChips"></div>
           </div>
 
+          <!-- Email Type Preset -->
+          <div style="margin-top:.75rem">
+            <label class="field-label">Email Type <span style="font-weight:300;color:var(--ink-3);font-size:.72rem">(optional — shapes structure &amp; CTA)</span></label>
+            <div class="tone-row" id="presetChips"></div>
+          </div>
+
           <!-- Reply length -->
           <div style="margin-top:.75rem">
             <label class="field-label">Reply Length</label>
@@ -402,6 +418,47 @@ Examples:
           <div id="saveConfirm" style="display:none;font-size:.78rem;color:var(--green);margin-top:.4rem;font-weight:500">✓ Saved to knowledge base</div>
 
           <div id="examplesUsed" class="examples-pills"></div>
+
+          <!-- ── GROQ VARIATION REWRITE PANEL ── -->
+          <div id="variationPanel" style="display:none;margin-top:1rem;padding-top:.85rem;border-top:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.55rem">
+              <span style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2)">✦ Rewrite Style</span>
+              <!-- Backend selector -->
+              <div id="variationBackendToggle" style="display:flex;gap:.25rem;margin-left:auto">
+                <button class="vb-btn active" data-backend="auto" onclick="setVariationBackend('auto',this)" title="Auto: Groq if available, Ollama otherwise">Auto</button>
+                <button class="vb-btn" data-backend="groq" onclick="setVariationBackend('groq',this)" title="Groq cloud — faster, higher quality">⚡ Groq</button>
+                <button class="vb-btn" data-backend="ollama" onclick="setVariationBackend('ollama',this)" title="Local Ollama — offline, private">🖥 Ollama</button>
+              </div>
+            </div>
+            <!-- Style buttons -->
+            <div id="rewriteStyleBtns" style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.6rem">
+              <button class="rw-btn active" data-style="safe"         onclick="triggerRewrite('safe',this)">Safe</button>
+              <button class="rw-btn"        data-style="persuasive"   onclick="triggerRewrite('persuasive',this)">Persuasive</button>
+              <button class="rw-btn"        data-style="short"        onclick="triggerRewrite('short',this)">Short</button>
+              <button class="rw-btn"        data-style="professional" onclick="triggerRewrite('professional',this)">Professional</button>
+              <button class="rw-btn"        data-style="softer"       onclick="triggerRewrite('softer',this)">Softer</button>
+              <button class="rw-btn"        data-style="urgent"       onclick="triggerRewrite('urgent',this)">More Urgent</button>
+              <button class="rw-btn"        data-style="executive"    onclick="triggerRewrite('executive',this)">Executive</button>
+              <button class="rw-btn"        data-style="friendly"     onclick="triggerRewrite('friendly',this)">Friendly</button>
+              <button class="rw-btn"        data-style="seo"          onclick="triggerRewrite('seo',this)">SEO Focused</button>
+              <button class="rw-btn"        data-style="brand"        onclick="triggerRewrite('brand',this)">Brandability</button>
+            </div>
+            <!-- Rewrite output -->
+            <div id="rewriteOutput" style="display:none">
+              <div id="rewriteBox" style="background:var(--paper);border:1px solid var(--border);border-radius:var(--radius);padding:.9rem 1rem;font-size:.9rem;line-height:1.8;color:var(--ink);white-space:pre-wrap;word-break:break-word;min-height:80px"></div>
+              <div style="display:flex;align-items:center;gap:.4rem;margin-top:.5rem;flex-wrap:wrap">
+                <button class="btn btn-secondary btn-sm" onclick="copyRewrite()">⎘ Copy Rewrite</button>
+                <button class="btn btn-secondary btn-sm" onclick="useRewrite()">↑ Use This</button>
+                <button class="btn btn-secondary btn-sm" id="regenRewriteBtn" onclick="regenRewrite()" title="Regenerate same style">↺ Regen</button>
+                <span id="rewriteBackendBadge" style="font-family:'DM Mono',monospace;font-size:.68rem;color:var(--ink-3);margin-left:auto"></span>
+                <span id="rewriteTimingBadge" style="font-family:'DM Mono',monospace;font-size:.68rem;color:var(--ink-3)"></span>
+              </div>
+            </div>
+            <!-- Loading indicator -->
+            <div id="rewriteLoading" style="display:none;font-size:.8rem;color:var(--ink-3);font-family:'DM Mono',monospace;padding:.4rem 0">
+              <span class="wake-spinner" style="display:inline-block;margin-right:.4rem;vertical-align:middle"></span>Rewriting…
+            </div>
+          </div>
         </div>
       </div>
     </div><!-- /tab-generate -->
@@ -877,6 +934,58 @@ Examples:
   }
 
   /* ══════════════════════════════════════════════════════════════════
+     EMAIL TYPE PRESET SYSTEM
+     Shapes tone, CTA, structure, urgency, and subject line per email type.
+     Sent as email_preset field to the backend — injected into all prompts.
+  ══════════════════════════════════════════════════════════════════ */
+  var PRESET_SYSTEM = [
+    { key:'cold_outreach',     label:'Cold Outreach',      desc:'First contact — personalised, no pressure, leave room to talk' },
+    { key:'warm_outreach',     label:'Warm Outreach',      desc:'They showed interest before — warmer, more direct CTA' },
+    { key:'follow_up',         label:'Follow-Up',          desc:'Shorter than first email, gentle reminder, light urgency' },
+    { key:'final_follow_up',   label:'Final Follow-Up',    desc:'Last message — graceful exit, open door, no pitch' },
+    { key:'negotiation',       label:'Negotiation',        desc:'Hold price calmly, justify value, leave room for discussion' },
+    { key:'counter_offer',     label:'Counter Offer',      desc:'Direct counter with one clear reason and soft deadline' },
+    { key:'seo_pitch',         label:'SEO Pitch',          desc:'Lead with keyword and local search visibility value' },
+    { key:'brandability_pitch',label:'Brand Pitch',        desc:'Lead with memorability, credibility, and brand authority' },
+    { key:'buy_it_now',        label:'Buy-It-Now',         desc:'Price + domain + link — direct, efficient, ready to act' },
+  ];
+
+  var _activePreset = null;   // null = no preset selected
+
+  function buildPresetChips(containerId) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+
+    // "None" chip — deselects any preset
+    var none = document.createElement('button');
+    none.className   = 'tone-chip active';
+    none.textContent = 'None';
+    none.title       = 'No preset — let the AI decide structure automatically';
+    none.dataset.preset = '';
+    none.onclick = function() {
+      _activePreset = null;
+      container.querySelectorAll('.tone-chip').forEach(function(c){ c.classList.remove('active'); });
+      none.classList.add('active');
+    };
+    container.appendChild(none);
+
+    PRESET_SYSTEM.forEach(function(p) {
+      var chip = document.createElement('button');
+      chip.className      = 'tone-chip';
+      chip.textContent    = p.label;
+      chip.title          = p.desc;
+      chip.dataset.preset = p.key;
+      chip.onclick = function() {
+        _activePreset = p.key;
+        container.querySelectorAll('.tone-chip').forEach(function(c){ c.classList.remove('active'); });
+        chip.classList.add('active');
+      };
+      container.appendChild(chip);
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
      MODEL CONTROL
   ══════════════════════════════════════════════════════════════════ */
   var MODEL_HINTS = {
@@ -1093,6 +1202,7 @@ Examples:
     if (p)  body.asking_price  = p;
     if (pn) body.prospect_name = pn;
     if (sn) body.sender_name   = sn;
+    if (_activePreset) body.email_preset = _activePreset;
     if (_activeReplyLen === 'short') {
       body.tone = (body.tone || '') + '. Keep the reply under 90 words — 2 to 3 sentences, direct and conversational.';
     } else if (_activeReplyLen === 'long') {
@@ -1165,6 +1275,7 @@ Examples:
       }
 
       showVariation(0);
+      showVariationPanel();
 
       if (_lastIntent) {
         document.getElementById('intentBadge').textContent   = _lastIntent.replace(/_/g, ' ');
@@ -1372,9 +1483,143 @@ Examples:
     document.getElementById('confidenceBar').style.display     = 'none';
     document.getElementById('alternativesPanel').style.display = 'none';
     document.getElementById('alternativesPanel').innerHTML     = '';
+    document.getElementById('variationPanel').style.display    = 'none';
+    document.getElementById('rewriteOutput').style.display     = 'none';
+    document.getElementById('rewriteBox').textContent          = '';
     var ge = document.getElementById('generateElapsed');
     if (ge) ge.textContent = '';
     clearNotif('notifGenerate');
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     GROQ VARIATION REWRITE
+  ══════════════════════════════════════════════════════════════════ */
+  var _variationBackend  = 'auto';   // 'auto' | 'groq' | 'ollama'
+  var _activeRewriteStyle = 'safe';
+  var _lastRewriteReply  = '';       // for ↺ Regen
+
+  /* Show the variation panel once a reply exists */
+  function showVariationPanel() {
+    document.getElementById('variationPanel').style.display = 'block';
+  }
+
+  function setVariationBackend(backend, btn) {
+    _variationBackend = backend;
+    document.querySelectorAll('.vb-btn').forEach(function(b) {
+      b.classList.remove('active', 'groq-active');
+    });
+    if (backend === 'groq') {
+      btn.classList.add('groq-active');
+    } else {
+      btn.classList.add('active');
+    }
+  }
+
+  async function triggerRewrite(style, btn) {
+    var originalReply = document.getElementById('outputBox').textContent;
+    if (!originalReply || originalReply.indexOf('will appear here') !== -1) {
+      showNotif('notifGenerate', 'Generate a reply first before rewriting.', 'error');
+      return;
+    }
+    _activeRewriteStyle = style;
+    _lastRewriteReply   = '';
+
+    /* Update active style button */
+    document.querySelectorAll('.rw-btn').forEach(function(b) { b.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+
+    /* Disable all style buttons during generation */
+    document.querySelectorAll('.rw-btn').forEach(function(b) { b.disabled = true; });
+
+    var loading = document.getElementById('rewriteLoading');
+    var output  = document.getElementById('rewriteOutput');
+    var box     = document.getElementById('rewriteBox');
+
+    loading.style.display = 'block';
+    output.style.display  = 'none';
+    box.textContent       = '';
+    box.classList.add('generating');
+
+    var domainName  = (document.getElementById('domainName')  || {}).value || '';
+    var askingPrice = (document.getElementById('askingPrice') || {}).value || '';
+
+    var body = {
+      original_reply:    originalReply,
+      rewrite_style:     style,
+      variation_backend: _variationBackend,
+      model:             (_variationBackend === 'auto') ? null : undefined,
+    };
+    if (domainName)  body.domain_name  = domainName.trim();
+    if (askingPrice) body.asking_price = askingPrice.trim();
+    if (_lastIntent) body.intent       = _lastIntent;
+
+    /* strip undefined keys */
+    Object.keys(body).forEach(function(k){ if (body[k] === undefined) delete body[k]; });
+
+    try {
+      var res  = await fetch(API_BASE + '/generate-reply/variations/rewrite', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(body),
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
+
+      _lastRewriteReply = data.rewritten_reply || '';
+      box.textContent   = _lastRewriteReply;
+      box.classList.remove('generating');
+
+      /* Backend badge */
+      var backendLabel = data.backend_used === 'groq' ? '⚡ Groq · ' + data.model_used : '🖥 Ollama · ' + data.model_used;
+      if (data.fallback) backendLabel += ' (fallback)';
+      document.getElementById('rewriteBackendBadge').textContent = backendLabel;
+      document.getElementById('rewriteTimingBadge').textContent  = data.timing_ms + 'ms';
+
+      output.style.display  = 'block';
+      loading.style.display = 'none';
+
+    } catch(err) {
+      box.classList.remove('generating');
+      loading.style.display = 'none';
+      showNotif('notifGenerate', 'Rewrite failed: ' + err.message, 'error');
+    } finally {
+      document.querySelectorAll('.rw-btn').forEach(function(b) { b.disabled = false; });
+    }
+  }
+
+  function regenRewrite() {
+    /* Re-trigger the last active style */
+    var activeBtn = document.querySelector('.rw-btn[data-style="' + _activeRewriteStyle + '"]');
+    triggerRewrite(_activeRewriteStyle, activeBtn);
+  }
+
+  function copyRewrite() {
+    var text = document.getElementById('rewriteBox').textContent;
+    if (!text) return;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() {
+        var btn = event.target; btn.textContent = '✓ Copied!';
+        setTimeout(function(){ btn.textContent = '⎘ Copy Rewrite'; }, 1800);
+      });
+    } else {
+      try { Android.copyToClipboard(text); } catch(e) {}
+    }
+  }
+
+  /* Replace the main output box with the rewrite and push it into _lastReplies */
+  function useRewrite() {
+    var text = document.getElementById('rewriteBox').textContent;
+    if (!text) return;
+    var box = document.getElementById('outputBox');
+    box.textContent = text;
+    box.classList.remove('empty', 'generating');
+    /* Inject into _lastReplies at active index so Copy / Save use it */
+    if (_lastReplies[_activeVariation]) {
+      _lastReplies[_activeVariation].reply = text;
+    }
+    /* Flash confirmation */
+    var btn = document.querySelector('[onclick="useRewrite()"]');
+    if (btn) { btn.textContent = '✓ Applied'; setTimeout(function(){ btn.textContent = '↑ Use This'; }, 1500); }
   }
 
   /* ══════════════════════════════════════════════════════════════════
@@ -1564,6 +1809,7 @@ Examples:
   (function init() {
     initToneChips('toneChips',      'reply',  'professional');
     initToneChips('assistToneChips','assist', 'professional');
+    buildPresetChips('presetChips');
     // Add notifAssist placeholder if assistant tab exists
     var notifAssist = document.getElementById('notifAssist');
     if (!notifAssist) {
@@ -1928,6 +2174,7 @@ Examples:
     if (price)  body.asking_price    = price;
     if (fi)     body.force_intent    = fi;
     if (fint)   body.force_intensity = fint;
+    if (_activePreset) body.email_preset = _activePreset;
 
     try {
       var res  = await fetch(API_BASE + '/generate-reply/template', {

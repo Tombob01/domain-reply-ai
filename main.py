@@ -37,6 +37,15 @@ from pipeline import analyse, build_flow_instruction, InputAnalysis, print_analy
 from template_engine import build_template_reply, ai_polish_reply, detect_template_intent, TEMPLATE_INTENT_KEYWORDS
 from quality_control import build_strategy_block, run_full_qc, check_variation_uniqueness, log_variation_check
 
+# Broker memory — graceful fallback if module unavailable
+try:
+    from broker_memory import memory_db
+    _MEMORY_AVAILABLE = memory_db.available
+except Exception as _mem_err:
+    print(f"[MemoryDB] Not available: {_mem_err} — lead history disabled")
+    memory_db = None
+    _MEMORY_AVAILABLE = False
+
 # ─────────────────────────────────────────────────────────────────────────────
 # CONSTANTS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -452,6 +461,120 @@ ALTERNATIVE_ANGLES: list[dict] = [
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
+# EMAIL TYPE PRESETS
+# Each preset shapes tone, structure, CTA style, urgency, and persuasion
+# strategy. Injected into all three prompt builders when email_preset is set.
+# Defaults to None — existing behaviour fully preserved when not set.
+# ─────────────────────────────────────────────────────────────────────────────
+
+EMAIL_PRESET_INSTRUCTIONS: dict[str, dict] = {
+    "cold_outreach": {
+        "label":       "Cold Outreach",
+        "structure":   "Short personalised opener → introduce the domain naturally → explain business value (branding, SEO, local authority) → simple low-friction CTA.",
+        "tone":        "Confident, professional, conversational. Sound like a real person reaching out — not a mass campaign.",
+        "cta":         "End with one soft question: 'Would this be of interest?' or 'Happy to share more details if useful.'",
+        "urgency":     "No urgency. This is a first introduction — leave room for a conversation.",
+        "persuasion":  "Lead with relevance, not pressure. Explain why this specific domain fits their specific business.",
+        "subject_hint":"Short and specific — mention the domain or a clear benefit. Examples: 'Re: [Domain]' / 'A domain that fits [City][Industry]'",
+    },
+    "warm_outreach": {
+        "label":       "Warm Outreach",
+        "structure":   "Reference prior contact or expressed interest → reintroduce the domain briefly → reinforce the strongest value point → direct CTA.",
+        "tone":        "Warmer and more direct than cold outreach. They already know you — skip the full introduction.",
+        "cta":         "More direct: 'Would you like me to send the purchase link?' or 'Ready to move forward when you are.'",
+        "urgency":     "Light natural urgency: 'Still available if you'd like to revisit.'",
+        "persuasion":  "Build on what they already expressed interest in. Don't repeat the full pitch.",
+        "subject_hint":"Reference previous contact: 'Following up — [Domain]' or 'Re: [Domain] — still available'",
+    },
+    "follow_up": {
+        "label":       "Follow-Up",
+        "structure":   "Brief acknowledgment of previous outreach → one sentence on why you're following up → single value reminder → simple CTA.",
+        "tone":        "Shorter than the original. Friendly, not pushy. Assume they're busy.",
+        "cta":         "'Just wanted to check if you had a chance to look at this.' or 'Happy to answer any questions.'",
+        "urgency":     "Gentle: 'Still available and worth a look.'",
+        "persuasion":  "Minimal. Remind, don't re-pitch. One value point maximum.",
+        "subject_hint":"'Following up — [Domain]' or 'Quick check-in on [Domain]'",
+    },
+    "final_follow_up": {
+        "label":       "Final Follow-Up",
+        "structure":   "Acknowledge this is the last message → brief closing value statement → genuine release with an open door.",
+        "tone":        "Calm, confident, respectful. Not desperate. This is a graceful exit.",
+        "cta":         "'If timing changes, feel free to reach out.' or 'Happy to reconnect whenever makes sense.'",
+        "urgency":     "Natural scarcity only: 'Planning to open this to other buyers soon.' Never manufactured pressure.",
+        "persuasion":  "None. One clear statement of value, then let go.",
+        "subject_hint":"'Last note on [Domain]' or 'Closing out — [Domain]'",
+    },
+    "negotiation": {
+        "label":       "Negotiation",
+        "structure":   "Acknowledge their position → justify your price with one clear reason → counter or hold → keep the door open.",
+        "tone":        "Calm, confident, experienced. Never defensive or desperate.",
+        "cta":         "'Let me know what works for you.' or 'Happy to discuss — what's your best number?'",
+        "urgency":     "Real scarcity only: 'I do have other interest in this domain.' Never invented.",
+        "persuasion":  "Value-based. Justify the price logically — don't just repeat it. One strong reason.",
+        "subject_hint":"'Re: [Domain] — pricing discussion' or 'Re: your offer on [Domain]'",
+    },
+    "counter_offer": {
+        "label":       "Counter Offer",
+        "structure":   "Acknowledge their offer briefly → give your counter with one clear reason → name your number specifically → invite their response.",
+        "tone":        "Direct, businesslike, fair. Not aggressive — just clear.",
+        "cta":         "'Let me know if that works.' or 'Open to discussing if you have a different number in mind.'",
+        "urgency":     "Optional soft deadline: 'I can hold this for 48 hours at that price.'",
+        "persuasion":  "State your counter and the reason. One sentence. Don't over-justify.",
+        "subject_hint":"'Re: [Domain] — counteroffer' or 'Counter: [Domain] at [Price]'",
+    },
+    "seo_pitch": {
+        "label":       "SEO Pitch",
+        "structure":   "Open with the SEO angle → explain how the exact-match domain affects local search ranking → connect to their business specifically → CTA.",
+        "tone":        "Knowledgeable but accessible. Explain SEO value clearly without being technical.",
+        "cta":         "'Happy to walk you through how this works if useful.' or 'Let me know if you'd like the details.'",
+        "urgency":     "Competitor risk: 'Once a competitor owns this, the SEO advantage goes to them permanently.'",
+        "persuasion":  "Lead with search visibility and 'near me' traffic. Make it concrete: this domain = those searches.",
+        "subject_hint":"'[Domain] — local SEO advantage' or 'How [Domain] could rank for your city'",
+    },
+    "brandability_pitch": {
+        "label":       "Brandability Pitch",
+        "structure":   "Open with the brand angle → explain memorability, credibility, and authority → connect to their specific market → CTA.",
+        "tone":        "Creative but professional. Focus on long-term brand value.",
+        "cta":         "'Let me know if you'd like to discuss.' or 'Happy to share the listing.'",
+        "urgency":     "Light: 'A name like this is rare in your market.'",
+        "persuasion":  "Lead with what customers will think when they see the domain. Make the brand case, not the SEO case.",
+        "subject_hint":"'A domain that fits [Brand/City]' or '[Domain] — brand opportunity'",
+    },
+    "buy_it_now": {
+        "label":       "Buy-It-Now Outreach",
+        "structure":   "Direct opener → domain and price upfront → one clear value statement → purchase link → simple CTA.",
+        "tone":        "Efficient and direct. Respect their time — give them everything they need to act immediately.",
+        "cta":         "Include a direct purchase link: 'You can purchase directly here: [LINK]' or 'Direct link: [LINK]'",
+        "urgency":     "Clear availability: 'Available now at [Price].'",
+        "persuasion":  "Lead with the offer. Don't over-explain. Price + domain + one reason + link.",
+        "subject_hint":"'[Domain] — available at [Price]' or 'Buy [Domain] — [Price]'",
+    },
+}
+
+
+def _build_preset_block(preset_key: Optional[str]) -> str:
+    """
+    Return a formatted prompt instruction block for the given email preset.
+    Returns empty string when preset is None — preserves existing behaviour.
+    Used by all three prompt builders: build_reply_prompt, build_situation_prompt,
+    build_reply_prompt_ai.
+    """
+    if not preset_key:
+        return ""
+    preset = EMAIL_PRESET_INSTRUCTIONS.get(preset_key)
+    if not preset:
+        return ""
+    return (
+        f"EMAIL TYPE: {preset['label']}\n"
+        f"Structure: {preset['structure']}\n"
+        f"Tone guidance: {preset['tone']}\n"
+        f"CTA: {preset['cta']}\n"
+        f"Urgency: {preset['urgency']}\n"
+        f"Persuasion: {preset['persuasion']}\n"
+        f"Subject hint: {preset['subject_hint']}\n"
+    )
+
+# ─────────────────────────────────────────────────────────────────────────────
 # EMBEDDING INDEX
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -564,9 +687,9 @@ class GenerateRequest(BaseModel):
     prospect_name: Optional[str]= None
     num_variations: int         = 3
     mode: Optional[str]         = "ai"
-    # Per-request model selection — overrides global MODEL constant.
-    # None → falls back to global MODEL (qwen2.5:3b by default).
-    model: Optional[str]        = None   # "qwen2.5:3b" | "qwen2.5:7b"
+    model: Optional[str]        = None
+    email_preset: Optional[str] = None   # cold_outreach | warm_outreach | follow_up | etc.
+    lead_id: Optional[int]      = None   # broker memory — fetch lead history for context
 
     @field_validator("customer_message")
     @classmethod
@@ -589,7 +712,9 @@ class SituationRequest(BaseModel):
     sender_name: Optional[str]     = None
     prospect_name: Optional[str]   = None
     num_variations: int            = 3
-    model: Optional[str]           = None   # "qwen2.5:3b" | "qwen2.5:7b"
+    model: Optional[str]           = None
+    email_preset: Optional[str]    = None   # cold_outreach | warm_outreach | follow_up | etc.
+    lead_id: Optional[int]         = None   # broker memory
 
     @field_validator("situation")
     @classmethod
@@ -679,7 +804,9 @@ class TemplateRequest(BaseModel):
     length_instructions: Optional[str] = None
     include_urgency: bool            = False
     force_intensity: Optional[str]   = None
-    model: Optional[str]             = None   # per-request model override
+    model: Optional[str]             = None
+    email_preset: Optional[str]      = None   # cold_outreach | warm_outreach | follow_up | etc.
+    lead_id: Optional[int]           = None   # broker memory
 
     @field_validator("customer_message")
     @classmethod
@@ -692,6 +819,13 @@ class TemplateRequest(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 # HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
+
+def _get_lead_context(lead_id: Optional[int]) -> Optional[str]:
+    """Fetch lead history summary for prompt injection. Returns None if unavailable."""
+    if not lead_id or not _MEMORY_AVAILABLE or memory_db is None:
+        return None
+    return memory_db.lead_summary(lead_id)
+
 
 def load_replies() -> list[dict]:
     if not DATA_FILE.exists():
@@ -1314,7 +1448,9 @@ def _build_context_frame(message: str, analysis: "InputAnalysis",
 
 def build_reply_prompt(message, intent, examples, tone, domain_name, asking_price,
                        retrieval_method, angle_instruction=None,
-                       analysis: Optional[InputAnalysis] = None):
+                       analysis: Optional[InputAnalysis] = None,
+                       email_preset: Optional[str] = None,
+                       lead_context: Optional[str] = None):
     tone_inst   = TONE_INSTRUCTIONS.get(tone, f"Tone: {tone}.")
     method_note = "by semantic meaning" if retrieval_method == "semantic" else "by keyword"
 
@@ -1336,6 +1472,8 @@ def build_reply_prompt(message, intent, examples, tone, domain_name, asking_pric
     rules       = INTENT_RULES.get(intent, "Respond naturally and professionally.")
     closing     = CLOSING_TECHNIQUES.get(intent, "End with a clear next step.")
     angle_block = f"\nAngle to use: {angle_instruction}\n" if angle_instruction else ""
+    preset_block  = _build_preset_block(email_preset)
+    lead_block    = f"LEAD HISTORY:\n{lead_context}\n" if lead_context else ""
 
     if analysis is None:
         analysis = analyse(message)
@@ -1347,6 +1485,8 @@ def build_reply_prompt(message, intent, examples, tone, domain_name, asking_pric
         f"{domain_block}"
         f"{ex_block}"
         f"{angle_block}"
+        f"{preset_block}"
+        f"{lead_block}"
         f"Message from prospect:\n\"{strip_filler(message)}\"\n\n"
         f"{context_frame}"
         f"{question_section}"
@@ -1359,7 +1499,9 @@ def build_reply_prompt(message, intent, examples, tone, domain_name, asking_pric
 
 def build_situation_prompt(situation, intent, intensity, examples, tone,
                            domain_name, asking_price, retrieval_method, include_urgency=False,
-                           analysis: Optional[InputAnalysis] = None):
+                           analysis: Optional[InputAnalysis] = None,
+                           email_preset: Optional[str] = None,
+                           lead_context: Optional[str] = None):
     """Prompt for situation-mode — injects pitch intensity, value props, soft CTAs, urgency."""
     tone_inst   = TONE_INSTRUCTIONS.get(tone, f"Tone: {tone}.")
     method_note = "by meaning" if retrieval_method == "semantic" else "by keyword"
@@ -1397,14 +1539,19 @@ def build_situation_prompt(situation, intent, intensity, examples, tone,
         analysis = analyse(situation)
 
     # ── Debug ─────────────────────────────────────────────────────────────────
+    preset_block = _build_preset_block(email_preset)
+    lead_block   = f"LEAD HISTORY:\n{lead_context}\n" if lead_context else ""
+
     print(
         f"[REASONING] mode=situation intent={intent} intensity={intensity} "
-        f"urgency={include_urgency}"
+        f"urgency={include_urgency} preset={email_preset or 'none'}"
     )
 
     return (
         f"{context_line}"
         f"{ex_block}"
+        f"{preset_block}"
+        f"{lead_block}"
         f"Situation (described by the broker):\n\"{strip_filler(situation)}\"\n\n"
         f"{intent_guidance}"
         f"Pitch level: {intensity_note}\n"
@@ -1460,6 +1607,8 @@ def build_reply_prompt_ai(
     asking_price: Optional[str],
     retrieval_method: str,
     analysis: Optional["InputAnalysis"] = None,
+    email_preset: Optional[str] = None,
+    lead_context: Optional[str] = None,
 ) -> str:
     """
     AI-mode prompt builder. Writes a fluid, natural brief rather than a
@@ -1581,9 +1730,14 @@ def build_reply_prompt_ai(
             "Do NOT invent registration dates, ages, traffic numbers, or any specific facts.\n\n"
         )
 
+    preset_block = _build_preset_block(email_preset)
+    lead_block   = f"LEAD HISTORY:\n{lead_context}\n\n" if lead_context else ""
+
     return (
         f"{context_line}"
         f"{ex_block}"
+        f"{preset_block}"
+        f"{lead_block}"
         f"Message or situation:\n\"{strip_filler(message)}\"\n\n"
         f"{question_note}"
         f"{emotion_note}"
@@ -2160,6 +2314,8 @@ async def generate_reply(req: GenerateRequest):
                 req.customer_message, intent, examples, tone,
                 req.domain_name, req.asking_price, method,
                 analysis=analysis,
+                email_preset=getattr(req, "email_preset", None),
+                lead_context=_get_lead_context(getattr(req, "lead_id", None)),
             )
             variations = generate_variations_ai(
                 base_prompt,
@@ -2276,6 +2432,8 @@ async def generate_reply_situation(req: SituationRequest):
                 req.situation, intent, examples, tone,
                 req.domain_name, req.asking_price, method,
                 analysis=analysis,
+                email_preset=getattr(req, "email_preset", None),
+                lead_context=_get_lead_context(getattr(req, "lead_id", None)),
             )
             variations = generate_variations_ai(
                 base_prompt,
@@ -2752,6 +2910,301 @@ async def regenerate_reply(req: GenerateRequest):
     return await generate_reply(req)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# GROQ VARIATION REWRITE SYSTEM
+# Takes an existing reply and rewrites it in a different style.
+# Completely separate from the generation path — variations only.
+# Supports 10 named styles; Ollama fallback if Groq unavailable.
+# ─────────────────────────────────────────────────────────────────────────────
+
+GROQ_REWRITE_STYLES: dict[str, dict] = {
+    "safe": {
+        "label": "Safe",
+        "instruction": (
+            "Rewrite this reply in a balanced, professional tone. "
+            "Friendly but not pushy. Suitable for any prospect. "
+            "Preserve all factual details, pricing, and links exactly."
+        ),
+        "temperature": 0.65,
+    },
+    "persuasive": {
+        "label": "Persuasive",
+        "instruction": (
+            "Rewrite this reply to make a stronger case. Lead with the most compelling "
+            "value point. Be confident and direct. Add light urgency only if it fits naturally. "
+            "No marketing clichés. Preserve all pricing and links exactly."
+        ),
+        "temperature": 0.72,
+    },
+    "short": {
+        "label": "Short",
+        "instruction": (
+            "Rewrite this reply in the shortest possible form. "
+            "Three sentences maximum. Keep only what earns its place. "
+            "Preserve pricing and links. Cut everything else."
+        ),
+        "temperature": 0.60,
+    },
+    "professional": {
+        "label": "Professional",
+        "instruction": (
+            "Rewrite this reply in a polished, formal business tone. "
+            "Clear structure. Confident. No contractions, no casual phrasing. "
+            "Preserve all facts, pricing, and links exactly."
+        ),
+        "temperature": 0.60,
+    },
+    "softer": {
+        "label": "Softer",
+        "instruction": (
+            "Rewrite this reply with a warmer, more empathetic tone. "
+            "Acknowledge the prospect's perspective before making any case. "
+            "Sound like a helpful human, not a sales script. "
+            "Preserve all facts, pricing, and links exactly."
+        ),
+        "temperature": 0.72,
+    },
+    "urgent": {
+        "label": "More Urgent",
+        "instruction": (
+            "Rewrite this reply to convey genuine urgency — domains are publicly listed "
+            "and can sell at any time. Frame urgency as information, not pressure. "
+            "Be specific, not vague. Preserve all facts, pricing, and links exactly."
+        ),
+        "temperature": 0.68,
+    },
+    "executive": {
+        "label": "Executive Tone",
+        "instruction": (
+            "Rewrite this reply for a senior decision-maker or executive audience. "
+            "Lead with business impact. Remove any informal language. "
+            "Be precise and strategic. Preserve all facts, pricing, and links exactly."
+        ),
+        "temperature": 0.58,
+    },
+    "friendly": {
+        "label": "Friendly",
+        "instruction": (
+            "Rewrite this reply in a conversational, approachable tone. "
+            "Sound like a trusted colleague, not a salesperson. "
+            "Short sentences. One genuine question. "
+            "Preserve all facts, pricing, and links exactly."
+        ),
+        "temperature": 0.75,
+    },
+    "seo": {
+        "label": "SEO Focused",
+        "instruction": (
+            "Rewrite this reply to emphasise local SEO value. "
+            "Explain how exact-match geo-targeted domains affect local search ranking. "
+            "Be specific: this domain = those local searches. "
+            "Accessible language — no jargon. Preserve pricing and links exactly."
+        ),
+        "temperature": 0.65,
+    },
+    "brand": {
+        "label": "Brandability Focused",
+        "instruction": (
+            "Rewrite this reply to lead with brand value: memorability, authority, credibility. "
+            "Focus on what customers will think when they see the domain. "
+            "Long-term brand asset framing. Creative but professional. "
+            "Preserve all facts, pricing, and links exactly."
+        ),
+        "temperature": 0.72,
+    },
+}
+
+_GROQ_REWRITE_SYSTEM = (
+    "You are an experienced domain broker rewriting email replies. "
+    "Your job is to rephrase the reply in a specific style while preserving ALL factual content. "
+    "Rules:\n"
+    "- NEVER change pricing information, domain names, or purchase links\n"
+    "- NEVER invent new facts, services, or business details not in the original\n"
+    "- NEVER add hallucinated details about traffic, rankings, or domain history\n"
+    "- Sound natural and human — not robotic, not like ad copy\n"
+    "- Preserve the greeting and sign-off structure\n"
+    "- Write ONLY the rewritten email body. No preamble, no commentary."
+)
+
+
+class VariationRewriteRequest(BaseModel):
+    original_reply:  str
+    rewrite_style:   str            = "safe"     # key from GROQ_REWRITE_STYLES
+    variation_backend: str          = "auto"     # "auto" | "groq" | "ollama"
+    model:           Optional[str]  = None       # override model; None = auto-select
+    domain_name:     Optional[str]  = None
+    asking_price:    Optional[str]  = None
+    intent:          Optional[str]  = "general"
+
+    @field_validator("original_reply")
+    @classmethod
+    def reply_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("original_reply cannot be empty.")
+        return v.strip()
+
+    @field_validator("rewrite_style")
+    @classmethod
+    def style_valid(cls, v: str) -> str:
+        if v not in GROQ_REWRITE_STYLES:
+            available = ", ".join(GROQ_REWRITE_STYLES.keys())
+            raise ValueError(f"rewrite_style '{v}' not recognised. Available: {available}")
+        return v
+
+
+class VariationRewriteResponse(BaseModel):
+    rewritten_reply: str
+    style_label:     str
+    backend_used:    str       # "groq" | "ollama"
+    model_used:      str
+    timing_ms:       int
+    fallback:        bool = False   # True if Groq was requested but fell back to Ollama
+
+
+def _select_variation_backend(requested: str, model_override: Optional[str]) -> str:
+    """
+    Resolve which model to use for variation rewriting.
+
+    Logic:
+    - model_override takes priority (caller knows exactly what they want)
+    - requested == 'groq' → use GROQ_DEFAULT if GROQ_API_KEY is set, else fallback to Ollama
+    - requested == 'ollama' → use global MODEL
+    - requested == 'auto' → use Groq if available, else Ollama
+    """
+    if model_override:
+        return model_override
+    if requested == "ollama":
+        return MODEL
+    if requested == "groq":
+        if GROQ_API_KEY:
+            return GROQ_DEFAULT
+        print("[VARIATION_BACKEND] groq requested but GROQ_API_KEY not set — falling back to ollama")
+        return MODEL
+    # auto
+    if GROQ_API_KEY:
+        return GROQ_DEFAULT
+    return MODEL
+
+
+@app.post("/generate-reply/variations/rewrite", response_model=VariationRewriteResponse)
+async def rewrite_variation(req: VariationRewriteRequest):
+    """
+    Rewrite an existing reply in a different style using Groq (preferred) or Ollama.
+
+    This is a dedicated rewrite-only endpoint — it does NOT run the full generation
+    pipeline. It takes an existing reply and reshapes it stylistically while
+    preserving all factual content, pricing, and links.
+
+    Supports 10 named styles:
+      safe, persuasive, short, professional, softer, urgent,
+      executive, friendly, seo, brand
+
+    Backends:
+      auto   → Groq if GROQ_API_KEY is set, Ollama otherwise
+      groq   → Groq (falls back to Ollama if key missing or call fails)
+      ollama → local Ollama only
+
+    Returns HTTP 422 if rewrite_style is unknown.
+    Returns HTTP 503 if both Groq and Ollama fail.
+    """
+    _t0 = time.monotonic()
+    style = GROQ_REWRITE_STYLES[req.rewrite_style]
+
+    # ── Resolve backend model ───────────────────────────────────────────────
+    resolved_model  = _select_variation_backend(req.variation_backend, req.model)
+    is_groq         = resolved_model.startswith("groq:")
+    fallback_used   = False
+
+    # Build context hint for the rewrite
+    context_parts = []
+    if req.domain_name:   context_parts.append(f"Domain: {req.domain_name}")
+    if req.asking_price:  context_parts.append(f"Asking price: {req.asking_price}")
+    context_line = "\n".join(context_parts) + "\n\n" if context_parts else ""
+
+    rewrite_prompt = (
+        f"{context_line}"
+        f"ORIGINAL REPLY:\n{req.original_reply}\n\n"
+        f"REWRITE INSTRUCTION:\n{style['instruction']}\n\n"
+        f"Write the rewritten reply now:"
+    )
+
+    backend_label = "groq" if is_groq else "ollama"
+    print(
+        f"[VARIATION_REWRITE] backend={backend_label} model={resolved_model} "
+        f"style={req.rewrite_style} intent={req.intent}"
+    )
+
+    # ── Primary attempt ─────────────────────────────────────────────────────
+    result_text = ""
+    try:
+        client = _get_client_for_model(resolved_model)
+        result_text = client.generate(
+            prompt      = rewrite_prompt,
+            system      = _GROQ_REWRITE_SYSTEM,
+            temperature = style["temperature"],
+            max_tokens  = MAX_TOKENS,
+        )
+    except Exception as primary_err:
+        print(f"[VARIATION_REWRITE] primary attempt failed: {primary_err}")
+        result_text = ""
+
+    # ── Groq fallback → Ollama ──────────────────────────────────────────────
+    if not result_text and is_groq:
+        print(f"[VARIATION_REWRITE] groq failed — falling back to ollama model={MODEL}")
+        fallback_used  = True
+        resolved_model = MODEL
+        backend_label  = "ollama"
+        try:
+            client = _get_client_for_model(MODEL)
+            result_text = client.generate(
+                prompt      = rewrite_prompt,
+                system      = _GROQ_REWRITE_SYSTEM,
+                temperature = style["temperature"],
+                max_tokens  = MAX_TOKENS,
+            )
+        except Exception as fallback_err:
+            print(f"[VARIATION_REWRITE] ollama fallback also failed: {fallback_err}")
+
+    if not result_text:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Both Groq and Ollama backends failed to generate a rewrite. "
+                "Check that Ollama is running or that GROQ_API_KEY is valid."
+            ),
+        )
+
+    timing_ms = int((time.monotonic() - _t0) * 1000)
+    print(f"[TIMING] variation_rewrite_{req.rewrite_style}_ms={timing_ms} backend={backend_label}")
+
+    return VariationRewriteResponse(
+        rewritten_reply = result_text.strip(),
+        style_label     = style["label"],
+        backend_used    = backend_label,
+        model_used      = resolved_model,
+        timing_ms       = timing_ms,
+        fallback        = fallback_used,
+    )
+
+
+@app.get("/generate-reply/variations/styles")
+async def list_variation_styles():
+    """Return all available rewrite styles and their metadata."""
+    return {
+        "styles": [
+            {
+                "key":   key,
+                "label": s["label"],
+                "description": s["instruction"][:120] + "…",
+            }
+            for key, s in GROQ_REWRITE_STYLES.items()
+        ],
+        "backends": ["auto", "groq", "ollama"],
+        "groq_available": bool(GROQ_API_KEY),
+        "default_backend": "groq" if GROQ_API_KEY else "ollama",
+    }
+
+
 @app.post("/replies/save-generated")
 async def save_generated_reply(req: SaveReplyRequest):
     """
@@ -2909,6 +3362,116 @@ async def qc_validate_reply(body: dict):
     if not reply:
         raise HTTPException(status_code=400, detail="'reply' field is required.")
     return run_full_qc(reply, intent=intent)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# BROKER MEMORY ENDPOINTS
+# Lead management, outreach logging, offer tracking.
+# All return 503 if broker memory is unavailable (graceful degradation).
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _memory_check():
+    if not _MEMORY_AVAILABLE or memory_db is None:
+        from fastapi import HTTPException
+        raise HTTPException(503, "Broker memory unavailable — check broker_memory.py")
+
+
+@app.post("/leads")
+async def create_lead(body: dict):
+    """
+    Create or upsert a lead.
+    Body: { domain, prospect_email?, prospect_name?, notes? }
+    Returns: { lead_id, created }
+    """
+    _memory_check()
+    domain = body.get("domain", "").strip()
+    if not domain:
+        from fastapi import HTTPException
+        raise HTTPException(422, "domain is required")
+    lead_id = memory_db.upsert_lead(
+        domain          = domain,
+        prospect_email  = body.get("prospect_email"),
+        prospect_name   = body.get("prospect_name"),
+        notes           = body.get("notes"),
+    )
+    return {"lead_id": lead_id, "domain": domain}
+
+
+@app.get("/leads")
+async def get_leads(domain: Optional[str] = None):
+    """List all leads, optionally filtered by domain substring."""
+    _memory_check()
+    return {"leads": memory_db.list_leads(domain=domain)}
+
+
+@app.get("/leads/{lead_id}")
+async def get_lead(lead_id: int):
+    """Get a single lead with full history."""
+    _memory_check()
+    data = memory_db.full_history(lead_id)
+    if not data["lead"]:
+        from fastapi import HTTPException
+        raise HTTPException(404, f"Lead {lead_id} not found")
+    return data
+
+
+@app.delete("/leads/{lead_id}")
+async def delete_lead(lead_id: int):
+    """Delete a lead and all associated history."""
+    _memory_check()
+    ok = memory_db.delete_lead(lead_id)
+    return {"deleted": ok}
+
+
+@app.post("/leads/{lead_id}/outreach")
+async def log_outreach(lead_id: int, body: dict):
+    """
+    Log an outreach attempt for a lead.
+    Body: { preset?, subject?, body? }
+    Called automatically by the frontend when a generated email is saved/sent.
+    """
+    _memory_check()
+    ok = memory_db.log_outreach(
+        lead_id = lead_id,
+        preset  = body.get("preset"),
+        subject = body.get("subject"),
+        body    = body.get("body"),
+    )
+    return {"logged": ok}
+
+
+@app.post("/leads/{lead_id}/offer")
+async def log_offer(lead_id: int, body: dict):
+    """
+    Log an offer or counteroffer.
+    Body: { amount (number), direction ('sent'|'received'), notes? }
+    """
+    _memory_check()
+    amount = body.get("amount")
+    direction = body.get("direction", "sent")
+    if amount is None:
+        from fastapi import HTTPException
+        raise HTTPException(422, "amount is required")
+    ok = memory_db.log_offer(
+        lead_id   = lead_id,
+        amount    = float(amount),
+        direction = direction,
+        notes     = body.get("notes"),
+    )
+    return {"logged": ok}
+
+
+@app.patch("/leads/{lead_id}/stage")
+async def update_stage(lead_id: int, body: dict):
+    """Update the conversation stage of a lead."""
+    _memory_check()
+    stage = body.get("stage", "").strip()
+    if not stage:
+        from fastapi import HTTPException
+        raise HTTPException(422, "stage is required")
+    ok = memory_db.update_lead_stage(lead_id, stage)
+    return {"updated": ok}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
