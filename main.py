@@ -731,6 +731,7 @@ class ReplyResult(BaseModel):
     confidence_score: int = 75
     confidence_reason: str = ""
     angle: Optional[str] = None
+    quality_report: Optional[dict] = None  # heuristic_score_reply() output — None if not run
 
 
 class GenerateResponse(BaseModel):
@@ -1598,6 +1599,422 @@ _AI_INFO_INTENTS = {
 }
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# CONVERSATION-STAGE INTELLIGENCE
+# Pure heuristics — zero model calls.
+# Detects stage from outreach count, offer history, intent, and message text.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# All valid conversation stages
+_CONV_STAGES = {
+    "first_outreach",   # no prior contact
+    "warm_lead",        # replied with interest, no offer yet
+    "negotiation",      # offer/counter-offer in progress
+    "stalled",          # no reply for a while / gone cold
+    "final_follow_up",  # last-chance outreach
+    "accepted",         # deal agreed
+    "rejected",         # definitively declined
+    "counteroffer",     # specific counter-offer situation
+    "unknown",          # insufficient data
+}
+
+# Stage → compact prompt instruction block
+_STAGE_INSTRUCTIONS: dict[str, dict] = {
+    "first_outreach": {
+        "tone":       "Curious and professional. No pressure.",
+        "length":     "Concise — 2 short paragraphs maximum.",
+        "cta":        "One low-friction question. Not 'buy now'.",
+        "urgency":    "None. Do not manufacture urgency.",
+        "posture":    "Introduction-focused. Plant the seed; don't close.",
+        "avoid":      "Avoid price anchoring too early. Avoid pushy language.",
+    },
+    "warm_lead": {
+        "tone":       "Engaged and direct. They've shown interest — match their energy.",
+        "length":     "Medium — 2-3 paragraphs.",
+        "cta":        "Stronger CTA. Move toward a next step: call, offer, or decision.",
+        "urgency":    "Light natural urgency is fine — domain availability is real.",
+        "posture":    "Value positioning. Make the case clearly without over-explaining.",
+        "avoid":      "Avoid re-introducing the domain as if they've never heard of it.",
+    },
+    "negotiation": {
+        "tone":       "Calm, confident, logical. No desperation.",
+        "length":     "Medium — tight. Every sentence earns its place.",
+        "cta":        "Specific next step: a counter figure or a clear decision prompt.",
+        "urgency":    "Factual only — 'domain is listed publicly' if true. Never fake.",
+        "posture":    "Hold the pricing position. Counter with a specific number, not a range. "
+                      "One brief reason. Keep momentum — never leave it open-ended.",
+        "avoid":      "Avoid folding pre-emptively. Avoid over-explaining your price. "
+                      "Avoid phrases like 'I understand your budget constraints'.",
+    },
+    "counteroffer": {
+        "tone":       "Business-like and precise.",
+        "length":     "Short to medium. Get to the counter fast.",
+        "cta":        "Name your counter-price and ask if they'd like to proceed.",
+        "urgency":    "Factual only.",
+        "posture":    "Acknowledge their offer in one sentence. Counter with a specific figure. "
+                      "Brief rationale. Close with a direct question.",
+        "avoid":      "Avoid lengthy justification. Avoid hedging on price.",
+    },
+    "stalled": {
+        "tone":       "Light, low-friction, no pressure.",
+        "length":     "Short — 2 paragraphs maximum.",
+        "cta":        "Easy yes/no question. Remove all friction from replying.",
+        "urgency":    "Very light or none. Don't lecture them.",
+        "posture":    "Re-engage gently. Reference prior interest briefly. "
+                      "Make replying feel easy and natural.",
+        "avoid":      "Avoid 'just following up'. Avoid guilt language. "
+                      "Avoid re-pitching the whole value proposition.",
+    },
+    "final_follow_up": {
+        "tone":       "Respectful, non-pushy, slightly closing.",
+        "length":     "Short — 2 paragraphs.",
+        "cta":        "Closing question or a graceful exit offer.",
+        "urgency":    "Optional, very soft — 'happy to close this thread if timing isn't right'.",
+        "posture":    "This is the last contact. Be professional. Leave the door open.",
+        "avoid":      "Avoid manipulation. Avoid fake FOMO. Avoid desperation.",
+    },
+    "accepted": {
+        "tone":       "Professional, warm, action-oriented.",
+        "length":     "Short — next steps only.",
+        "cta":        "Payment link / escrow setup / document signing.",
+        "urgency":    "Natural — deal is agreed, move it forward.",
+        "posture":    "Focus entirely on completing the transaction smoothly.",
+        "avoid":      "Avoid re-selling. They've decided.",
+    },
+    "rejected": {
+        "tone":       "Gracious, brief.",
+        "length":     "Very short — 2-3 sentences.",
+        "cta":        "Leave the door open lightly, or close professionally.",
+        "urgency":    "None.",
+        "posture":    "Accept the decision. No counter-pitch.",
+        "avoid":      "Avoid pleading. Avoid repeating value points.",
+    },
+}
+
+
+def detect_conversation_stage(
+    intent:         str,
+    message:        str,
+    outreach_count: int           = 0,
+    offers:         list[dict]    = None,   # list of offer_log dicts from broker_memory
+    lead_stage:     Optional[str] = None,   # stored stage from leads table
+    asking_price:   Optional[str] = None,
+) -> tuple[str, str]:
+    """
+    Infer conversation stage from available signals. Zero model calls.
+
+    Returns (stage_label, explanation) where stage_label is one of _CONV_STAGES.
+
+    Priority:
+    1. Explicit stored stage from broker_memory (highest trust)
+    2. Offer history signals
+    3. Intent + message signals
+    4. Outreach count signals
+    """
+    offers = offers or []
+    msg_low = message.lower()
+
+    # ── 1. Hard signals from stored lead stage ────────────────────────────────
+    if lead_stage == "agreed":
+        return "accepted", "Lead stage is 'agreed' in broker memory."
+    if lead_stage == "closed":
+        return "accepted", "Lead stage is 'closed' in broker memory."
+
+    # ── 2. Offer history analysis ─────────────────────────────────────────────
+    sent_offers     = [o for o in offers if o.get("direction") == "sent"]
+    received_offers = [o for o in offers if o.get("direction") == "received"]
+
+    if received_offers and sent_offers:
+        return "counteroffer", (
+            f"Active counter-offer exchange: {len(received_offers)} received, "
+            f"{len(sent_offers)} sent."
+        )
+    if received_offers and not sent_offers:
+        # They made an offer, we haven't countered yet
+        return "negotiation", (
+            f"Prospect has made {len(received_offers)} offer(s) — awaiting counter."
+        )
+
+    # ── 3. Message-level signals ──────────────────────────────────────────────
+    # Hard rejection
+    rejection_signals = [
+        "not interested", "no thanks", "remove me", "unsubscribe",
+        "stop emailing", "do not contact", "please stop",
+    ]
+    if any(s in msg_low for s in rejection_signals):
+        return "rejected", "Prospect has explicitly declined or requested removal."
+
+    # Acceptance signals
+    acceptance_signals = [
+        "let's do it", "i'll take it", "we agree", "send the invoice",
+        "send payment", "how do i pay", "ready to proceed", "we have a deal",
+        "accepted", "agreed",
+    ]
+    if any(s in msg_low for s in acceptance_signals):
+        return "accepted", "Prospect has signalled acceptance."
+
+    # Negotiation signals (current message)
+    offer_signals = [
+        "offer", "willing to pay", "could do", "how about", "would you accept",
+        "can you do", "best price", "counter", "meet in the middle",
+    ]
+    if any(s in msg_low for s in offer_signals):
+        return "negotiation", "Current message contains an offer or counter-offer signal."
+
+    # Warm interest signals
+    warm_signals = [
+        "interested", "tell me more", "sounds good", "like this", "makes sense",
+        "could work", "let me think", "good option", "we're considering",
+    ]
+    if any(s in msg_low for s in warm_signals):
+        return "warm_lead", "Prospect has expressed genuine interest."
+
+    # ── 4. Intent-based signals ───────────────────────────────────────────────
+    intent_stage_map = {
+        "negotiation":           "negotiation",
+        "price_negotiation":     "negotiation",
+        "price_too_high":        "negotiation",
+        "follow_up":             "stalled",
+        "follow_up_no_response": "stalled",
+        "re_engagement":         "stalled",
+        "cold_outreach":         "first_outreach",
+        "sales_pitch":           "first_outreach",
+        "agreed_no_pay":         "accepted",
+        "angry":                 "rejected",
+        "no_thanks":             "rejected",
+    }
+    if intent in intent_stage_map:
+        mapped = intent_stage_map[intent]
+        return mapped, f"Intent '{intent}' maps to stage '{mapped}'."
+
+    # ── 5. Outreach count heuristics ─────────────────────────────────────────
+    if outreach_count == 0:
+        return "first_outreach", "No prior outreach logged."
+    if outreach_count == 1:
+        return "warm_lead", "One prior outreach — prospect is in early dialogue."
+    if outreach_count >= 4:
+        return "final_follow_up", f"{outreach_count} outreach attempts — treat as final follow-up."
+    if outreach_count >= 2:
+        return "stalled", f"{outreach_count} prior outreach attempts with no clear progression."
+
+    return "unknown", "Insufficient signals to determine stage."
+
+
+def _stage_prompt_block(stage: str, explanation: str) -> str:
+    """
+    Build a compact, targeted prompt block for the detected conversation stage.
+    Injected into build_reply_prompt_ai() — kept deliberately short to avoid prompt bloat.
+    """
+    if stage not in _STAGE_INSTRUCTIONS or stage == "unknown":
+        return ""
+
+    inst = _STAGE_INSTRUCTIONS[stage]
+    stage_label = stage.replace("_", " ").title()
+
+    lines = [
+        f"CONVERSATION STAGE: {stage_label}",
+        f"  Tone: {inst['tone']}",
+        f"  Length: {inst['length']}",
+        f"  CTA: {inst['cta']}",
+        f"  Urgency: {inst['urgency']}",
+        f"  Posture: {inst['posture']}",
+        f"  Avoid: {inst['avoid']}",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def _offer_intelligence(
+    offers:       list[dict],
+    asking_price: Optional[str],
+    message:      str,
+) -> str:
+    """
+    Analyse offer history and current message to produce a compact negotiation
+    intelligence note for the prompt. Zero model calls.
+
+    Returns empty string if no useful signals.
+    """
+    if not offers and not asking_price:
+        return ""
+
+    lines: list[str] = []
+    msg_low = message.lower()
+
+    # ── Parse asking price ────────────────────────────────────────────────────
+    ask_num: Optional[float] = None
+    if asking_price:
+        digits = re.sub(r"[^\d.]", "", asking_price)
+        try:
+            ask_num = float(digits)
+        except ValueError:
+            pass
+
+    # ── Extract latest received offer from history ────────────────────────────
+    received = sorted(
+        [o for o in offers if o.get("direction") == "received"],
+        key=lambda o: o.get("offered_at", 0),
+    )
+    sent = sorted(
+        [o for o in offers if o.get("direction") == "sent"],
+        key=lambda o: o.get("offered_at", 0),
+    )
+
+    # ── Offer ratio analysis ──────────────────────────────────────────────────
+    if received and ask_num and ask_num > 0:
+        latest_offer = received[-1].get("amount", 0)
+        ratio = latest_offer / ask_num
+
+        if ratio < 0.25:
+            lines.append(
+                f"OFFER INTELLIGENCE: Prospect's latest offer (${latest_offer:,.0f}) is "
+                f"{int(ratio*100)}% of your asking price — a low anchor. "
+                "Do NOT move close to it. Counter firmly with a specific figure near asking. "
+                "Acknowledge briefly, counter confidently."
+            )
+        elif ratio < 0.60:
+            lines.append(
+                f"OFFER INTELLIGENCE: Prospect offered ${latest_offer:,.0f} — "
+                f"{int(ratio*100)}% of asking. Serious intent but a significant gap. "
+                "Counter at no lower than 80% of asking. Offer one reason, one next step."
+            )
+        elif ratio < 0.85:
+            lines.append(
+                f"OFFER INTELLIGENCE: Prospect offered ${latest_offer:,.0f} — "
+                f"{int(ratio*100)}% of asking. Close gap. "
+                "You can counter modestly or hold — don't fold to asking without a small counter."
+            )
+        elif ratio >= 0.85:
+            lines.append(
+                f"OFFER INTELLIGENCE: Prospect offered ${latest_offer:,.0f} — "
+                f"{int(ratio*100)}% of asking. Near full ask. "
+                "This is a serious buyer. Close efficiently — counter minimally or accept. "
+                "Don't risk losing the deal over a small gap."
+            )
+
+    # ── Offer trend ───────────────────────────────────────────────────────────
+    if len(received) >= 2:
+        trend = received[-1].get("amount", 0) - received[-2].get("amount", 0)
+        if trend > 0:
+            lines.append(
+                f"OFFER TREND: Prospect is moving up (last increase: +${trend:,.0f}). "
+                "Keep negotiating — they have room to move."
+            )
+        elif trend == 0:
+            lines.append(
+                "OFFER TREND: Prospect's offer has not changed. "
+                "They may be anchoring — give them a reason to move or call the stall."
+            )
+
+    # ── Buying signals in current message ────────────────────────────────────
+    buying_signals = [
+        "ready", "proceed", "move forward", "let's do it", "sounds good",
+        "works for me", "agreed", "deal", "transfer", "payment",
+    ]
+    has_buying = any(s in msg_low for s in buying_signals)
+    if has_buying:
+        lines.append(
+            "BUYING SIGNAL: Current message contains commitment language. "
+            "Do not re-pitch. Move toward closing: payment, escrow, or next action."
+        )
+
+    # ── Hesitation signals ────────────────────────────────────────────────────
+    hesitation_signals = [
+        "need to think", "let me check", "ask my partner", "speak to my",
+        "not sure yet", "maybe", "possibly", "considering",
+    ]
+    has_hesitation = any(s in msg_low for s in hesitation_signals)
+    if has_hesitation:
+        lines.append(
+            "HESITATION SIGNAL: Prospect is stalling on a decision. "
+            "Identify the friction point from their message and address it specifically. "
+            "Offer a low-commitment next step — not a hard close."
+        )
+
+    return "\n".join(lines) + "\n" if lines else ""
+
+
+def _get_lead_context_rich(lead_id: Optional[int]) -> dict:
+    """
+    Fetch full lead data from broker_memory for stage detection and prompt injection.
+    Returns a dict with: summary_text, outreach_count, offers, lead_stage.
+    Always safe to call — returns empty defaults if memory unavailable.
+    """
+    empty = {"summary_text": None, "outreach_count": 0, "offers": [], "lead_stage": None}
+    if not lead_id or not _MEMORY_AVAILABLE or memory_db is None:
+        return empty
+    try:
+        history = memory_db.full_history(lead_id)
+        outreach_count = len(history.get("outreach", []))
+        offers         = history.get("offers", [])
+        lead           = history.get("lead", {})
+        lead_stage     = lead.get("stage") if lead else None
+        summary_text   = memory_db.lead_summary(lead_id)
+        return {
+            "summary_text":  summary_text,
+            "outreach_count": outreach_count,
+            "offers":         offers,
+            "lead_stage":     lead_stage,
+        }
+    except Exception as e:
+        print(f"[STAGE_INTEL] _get_lead_context_rich failed: {e}")
+        return empty
+
+
+def retrieve_stage_aware(
+    message: str,
+    replies: list[dict],
+    intent:  str,
+    api_key: str,
+    top_k:   int,
+    stage:   Optional[str] = None,
+) -> tuple[list[dict], str]:
+    """
+    Stage-aware retrieval wrapper around the existing retrieve() function.
+    Biases results toward same-stage/same-intent examples without replacing
+    the existing retrieval system.
+
+    Strategy:
+    1. Run normal retrieve() to get top_k results
+    2. If stage is known, up-rank examples whose category or preset matches the stage
+    3. Return re-ranked results with method label
+
+    This is lightweight — no vector DB, no extra model calls.
+    """
+    # Stage → KB category/preset keywords that signal the same stage
+    _STAGE_KB_KEYWORDS: dict[str, list[str]] = {
+        "first_outreach":  ["cold_outreach", "sales_pitch", "warm_outreach"],
+        "warm_lead":       ["warm_outreach", "follow_up_after_interest", "soft_pitch"],
+        "negotiation":     ["negotiation", "price_negotiation", "counter_offer", "price_too_high"],
+        "counteroffer":    ["counter_offer", "negotiation", "price_negotiation"],
+        "stalled":         ["follow_up", "follow_up_no_response", "re_engagement"],
+        "final_follow_up": ["follow_up", "re_engagement", "final_offer"],
+        "accepted":        ["agreed_no_pay", "closing", "payment_reminder"],
+        "rejected":        ["no_thanks", "angry"],
+    }
+
+    base_results, method = retrieve(message, replies, intent, api_key, top_k)
+
+    if not stage or stage == "unknown" or not base_results:
+        return base_results, method
+
+    stage_keywords = _STAGE_KB_KEYWORDS.get(stage, [])
+    if not stage_keywords:
+        return base_results, method
+
+    # Up-rank examples that match the stage keywords
+    def _stage_score(ex: dict) -> int:
+        cat = (ex.get("category") or "").lower()
+        preset = (ex.get("email_preset") or "").lower()
+        return sum(1 for kw in stage_keywords if kw in cat or kw in preset)
+
+    re_ranked = sorted(base_results, key=_stage_score, reverse=True)
+    boosted = sum(1 for ex in re_ranked if _stage_score(ex) > 0)
+    if boosted > 0:
+        print(f"[STAGE_RETRIEVAL] stage={stage} boosted {boosted}/{len(re_ranked)} examples")
+
+    return re_ranked, method
+
+
 def build_reply_prompt_ai(
     message: str,
     intent: str,
@@ -1609,6 +2026,8 @@ def build_reply_prompt_ai(
     analysis: Optional["InputAnalysis"] = None,
     email_preset: Optional[str] = None,
     lead_context: Optional[str] = None,
+    stage_block: Optional[str] = None,
+    offer_intel: Optional[str] = None,
 ) -> str:
     """
     AI-mode prompt builder. Writes a fluid, natural brief rather than a
@@ -1730,13 +2149,17 @@ def build_reply_prompt_ai(
             "Do NOT invent registration dates, ages, traffic numbers, or any specific facts.\n\n"
         )
 
-    preset_block = _build_preset_block(email_preset)
-    lead_block   = f"LEAD HISTORY:\n{lead_context}\n\n" if lead_context else ""
+    preset_block  = _build_preset_block(email_preset)
+    lead_block    = f"LEAD HISTORY:\n{lead_context}\n\n" if lead_context else ""
+    stage_section = f"{stage_block}\n" if stage_block else ""
+    intel_section = f"{offer_intel}\n" if offer_intel else ""
 
     return (
         f"{context_line}"
         f"{ex_block}"
         f"{preset_block}"
+        f"{stage_section}"
+        f"{intel_section}"
         f"{lead_block}"
         f"Message or situation:\n\"{strip_filler(message)}\"\n\n"
         f"{question_note}"
@@ -1843,6 +2266,17 @@ def generate_variations_ai(
                   f"{qc['validation'].get('paragraph_count', 0)}p)")
         final = qc["reply"]
 
+        # ── Humanization layer ────────────────────────────────────────
+        with _Timer("humanize"):
+            final, quality_report = humanize_reply(
+                reply        = final,
+                situation    = situation,
+                intent       = intent,
+                model        = model,
+                domain_name  = domain_name,
+                asking_price = None,
+            )
+
         score, reason = (
             score_reply_ollama(situation, final, model=model)
             if ENABLE_AI_SCORING
@@ -1856,6 +2290,7 @@ def generate_variations_ai(
             label=style["label"],
             confidence_score=score,
             confidence_reason=reason,
+            quality_report=quality_report,
         ))
 
     check_variation_uniqueness(results)
@@ -2208,6 +2643,479 @@ def score_reply_ollama(situation: str, reply_text: str, model: str = MODEL) -> t
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HUMANIZATION & QUALITY SCORING LAYER
+# ─────────────────────────────────────────────────────────────────────────────
+# Flow:  generation → run_full_qc() → humanize_reply() → score_reply_ollama()
+#
+# This layer is heuristics-first (zero latency), model-rewrite second (optional).
+# Gated by ENABLE_HUMANIZER env flag — set to "false" to disable entirely.
+# ─────────────────────────────────────────────────────────────────────────────
+
+ENABLE_HUMANIZER = _flag("ENABLE_HUMANIZER", True)
+
+# ── Hype / spam / AI-phrase detection patterns ────────────────────────────────
+_HYPE_PHRASES: list[tuple[str, str]] = [
+    # (regex_pattern,  human-readable flag label)
+    (r"\bperfect\s+domain\b",            "hype:perfect_domain"),
+    (r"\bdream\s+domain\b",              "hype:dream_domain"),
+    (r"\bonce[\s-]in[\s-]a[\s-]lifetime\b", "hype:once_in_lifetime"),
+    (r"\bgame[\s-]chang(?:ing|er)\b",    "hype:game_changer"),
+    (r"\bunique\s+opportunit(?:y|ies)\b","hype:unique_opportunity"),
+    (r"\bdon't\s+miss\s+out\b",          "hype:dont_miss_out"),
+    (r"\bact\s+(?:fast|now|quickly)\b",  "hype:act_fast"),
+    (r"\blimited\s+time\b",              "hype:limited_time"),
+    (r"\bexclusive\s+offer\b",           "hype:exclusive_offer"),
+    (r"\bincredible\s+(?:value|deal|opportunity)\b", "hype:incredible"),
+    (r"\bamazing\s+(?:domain|opportunity|deal)\b",   "hype:amazing"),
+    (r"\bworld[\s-]class\b",             "hype:world_class"),
+    (r"\bpremium\s+domain\b",            "hype:premium_domain"),
+]
+
+_AI_PHRASES: list[tuple[str, str]] = [
+    (r"\bI\s+hope\s+this\s+(?:email|message)\s+finds\s+you\b", "ai:hope_finds_you"),
+    (r"\bI\s+hope\s+you(?:'re|\s+are)\s+(?:doing\s+)?well\b",  "ai:hope_doing_well"),
+    (r"\bplease\s+don't\s+hesitate\s+to\b",                     "ai:dont_hesitate"),
+    (r"\bfeel\s+free\s+to\s+reach\s+out\b",                     "ai:feel_free_reach_out"),
+    (r"\bI\s+wanted\s+to\s+(?:reach\s+out|touch\s+base)\b",    "ai:wanted_to_reach_out"),
+    (r"\bI\s+am\s+writing\s+to\b",                              "ai:i_am_writing_to"),
+    (r"\bas\s+per\s+(?:my|our|your)\s+(?:previous|last|prior)\b", "ai:as_per_previous"),
+    (r"\bI\s+trust\s+this\s+(?:finds|email|message)\b",         "ai:i_trust_this"),
+    (r"\bthank\s+you\s+for\s+your\s+(?:time\s+and\s+)?consideration\b", "ai:thanks_consideration"),
+    (r"\bI\s+look\s+forward\s+to\s+hearing\s+from\s+you\b",    "ai:look_forward"),
+    (r"\bkind(?:est)?\s+regards\b",                              "ai:kind_regards"),
+    (r"\bwarm\s+regards\b",                                      "ai:warm_regards"),
+    (r"\bI\s+sincerely\s+hope\b",                                "ai:sincerely_hope"),
+]
+
+_WEAK_CTA: list[tuple[str, str]] = [
+    (r"\blet\s+me\s+know\s+if\s+you\s+have\s+any\s+questions?\b", "weak_cta:let_me_know_questions"),
+    (r"\bfeel\s+free\s+to\s+contact\s+me\b",                       "weak_cta:feel_free_contact"),
+    (r"\bdo\s+not\s+hesitate\s+to\s+contact\b",                    "weak_cta:do_not_hesitate"),
+    (r"\breach\s+out\s+(?:if|any)\b",                              "weak_cta:generic_reach_out"),
+]
+
+_STRUCTURE_RULES: list[tuple[str, str]] = [
+    (r"(?m)^(?:.{200,}(?:\n|$)){3,}",   "structure:wall_of_text"),     # 3+ lines >200 chars
+    (r"(?i)^(?:dear\s+sir|to\s+whom\s+it\s+may\s+concern|hello\s+there)[,\s]", "structure:generic_opener"),
+    (r"\b(\w+)\b(?:\s+\w+){0,5}\s+\1\b","structure:word_repetition"),  # same word within 6 words
+]
+
+# ── Per-dimension heuristic scorer ─────────────────────────────────────────────
+
+def heuristic_score_reply(reply: str, intent: str = "") -> dict:
+    """
+    Fast, regex/heuristic multi-dimensional scoring. Zero model calls.
+
+    Returns a dict:
+    {
+        "dimensions": {
+            "naturalness":           int 0-20,
+            "readability":           int 0-20,
+            "spamminess":            int 0-20,   (inverted: 20=not spammy)
+            "cta_quality":           int 0-10,
+            "human_tone":            int 0-15,
+            "personalization":       int 0-5,
+            "structure":             int 0-10,
+        },
+        "total":      int 0-100,
+        "flags":      list[str],   # all triggered pattern labels
+        "needs_humanization": bool,
+        "summary":    str,
+    }
+    """
+    text     = reply.strip()
+    words    = text.split()
+    word_ct  = len(words)
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    sent_ct  = len([s for s in sentences if s.strip()])
+    paras    = [p.strip() for p in re.split(r'\n\n+', text) if p.strip()]
+    para_ct  = len(paras)
+
+    flags: list[str] = []
+
+    # ── Detect hype ─────────────────────────────────────────────────
+    hype_hits = 0
+    for pattern, label in _HYPE_PHRASES:
+        if re.search(pattern, text, re.IGNORECASE):
+            flags.append(label)
+            hype_hits += 1
+
+    # ── Detect AI phrasing ───────────────────────────────────────────
+    ai_hits = 0
+    for pattern, label in _AI_PHRASES:
+        if re.search(pattern, text, re.IGNORECASE):
+            flags.append(label)
+            ai_hits += 1
+
+    # ── Detect weak CTA ─────────────────────────────────────────────
+    cta_hits = 0
+    for pattern, label in _WEAK_CTA:
+        if re.search(pattern, text, re.IGNORECASE):
+            flags.append(label)
+            cta_hits += 1
+
+    # ── Detect no CTA at all (for negotiation/sales intents) ────────
+    has_question      = "?" in text
+    has_strong_cta    = bool(re.search(
+        r"\b(?:reply|respond|let(?:'s|\s+us)\s+(?:schedule|set up|talk|discuss)|"
+        r"would\s+you\s+(?:be\s+open|consider|like)|"
+        r"open\s+to\s+a|what(?:'s|\s+is)\s+your\s+(?:budget|timeline)|"
+        r"can\s+we|shall\s+we|give\s+(?:me|us)\s+a\s+call)\b",
+        text, re.IGNORECASE
+    ))
+    sales_intent = intent not in _QC_RELAXED_INTENTS
+    missing_cta  = sales_intent and not has_question and not has_strong_cta
+    if missing_cta:
+        flags.append("cta:missing")
+
+    # ── Detect structure issues ──────────────────────────────────────
+    if para_ct == 1 and word_ct > 100:
+        flags.append("structure:no_paragraph_breaks")
+    if para_ct > 5:
+        flags.append("structure:too_many_paragraphs")
+    long_paras = sum(1 for p in paras if len(p.split()) > 80)
+    if long_paras >= 2:
+        flags.append("structure:long_paragraphs")
+
+    # generic opener detection
+    if re.search(r"(?i)^(?:dear\s+sir|to\s+whom\s+it\s+may\s+concern|hello\s+there)[,\s]", text):
+        flags.append("structure:generic_opener")
+
+    # ── Detect word repetition (same non-trivial word ≥3×) ──────────
+    word_freq: dict[str, int] = {}
+    stop = {"the","a","an","and","or","but","to","of","in","for","it","is","this","that","we","you","i","my","your","our"}
+    for w in words:
+        w_clean = re.sub(r"[^a-z]", "", w.lower())
+        if len(w_clean) > 4 and w_clean not in stop:
+            word_freq[w_clean] = word_freq.get(w_clean, 0) + 1
+    repeated = [w for w, c in word_freq.items() if c >= 3]
+    if repeated:
+        flags.append(f"style:word_repetition({'|'.join(repeated[:3])})")
+
+    # ── Avg sentence length ──────────────────────────────────────────
+    avg_sent_len = word_ct / max(sent_ct, 1)
+    if avg_sent_len > 30:
+        flags.append("readability:long_sentences")
+    if avg_sent_len < 5 and sent_ct > 3:
+        flags.append("readability:fragment_sentences")
+
+    # ── Weak opener ──────────────────────────────────────────────────
+    first_sent = sentences[0] if sentences else ""
+    weak_opener = bool(re.search(
+        r"\b(?:I\s+hope|Thank\s+you\s+for|I\s+am\s+writing|I\s+wanted\s+to)\b",
+        first_sent, re.IGNORECASE
+    ))
+    if weak_opener:
+        flags.append("opener:weak")
+
+    # ── SCORING ──────────────────────────────────────────────────────
+    # Naturalness (0-20): penalise hype + AI phrases
+    naturalness = max(0, 20 - (hype_hits * 4) - (ai_hits * 2))
+
+    # Readability (0-20): penalise long sentences, no breaks, wall of text
+    readability = 20
+    if "readability:long_sentences"        in flags: readability -= 6
+    if "structure:no_paragraph_breaks"     in flags: readability -= 5
+    if "structure:long_paragraphs"         in flags: readability -= 4
+    if "readability:fragment_sentences"    in flags: readability -= 3
+    readability = max(0, readability)
+
+    # Spamminess (0-20, higher=better i.e. less spammy)
+    spamminess = max(0, 20 - (hype_hits * 5) - (cta_hits * 1))
+
+    # CTA quality (0-10)
+    if has_strong_cta:       cta_quality = 10
+    elif has_question:       cta_quality = 7
+    elif not missing_cta:    cta_quality = 6   # relaxed intent, no CTA needed
+    elif cta_hits:           cta_quality = 3   # has a weak CTA
+    else:                    cta_quality = 0   # no CTA at all
+
+    # Human tone (0-15): penalise AI phrases + weak opener
+    human_tone = max(0, 15 - (ai_hits * 3) - (3 if weak_opener else 0))
+
+    # Personalization (0-5): simple heuristic — presence of a name or domain
+    has_name_or_domain = bool(re.search(r'\b[A-Z][a-z]+\b', text))
+    personalization = 5 if has_name_or_domain else 2
+
+    # Structure (0-10)
+    structure = 10
+    if "structure:generic_opener"      in flags: structure -= 3
+    if "structure:too_many_paragraphs" in flags: structure -= 3
+    if "structure:no_paragraph_breaks" in flags: structure -= 4
+    if "style:word_repetition"         in flags: structure -= 2
+    structure = max(0, structure)
+
+    total = naturalness + readability + spamminess + cta_quality + human_tone + personalization + structure
+
+    needs_humanization = (
+        total < 65
+        or hype_hits >= 2
+        or ai_hits  >= 3
+        or "cta:missing"          in flags
+        or "opener:weak"          in flags
+        or "structure:no_paragraph_breaks" in flags
+    )
+
+    # Build summary line
+    issue_groups: list[str] = []
+    if hype_hits:   issue_groups.append(f"{hype_hits} hype phrase{'s' if hype_hits>1 else ''}")
+    if ai_hits:     issue_groups.append(f"{ai_hits} AI-sounding phrase{'s' if ai_hits>1 else ''}")
+    if cta_hits:    issue_groups.append("weak CTA")
+    if missing_cta: issue_groups.append("no CTA")
+    if "opener:weak" in flags: issue_groups.append("weak opener")
+    if "structure:no_paragraph_breaks" in flags: issue_groups.append("wall of text")
+    if "style:word_repetition" in flags: issue_groups.append("word repetition")
+
+    summary = f"Score {total}/100" + (f" — issues: {', '.join(issue_groups)}" if issue_groups else " — looks good")
+
+    return {
+        "dimensions": {
+            "naturalness":    naturalness,
+            "readability":    readability,
+            "spamminess":     spamminess,
+            "cta_quality":    cta_quality,
+            "human_tone":     human_tone,
+            "personalization": personalization,
+            "structure":      structure,
+        },
+        "total":               total,
+        "flags":               flags,
+        "needs_humanization":  needs_humanization,
+        "summary":             summary,
+    }
+
+
+# ── Humanization rewrite system ────────────────────────────────────────────────
+
+_HUMANIZE_SYSTEM = (
+    "You are a domain broker email editor making targeted, conservative improvements.\n\n"
+    "YOUR ONLY JOB: Fix specific flagged issues while leaving everything else untouched.\n\n"
+    "WHAT YOU MUST PRESERVE — do not change these under any circumstances:\n"
+    "- Domain name(s), asking price, offer amounts, any links\n"
+    "- Negotiation position and stance (firm, open, counter, etc.)\n"
+    "- The broker's persuasion angle and emotional tone\n"
+    "- The CTA meaning — only improve its wording, not its intent\n"
+    "- Overall structure and paragraph order\n"
+    "- Conversation stage context (follow-up, counter-offer, closing, etc.)\n"
+    "- Reply length — do not significantly expand or shrink\n\n"
+    "WHAT YOU SHOULD FIX (sentence-level edits only):\n"
+    "- Robotic AI openers — replace with a direct, natural opening sentence\n"
+    "- Hype phrases (perfect domain, once in a lifetime, game-changing) — soften naturally, "
+    "keeping the underlying point\n"
+    "- Weak or generic CTAs — reword to feel more human and specific\n"
+    "- Overly long sentences — split into two shorter ones\n"
+    "- Walls of text — add a paragraph break where there is a natural topic shift\n"
+    "- Repeated words — vary phrasing once\n\n"
+    "WHAT YOU MUST NOT DO:\n"
+    "- Do not rewrite sections that were not flagged\n"
+    "- Do not invent new claims, benefits, or urgency\n"
+    "- Do not weaken or soften the negotiation stance\n"
+    "- Do not change the pricing or domain name\n"
+    "- Do not add new paragraphs or significantly restructure the email\n"
+    "- Do not replace the broker's voice with a generic sales voice\n\n"
+    "STRATEGY: Prefer the minimum edit that fixes the issue. "
+    "The result must feel like a polished version of the same email, not a new one.\n\n"
+    "Write ONLY the corrected reply body. No explanation, no preamble, no subject line."
+)
+
+def _build_humanize_prompt(reply: str, flags: list[str], situation: str) -> str:
+    """
+    Build a surgical, section-targeted humanization prompt.
+
+    Each flag group becomes a specific, scoped instruction so the model
+    knows exactly which sentences to touch and which to leave alone.
+    """
+    fix_lines: list[str] = []
+
+    hype_flags   = [f for f in flags if f.startswith("hype:")]
+    ai_flags     = [f for f in flags if f.startswith("ai:")]
+    cta_flags    = [f for f in flags if f.startswith(("cta:", "weak_cta:"))]
+    opener_flags = [f for f in flags if f.startswith("opener:")]
+    struct_flags = [f for f in flags if f.startswith(("structure:", "readability:"))]
+    style_flags  = [f for f in flags if f.startswith("style:")]
+
+    if opener_flags:
+        fix_lines.append(
+            "OPENER: The opening sentence sounds like a template. "
+            "Replace it with a direct, natural sentence that gets straight to the point. "
+            "Do not use 'I hope', 'I am writing', or 'I wanted to'. "
+            "Keep everything after the opener exactly as-is."
+        )
+
+    if ai_flags:
+        phrases = ", ".join(f.split(":",1)[1].replace("_"," ") for f in ai_flags)
+        fix_lines.append(
+            f"AI PHRASING: The following phrases sound robotic — fix only these sentences: {phrases}. "
+            "Rewrite each affected sentence naturally. Leave all other sentences unchanged."
+        )
+
+    if hype_flags:
+        phrases = ", ".join(f.split(":",1)[1].replace("_"," ") for f in hype_flags)
+        fix_lines.append(
+            f"HYPE LANGUAGE: Soften these phrases without removing the underlying point: {phrases}. "
+            "Replace each with plain, credible language. "
+            "Do not remove the value claim — just express it without exaggeration."
+        )
+
+    if cta_flags:
+        if "cta:missing" in cta_flags:
+            fix_lines.append(
+                "CTA: There is no clear call-to-action. Add one natural closing question or "
+                "next-step invitation at the end. Keep it brief and specific to the situation. "
+                "Do not change anything else."
+            )
+        else:
+            fix_lines.append(
+                "CTA: The closing call-to-action is generic. Reword only that sentence to feel "
+                "more direct and human. Preserve its intent — only improve the phrasing."
+            )
+
+    if struct_flags:
+        struct_issues = [f.split(":",1)[1].replace("_"," ") for f in struct_flags]
+        if "no paragraph breaks" in struct_issues or "long paragraphs" in struct_issues:
+            fix_lines.append(
+                "STRUCTURE: Add one paragraph break where there is a natural topic shift. "
+                "Do not reorder sentences or change any wording."
+            )
+        if "long sentences" in struct_issues:
+            fix_lines.append(
+                "READABILITY: Split any sentence over 30 words into two shorter sentences. "
+                "Do not change the meaning."
+            )
+
+    if style_flags:
+        fix_lines.append(
+            "REPETITION: A word or phrase is repeated too often. "
+            "Replace one or two of the repeated instances with a synonym. "
+            "Do not change anything else."
+        )
+
+    if not fix_lines:
+        # Fallback — generic light polish, still conservative
+        fix_lines.append(
+            "Make light improvements to naturalness and readability. "
+            "Do not change the meaning, structure, pricing, or CTA intent."
+        )
+
+    issues_block = "\n\n".join(fix_lines)
+
+    return (
+        f"BROKER SITUATION:\n{situation}\n\n"
+        f"ORIGINAL REPLY (change as little as possible):\n{reply}\n\n"
+        f"TARGETED FIXES REQUIRED:\n{issues_block}\n\n"
+        "Important: Only edit the specific sentences described above. "
+        "Leave all other sentences word-for-word. "
+        "Write the corrected reply now:"
+    )
+
+
+def _model_tier(model: str) -> str:
+    """Classify model capability tier for humanization decisions."""
+    if model.startswith("groq:"):   return "groq"
+    if "7b" in model.lower():       return "7b"
+    return "3b"
+
+
+def humanize_reply(
+    reply:     str,
+    situation: str,
+    intent:    str = "",
+    model:     str = MODEL,
+    domain_name:  Optional[str] = None,
+    asking_price: Optional[str] = None,
+) -> tuple[str, dict]:
+    """
+    Heuristic-first humanization layer.
+
+    1. Run heuristic_score_reply() — zero latency
+    2. If score is good enough: return as-is with the quality report
+    3. If needs_humanization: rewrite via model (respects model tier)
+    4. Re-score the rewrite to confirm improvement
+
+    Returns (final_reply, quality_report_dict).
+    The quality_report is always populated — callers can attach it to ReplyResult.
+    Respects ENABLE_HUMANIZER flag.
+    """
+    # Always score first — report is always returned even if rewrite is disabled
+    report = heuristic_score_reply(reply, intent=intent)
+
+    if not ENABLE_HUMANIZER:
+        return reply, report
+
+    if not report["needs_humanization"]:
+        print(f"[HUMANIZER] score={report['total']}/100 — no rewrite needed")
+        return reply, report
+
+    tier = _model_tier(model)
+
+    # 3B: rewrite only for severe issues (score < 50 or critical flags)
+    critical_flags = {"hype:perfect_domain", "hype:once_in_lifetime", "hype:game_changer",
+                      "hype:amazing", "cta:missing", "opener:weak"}
+    has_critical   = bool(critical_flags & set(report["flags"]))
+
+    if tier == "3b" and report["total"] >= 50 and not has_critical:
+        print(f"[HUMANIZER] 3B tier — score={report['total']}/100, no critical flags — skipping rewrite")
+        return reply, report
+
+    print(
+        f"[HUMANIZER] tier={tier} score={report['total']}/100 "
+        f"flags={len(report['flags'])} — running rewrite"
+    )
+
+    humanize_prompt = _build_humanize_prompt(reply, report["flags"], situation)
+
+    try:
+        client   = _get_client_for_model(model)
+        # Temperature slightly higher for humanization — we want natural variety
+        temp     = 0.65 if tier == "groq" else 0.55
+        rewritten = client.generate(
+            prompt      = humanize_prompt,
+            system      = _HUMANIZE_SYSTEM,
+            temperature = temp,
+            max_tokens  = MAX_TOKENS,
+        )
+        if not rewritten or not rewritten.strip():
+            print("[HUMANIZER] model returned empty — keeping original")
+            return reply, report
+
+        rewritten = rewritten.strip()
+
+        # Safety check: don't accept a rewrite that drops pricing/domain info
+        if domain_name and domain_name.lower() not in rewritten.lower():
+            print(f"[HUMANIZER] rewrite dropped domain '{domain_name}' — keeping original")
+            return reply, report
+        if asking_price:
+            # Extract numeric part for loose check (e.g. "$350" → "350")
+            price_num = re.sub(r"[^\d]", "", asking_price)
+            if price_num and price_num not in rewritten.replace(",", ""):
+                print(f"[HUMANIZER] rewrite dropped price '{asking_price}' — keeping original")
+                return reply, report
+
+        # Re-score the rewrite to confirm it's an improvement
+        new_report = heuristic_score_reply(rewritten, intent=intent)
+        if new_report["total"] >= report["total"] - 5:   # accept if not worse by more than 5pts
+            print(
+                f"[HUMANIZER] rewrite accepted: {report['total']} → {new_report['total']}/100 "
+                f"({len(new_report['flags'])} flags remaining)"
+            )
+            new_report["original_score"]  = report["total"]
+            new_report["rewrite_applied"] = True
+            return rewritten, new_report
+        else:
+            print(
+                f"[HUMANIZER] rewrite rejected (score dropped {report['total']} → {new_report['total']}) "
+                f"— keeping original"
+            )
+            report["rewrite_applied"] = False
+            return reply, report
+
+    except Exception as e:
+        print(f"[HUMANIZER] rewrite failed: {e} — keeping original")
+        report["rewrite_applied"] = False
+        return reply, report
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # PHASE 4 — ACTIVE ROUTING
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -2240,6 +3148,229 @@ def select_effective_mode(
 
     print(f"[ROUTER_EXECUTION] requested=auto effective=hybrid decided_by=router reason=fallback_no_valid_recommendation")
     return "hybrid", True
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SMART EXTRACTION — conversational input → structured GenerateRequest fields
+# Lightweight extraction layer. Does NOT touch the generation pipeline.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_EXTRACT_INTENTS = [
+    "cold_outreach", "warm_outreach", "follow_up", "negotiation",
+    "objection_handling", "price_discussion", "closing", "general",
+]
+
+_EXTRACT_TONES = [
+    "professional", "friendly", "firm", "empathetic",
+    "urgent", "concise", "persuasive",
+]
+
+_EXTRACT_PRESETS = [
+    "cold_outreach", "warm_outreach", "follow_up", "counter_offer",
+    "final_offer", "closing", "payment_reminder", "general",
+]
+
+_SMART_EXTRACT_SYSTEM = """You are a domain broker workflow assistant.
+Your ONLY job is to extract structured fields from a broker's natural language description.
+
+Output ONLY a valid JSON object — no markdown, no explanation, no preamble.
+
+Fields to extract:
+{
+  "customer_message": "<the core prospect message or situation, cleaned — required>",
+  "domain_name": "<domain being sold, e.g. ChicagoPlumber.com — null if not mentioned>",
+  "asking_price": "<broker's asking price as string, e.g. '$350' — null if not mentioned>",
+  "prospect_offer": "<prospect's offer as string, e.g. '$50' — null if not mentioned>",
+  "prospect_name": "<prospect's first name — null if unknown>",
+  "tone": "<one of: professional | friendly | firm | empathetic | urgent | concise | persuasive>",
+  "intent": "<one of: cold_outreach | warm_outreach | follow_up | negotiation | objection_handling | price_discussion | closing | general>",
+  "email_preset": "<one of: cold_outreach | warm_outreach | follow_up | counter_offer | final_offer | closing | payment_reminder | general — or null>",
+  "goal": "<short phrase describing what the broker wants to achieve — null if unclear>",
+  "stage": "<one of: new | contacted | negotiating | agreed | closed — best guess>",
+  "urgency": <true if broker signals time pressure, else false>
+}
+
+Rules:
+- customer_message must be a clean restatement useful for the AI reply generator (not just copied verbatim)
+- If asking_price and prospect_offer are both present, infer intent = "negotiation" and email_preset = "counter_offer"
+- Never hallucinate details not present in the input
+- If a field truly cannot be determined, use null
+- Output ONLY the JSON object"""
+
+
+class SmartExtractRequest(BaseModel):
+    raw_input: str
+    lead_id: Optional[int] = None    # inject lead history from broker_memory if provided
+    model: Optional[str]  = None     # override extraction model; None = auto (Groq > Ollama)
+
+    @field_validator("raw_input")
+    @classmethod
+    def not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("raw_input cannot be empty.")
+        return v.strip()
+
+
+class SmartExtractResponse(BaseModel):
+    # Core GenerateRequest-compatible fields
+    customer_message: str
+    domain_name:      Optional[str] = None
+    asking_price:     Optional[str] = None
+    prospect_offer:   Optional[str] = None
+    prospect_name:    Optional[str] = None
+    tone:             Optional[str] = "professional"
+    intent:           Optional[str] = "general"
+    email_preset:     Optional[str] = None
+    goal:             Optional[str] = None
+    stage:            Optional[str] = None
+    urgency:          bool          = False
+    # Metadata
+    backend_used:     str           = "ollama"
+    model_used:       str           = ""
+    timing_ms:        int           = 0
+    lead_history_used: bool         = False
+
+
+@app.post("/smart-extract", response_model=SmartExtractResponse)
+async def smart_extract(req: SmartExtractRequest):
+    """
+    Convert a natural language broker description into structured GenerateRequest fields.
+
+    - Uses Groq (fast) if GROQ_API_KEY is set, Ollama as fallback.
+    - If lead_id is provided and broker_memory is available, injects lead history
+      into the extraction prompt so the model can detect conversation stage.
+    - Returns fields ready to populate the frontend form and feed into /generate-reply.
+    - Does NOT call the generation pipeline — extraction only.
+    """
+    _t0 = time.monotonic()
+
+    # ── Resolve extraction model ──────────────────────────────────────────────
+    if req.model:
+        extract_model = req.model
+    elif GROQ_API_KEY:
+        extract_model = GROQ_DEFAULT
+    else:
+        extract_model = MODEL
+
+    backend_label = "groq" if extract_model.startswith("groq:") else "ollama"
+
+    # ── Optionally inject lead history ────────────────────────────────────────
+    lead_history_used = False
+    lead_context = ""
+    if req.lead_id and _MEMORY_AVAILABLE and memory_db:
+        summary = memory_db.lead_summary(req.lead_id)
+        if summary:
+            lead_context = f"\n\nLEAD HISTORY (use to improve extraction accuracy):\n{summary}\n"
+            lead_history_used = True
+
+    # ── Build extraction prompt ───────────────────────────────────────────────
+    extract_prompt = (
+        f"Extract structured fields from this broker's description:{lead_context}\n\n"
+        f"BROKER INPUT:\n{req.raw_input}\n\n"
+        f"Return the JSON object now:"
+    )
+
+    # ── Call extraction model ─────────────────────────────────────────────────
+    raw_json = ""
+    fallback_used = False
+    try:
+        client   = _get_client_for_model(extract_model)
+        raw_json = client.generate(
+            prompt      = extract_prompt,
+            system      = _SMART_EXTRACT_SYSTEM,
+            temperature = 0.1,   # deterministic — we want consistent structured output
+            max_tokens  = 400,
+        )
+    except Exception as primary_err:
+        print(f"[SMART_EXTRACT] primary model {extract_model!r} failed: {primary_err}")
+        raw_json = ""
+
+    # ── Groq → Ollama fallback ────────────────────────────────────────────────
+    if not raw_json and backend_label == "groq":
+        print(f"[SMART_EXTRACT] falling back to ollama model={MODEL}")
+        fallback_used  = True
+        extract_model  = MODEL
+        backend_label  = "ollama"
+        try:
+            client   = _get_client_for_model(MODEL)
+            raw_json = client.generate(
+                prompt      = extract_prompt,
+                system      = _SMART_EXTRACT_SYSTEM,
+                temperature = 0.1,
+                max_tokens  = 400,
+            )
+        except Exception as fallback_err:
+            print(f"[SMART_EXTRACT] ollama fallback also failed: {fallback_err}")
+
+    if not raw_json:
+        raise HTTPException(
+            status_code=503,
+            detail="Smart extraction failed — both Groq and Ollama unavailable. Use manual form input."
+        )
+
+    # ── Parse JSON safely ─────────────────────────────────────────────────────
+    parsed: dict = {}
+    try:
+        # Strip markdown fences if the model wrapped it anyway
+        clean = raw_json.strip()
+        if clean.startswith("```"):
+            clean = re.sub(r"```(?:json)?", "", clean).strip().rstrip("`").strip()
+        # Find the JSON object
+        brace_start = clean.find("{")
+        brace_end   = clean.rfind("}") + 1
+        if brace_start >= 0 and brace_end > brace_start:
+            clean = clean[brace_start:brace_end]
+        parsed = json.loads(clean)
+    except Exception as parse_err:
+        print(f"[SMART_EXTRACT] JSON parse error: {parse_err}\nRaw: {raw_json[:300]}")
+        # Return a graceful minimum: use raw_input as the customer_message
+        parsed = {"customer_message": req.raw_input}
+
+    # ── Validate and sanitise fields ──────────────────────────────────────────
+    customer_message = str(parsed.get("customer_message") or req.raw_input).strip()
+    domain_name      = parsed.get("domain_name")  or None
+    asking_price     = parsed.get("asking_price") or None
+    prospect_offer   = parsed.get("prospect_offer") or None
+    prospect_name    = parsed.get("prospect_name") or None
+    goal             = parsed.get("goal") or None
+    stage            = parsed.get("stage") or None
+    urgency          = bool(parsed.get("urgency", False))
+
+    tone = parsed.get("tone", "professional")
+    if tone not in _EXTRACT_TONES:
+        tone = "professional"
+
+    intent = parsed.get("intent", "general")
+    if intent not in _EXTRACT_INTENTS:
+        intent = "general"
+
+    email_preset = parsed.get("email_preset") or None
+    if email_preset and email_preset not in _EXTRACT_PRESETS:
+        email_preset = None
+
+    timing_ms = int((time.monotonic() - _t0) * 1000)
+    print(
+        f"[SMART_EXTRACT] backend={backend_label} model={extract_model} "
+        f"intent={intent} preset={email_preset} timing_ms={timing_ms}"
+    )
+
+    return SmartExtractResponse(
+        customer_message  = customer_message,
+        domain_name       = domain_name,
+        asking_price      = asking_price,
+        prospect_offer    = prospect_offer,
+        prospect_name     = prospect_name,
+        tone              = tone,
+        intent            = intent,
+        email_preset      = email_preset,
+        goal              = goal,
+        stage             = stage,
+        urgency           = urgency,
+        backend_used      = backend_label,
+        model_used        = extract_model,
+        timing_ms         = timing_ms,
+        lead_history_used = lead_history_used,
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2299,23 +3430,59 @@ async def generate_reply(req: GenerateRequest):
             formatted  = format_email_body(base_body, req.prospect_name, req.sender_name)
             fixed      = quality_guard(formatted, req.customer_message, intent=intent,
                                        model=effective_model)
+            # ── Humanization ──────────────────────────────────────────
+            with _Timer("humanize"):
+                fixed, quality_report = humanize_reply(
+                    reply        = fixed,
+                    situation    = req.customer_message,
+                    intent       = intent,
+                    model        = effective_model,
+                    domain_name  = req.domain_name,
+                    asking_price = req.asking_price,
+                )
             if ENABLE_AI_SCORING:
                 score, reason = score_reply_ollama(req.customer_message, fixed,
                                                    model=effective_model)
             else:
                 score, reason = 75, "AI scoring disabled"
             variations = [ReplyResult(reply=fixed, label="Hybrid",
-                                      confidence_score=score, confidence_reason=reason)]
+                                      confidence_score=score, confidence_reason=reason,
+                                      quality_report=quality_report)]
             subject = generate_subject_ai(intent, variations[0].reply, req.domain_name,
                                           model=effective_model)
 
         else:  # effective_mode == "ai"
+            # ── Conversation-stage intelligence ───────────────────────────────
+            lead_id  = getattr(req, "lead_id", None)
+            lead_ctx = _get_lead_context_rich(lead_id)
+            stage, stage_reason = detect_conversation_stage(
+                intent         = intent,
+                message        = req.customer_message,
+                outreach_count = lead_ctx["outreach_count"],
+                offers         = lead_ctx["offers"],
+                lead_stage     = lead_ctx["lead_stage"],
+                asking_price   = req.asking_price,
+            )
+            print(f"[STAGE_INTEL] stage={stage} reason={stage_reason}")
+            stage_block  = _stage_prompt_block(stage, stage_reason)
+            offer_intel  = _offer_intelligence(
+                lead_ctx["offers"], req.asking_price, req.customer_message
+            )
+
+            # ── Stage-aware retrieval ─────────────────────────────────────────
+            examples, method = retrieve_stage_aware(
+                req.customer_message, load_replies(), intent,
+                os.getenv("VOYAGE_API_KEY", ""), TOP_K, stage=stage,
+            )
+
             base_prompt = build_reply_prompt_ai(
                 req.customer_message, intent, examples, tone,
                 req.domain_name, req.asking_price, method,
-                analysis=analysis,
-                email_preset=getattr(req, "email_preset", None),
-                lead_context=_get_lead_context(getattr(req, "lead_id", None)),
+                analysis     = analysis,
+                email_preset = getattr(req, "email_preset", None),
+                lead_context = lead_ctx["summary_text"],
+                stage_block  = stage_block,
+                offer_intel  = offer_intel,
             )
             variations = generate_variations_ai(
                 base_prompt,
@@ -2428,12 +3595,34 @@ async def generate_reply_situation(req: SituationRequest):
                                           model=effective_model)
 
         else:  # effective_mode == "ai"
+            # ── Conversation-stage intelligence ───────────────────────────────
+            lead_id  = getattr(req, "lead_id", None)
+            lead_ctx = _get_lead_context_rich(lead_id)
+            stage, stage_reason = detect_conversation_stage(
+                intent         = intent,
+                message        = req.situation,
+                outreach_count = lead_ctx["outreach_count"],
+                offers         = lead_ctx["offers"],
+                lead_stage     = lead_ctx["lead_stage"],
+                asking_price   = req.asking_price,
+            )
+            print(f"[STAGE_INTEL] stage={stage} reason={stage_reason}")
+            stage_block = _stage_prompt_block(stage, stage_reason)
+            offer_intel = _offer_intelligence(
+                lead_ctx["offers"], req.asking_price, req.situation
+            )
+            examples, method = retrieve_stage_aware(
+                req.situation, load_replies(), intent,
+                os.getenv("VOYAGE_API_KEY", ""), TOP_K, stage=stage,
+            )
             base_prompt = build_reply_prompt_ai(
                 req.situation, intent, examples, tone,
                 req.domain_name, req.asking_price, method,
-                analysis=analysis,
-                email_preset=getattr(req, "email_preset", None),
-                lead_context=_get_lead_context(getattr(req, "lead_id", None)),
+                analysis     = analysis,
+                email_preset = getattr(req, "email_preset", None),
+                lead_context = lead_ctx["summary_text"],
+                stage_block  = stage_block,
+                offer_intel  = offer_intel,
             )
             variations = generate_variations_ai(
                 base_prompt,
@@ -3364,6 +4553,84 @@ async def qc_validate_reply(body: dict):
     return run_full_qc(reply, intent=intent)
 
 
+@app.post("/qc/score")
+async def qc_score_reply(body: dict):
+    """
+    Run the heuristic multi-dimensional quality scorer on an existing reply.
+    Fast — zero model calls.
+
+    Body: { "reply": "...", "intent": "negotiation" }
+
+    Returns:
+    {
+        "dimensions": { naturalness, readability, spamminess, cta_quality,
+                        human_tone, personalization, structure },
+        "total": int,           // 0-100
+        "flags": [...],         // triggered pattern labels
+        "needs_humanization": bool,
+        "summary": str
+    }
+    """
+    reply  = (body.get("reply") or "").strip()
+    intent = body.get("intent", "general")
+    if not reply:
+        raise HTTPException(status_code=400, detail="'reply' field is required.")
+    return heuristic_score_reply(reply, intent=intent)
+
+
+@app.post("/qc/humanize")
+async def qc_humanize_reply(body: dict):
+    """
+    On-demand humanization endpoint. Scores first, then rewrites if needed.
+
+    Body:
+    {
+        "reply":        str,   // required
+        "situation":    str,   // what the prospect said / context
+        "intent":       str,   // e.g. "negotiation" (optional)
+        "model":        str,   // override model (optional)
+        "domain_name":  str,   // used for factual safety check (optional)
+        "asking_price": str    // used for factual safety check (optional)
+    }
+
+    Returns:
+    {
+        "original_reply":  str,
+        "final_reply":     str,
+        "rewrite_applied": bool,
+        "quality_report":  dict,
+        "timing_ms":       int
+    }
+    """
+    _t0          = time.monotonic()
+    reply        = (body.get("reply") or "").strip()
+    situation    = (body.get("situation") or "").strip()
+    intent       = body.get("intent", "general")
+    model_req    = body.get("model") or MODEL
+    domain_name  = body.get("domain_name") or None
+    asking_price = body.get("asking_price") or None
+
+    if not reply:
+        raise HTTPException(status_code=400, detail="'reply' field is required.")
+
+    final, quality_report = humanize_reply(
+        reply        = reply,
+        situation    = situation,
+        intent       = intent,
+        model        = model_req,
+        domain_name  = domain_name,
+        asking_price = asking_price,
+    )
+
+    return {
+        "original_reply":  reply,
+        "final_reply":     final,
+        "rewrite_applied": quality_report.get("rewrite_applied", False),
+        "quality_report":  quality_report,
+        "timing_ms":       int((time.monotonic() - _t0) * 1000),
+    }
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ─────────────────────────────────────────────────────────────────────────────
 # BROKER MEMORY ENDPOINTS
@@ -3472,6 +4739,52 @@ async def update_stage(lead_id: int, body: dict):
         raise HTTPException(422, "stage is required")
     ok = memory_db.update_lead_stage(lead_id, stage)
     return {"updated": ok}
+
+
+@app.post("/leads/{lead_id}/conversation-stage")
+async def get_conversation_stage(lead_id: int, body: dict = None):
+    """
+    Detect the conversation stage for a lead without generating a reply.
+
+    Optional body: { "message": "...", "intent": "...", "asking_price": "..." }
+
+    Returns:
+    {
+        "stage":        str,    // e.g. "negotiation"
+        "explanation":  str,
+        "outreach_count": int,
+        "offer_count":  int,
+        "latest_offer": float | null,
+        "lead_stage":   str | null   // stored stage from leads table
+    }
+    """
+    _memory_check()
+    body = body or {}
+    message      = body.get("message", "")
+    intent       = body.get("intent", "general")
+    asking_price = body.get("asking_price") or None
+
+    lead_ctx = _get_lead_context_rich(lead_id)
+    stage, reason = detect_conversation_stage(
+        intent         = intent,
+        message        = message,
+        outreach_count = lead_ctx["outreach_count"],
+        offers         = lead_ctx["offers"],
+        lead_stage     = lead_ctx["lead_stage"],
+        asking_price   = asking_price,
+    )
+    offers = lead_ctx["offers"]
+    received = [o for o in offers if o.get("direction") == "received"]
+    latest_offer = received[-1]["amount"] if received else None
+
+    return {
+        "stage":          stage,
+        "explanation":    reason,
+        "outreach_count": lead_ctx["outreach_count"],
+        "offer_count":    len(offers),
+        "latest_offer":   latest_offer,
+        "lead_stage":     lead_ctx["lead_stage"],
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -214,6 +214,50 @@
     .rw-btn.active { background:var(--gold); border-color:var(--gold); color:#fff; font-weight:600; }
     .rw-btn:disabled { opacity:.45; cursor:not-allowed; }
     #rewriteBox.generating { background:var(--cream); animation:breathe 1.5s ease-in-out infinite; }
+
+    /* ── SMART CHAT INPUT ── */
+    .smart-textarea { width:100%; min-height:110px; resize:vertical; font-size:.92rem; line-height:1.7; padding:.8rem .95rem; border:2px solid var(--border); border-radius:var(--radius); background:#fff; color:var(--ink); font-family:'DM Sans',sans-serif; transition:border-color .15s; }
+    .smart-textarea:focus { outline:none; border-color:var(--gold); }
+    .smart-textarea.extracting { border-color:#7c3aed; background:#faf7ff; animation:breathe 1.4s ease-in-out infinite; }
+    .extract-toggle { display:flex; align-items:center; gap:.45rem; font-size:.8rem; font-weight:500; color:var(--ink-2); cursor:pointer; -webkit-tap-highlight-color:transparent; user-select:none; }
+    .extract-toggle input[type="checkbox"] { accent-color:#7c3aed; width:auto; }
+    .extract-badge { display:inline-flex; align-items:center; gap:.3rem; font-size:.7rem; font-family:'DM Mono',monospace; padding:.2rem .55rem; border-radius:20px; background:#f3f0ff; color:#7c3aed; border:1px solid #d8d0f8; }
+    .extract-pill { font-size:.72rem; font-weight:500; padding:.22rem .55rem; border-radius:20px; border:1px solid var(--border); background:var(--cream); color:var(--ink-2); display:inline-flex; align-items:center; gap:.25rem; }
+    .extract-pill .pill-x { cursor:pointer; color:var(--ink-3); font-weight:700; font-size:.65rem; }
+    .extract-pill .pill-x:hover { color:var(--red); }
+    #extractedFields { display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.5rem; min-height:0; }
+
+    /* ── ADVANCED CONTROLS COLLAPSIBLE ── */
+    details.adv-controls { border:1px solid var(--border); border-radius:var(--radius); margin-top:.75rem; background:var(--paper); }
+    details.adv-controls > summary { list-style:none; cursor:pointer; padding:.55rem .8rem; font-size:.78rem; font-weight:600; color:var(--ink-2); display:flex; align-items:center; gap:.4rem; -webkit-tap-highlight-color:transparent; user-select:none; }
+    details.adv-controls > summary::-webkit-details-marker { display:none; }
+    details.adv-controls > summary::before { content:'▶'; font-size:.6rem; transition:transform .2s; display:inline-block; }
+    details.adv-controls[open] > summary::before { transform:rotate(90deg); }
+    details.adv-controls > summary:hover { color:var(--ink); }
+    .adv-body { padding:.3rem .85rem .85rem; display:flex; flex-direction:column; gap:.65rem; }
+
+    /* ── QUALITY SCORE PANEL ── */
+    .qp-wrap { margin-top:.85rem; padding-top:.8rem; border-top:1px solid var(--border); }
+    .qp-header { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; margin-bottom:.45rem; cursor:pointer; }
+    .qp-total { font-family:'DM Mono',monospace; font-size:.78rem; font-weight:600; }
+    .qp-badge { font-size:.68rem; font-weight:600; padding:.18rem .5rem; border-radius:20px; }
+    .qp-badge.good { background:#e8f4ee; color:var(--green); }
+    .qp-badge.ok   { background:#fef9e7; color:#92400e; }
+    .qp-badge.weak { background:var(--red-lt); color:var(--red); }
+    .qp-details-body { display:none; }
+    .qp-details-body.open { display:block; }
+    .qp-dims { display:flex; flex-wrap:wrap; gap:.35rem; margin-bottom:.4rem; }
+    .qp-dim  { font-size:.69rem; font-family:'DM Mono',monospace; padding:.18rem .42rem; border-radius:4px; background:var(--cream); color:var(--ink-2); white-space:nowrap; }
+    .qp-flags { display:flex; flex-wrap:wrap; gap:.25rem; margin-top:.35rem; }
+    .qp-flag { font-size:.67rem; padding:.15rem .42rem; border-radius:20px; font-family:'DM Mono',monospace; }
+    .qp-flag.hype   { background:#fff0f0; color:#c0392b; }
+    .qp-flag.ai-ph  { background:#f0f4ff; color:#3b5bdb; }
+    .qp-flag.cta    { background:#fff8e1; color:#b45309; }
+    .qp-flag.struct { background:#f0fdf4; color:#166534; }
+    .qp-flag.style  { background:#f5f0ff; color:#6d28d9; }
+    .qp-flag.read   { background:var(--cream); color:var(--ink-2); }
+    .qp-flag.opener { background:#fff0f0; color:#b45309; }
+    .qp-rewrite-tag { font-size:.69rem; color:#7c3aed; font-family:'DM Mono',monospace; margin-top:.35rem; }
   </style>
 </head>
 <body>
@@ -282,78 +326,105 @@
             <button class="qp-btn" onclick="fillGenerate('Prospect said: I need to discuss with my partner first.')">Need to Discuss</button>
             <button class="qp-btn" onclick="fillGenerate('We agreed on a price but the buyer has not made payment yet.')">Agreed, No Payment</button>
           </div>
-          <textarea id="customerMessage" placeholder="Describe the situation or paste what the prospect said…
+
+          <!-- ── SMART CHAT INPUT ── -->
+          <textarea id="customerMessage" class="smart-textarea" placeholder="Describe the situation naturally…
 
 Examples:
-• 'Prospect replied: No thanks, not interested.'
-• 'Prospect asked how much. We want $499.'
-• 'No reply after 7 days — need a follow-up.'"></textarea>
-          <div class="inline-row">
-            <div class="field">
-              <label class="field-label">Domain Name (optional)</label>
-              <input type="text" id="domainName" placeholder="e.g. ChicagoPlumber.com" />
-            </div>
-            <div class="field">
-              <label class="field-label">Asking Price (optional)</label>
-              <input type="text" id="askingPrice" placeholder="e.g. $499" />
-            </div>
-          </div>
-          <div class="inline-row" style="margin-top:.5rem">
-            <div class="field">
-              <label class="field-label">Prospect Name (optional)</label>
-              <input type="text" id="prospectName" placeholder="e.g. John" />
-            </div>
-            <div class="field">
-              <label class="field-label">Your Name (signature)</label>
-              <input type="text" id="senderName" placeholder="e.g. Alex" />
-            </div>
-          </div>
+• The buyer offered $50 for SolarPanelTexas.com — I'm asking $350, help me counter.
+• No reply after 7 days from ChicagoPlumber.com prospect. Need a follow-up.
+• Prospect said it's too expensive. Domain is LondonDentist.com, asking £799."></textarea>
 
-          <!-- Tone chips -->
-          <div style="margin-top:.75rem">
-            <label class="field-label">Tone</label>
-            <div class="tone-row" id="toneChips"></div>
-          </div>
-
-          <!-- Email Type Preset -->
-          <div style="margin-top:.75rem">
-            <label class="field-label">Email Type <span style="font-weight:300;color:var(--ink-3);font-size:.72rem">(optional — shapes structure &amp; CTA)</span></label>
-            <div class="tone-row" id="presetChips"></div>
-          </div>
-
-          <!-- Reply length -->
-          <div style="margin-top:.75rem">
-            <label class="field-label">Reply Length</label>
-            <div class="reply-length-toggle">
-              <button class="rl-btn" data-len="short" onclick="setReplyLen('short',this)">Short</button>
-              <button class="rl-btn active" data-len="medium" onclick="setReplyLen('medium',this)">Medium</button>
-              <button class="rl-btn" data-len="long" onclick="setReplyLen('long',this)">Long</button>
-            </div>
-          </div>
-
-          <!-- Generation mode + optional toggles -->
-          <div style="margin-top:.75rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end">
-            <div class="field" style="min-width:145px;margin:0">
-              <label class="field-label">Generation Mode</label>
-              <select id="genMode">
-                <option value="">⚡ Auto (router decides)</option>
-                <option value="template">📄 Template (offline)</option>
-                <option value="hybrid">🔀 Hybrid (template→AI)</option>
-                <option value="ai">🤖 AI (full generation)</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="ctrl-row">
-            <label class="toggle-label" id="fastModeToggle">
-              <input type="checkbox" id="fastMode" onchange="onFastModeChange()" />
-              Fast Mode <span style="font-size:.68rem;color:var(--ink-3);font-weight:300">(1 reply, no scoring)</span>
+          <!-- Smart extraction row -->
+          <div style="display:flex;align-items:center;gap:.75rem;margin-top:.45rem;flex-wrap:wrap">
+            <label class="extract-toggle" id="smartExtractToggle">
+              <input type="checkbox" id="useSmartExtract" onchange="onSmartExtractToggle()" />
+              ✦ Use Smart Extraction
             </label>
-            <label class="toggle-label">
-              <input type="checkbox" id="qualityMode" onchange="onQualityModeChange()" />
-              Quality Mode <span style="font-size:.68rem;color:var(--ink-3);font-weight:300">(slower, more careful)</span>
-            </label>
+            <span id="extractBackendBadge" style="display:none" class="extract-badge">⚡ Groq</span>
+            <span id="extractStatus" style="font-size:.72rem;color:#7c3aed;font-family:'DM Mono',monospace;display:none"></span>
           </div>
+          <!-- Extracted fields display pills -->
+          <div id="extractedFields"></div>
+
+          <!-- ── ADVANCED CONTROLS (collapsible) ── -->
+          <details class="adv-controls" id="advancedControls">
+            <summary>Advanced Controls <span style="font-weight:300;font-size:.72rem;color:var(--ink-3)">— preset, tone, model, length, mode</span></summary>
+            <div class="adv-body">
+
+              <!-- Domain / Price / Names row -->
+              <div class="inline-row" style="margin-top:.1rem">
+                <div class="field">
+                  <label class="field-label">Domain Name (optional)</label>
+                  <input type="text" id="domainName" placeholder="e.g. ChicagoPlumber.com" />
+                </div>
+                <div class="field">
+                  <label class="field-label">Asking Price (optional)</label>
+                  <input type="text" id="askingPrice" placeholder="e.g. $499" />
+                </div>
+              </div>
+              <div class="inline-row">
+                <div class="field">
+                  <label class="field-label">Prospect Name (optional)</label>
+                  <input type="text" id="prospectName" placeholder="e.g. John" />
+                </div>
+                <div class="field">
+                  <label class="field-label">Your Name (signature)</label>
+                  <input type="text" id="senderName" placeholder="e.g. Alex" />
+                </div>
+              </div>
+
+              <!-- Tone chips -->
+              <div>
+                <label class="field-label">Tone</label>
+                <div class="tone-row" id="toneChips"></div>
+              </div>
+
+              <!-- Email Type Preset -->
+              <div>
+                <label class="field-label">Email Type <span style="font-weight:300;color:var(--ink-3);font-size:.72rem">(optional — shapes structure &amp; CTA)</span></label>
+                <div class="tone-row" id="presetChips"></div>
+              </div>
+
+              <!-- Reply length -->
+              <div>
+                <label class="field-label">Reply Length</label>
+                <div class="reply-length-toggle">
+                  <button class="rl-btn" data-len="short" onclick="setReplyLen('short',this)">Short</button>
+                  <button class="rl-btn active" data-len="medium" onclick="setReplyLen('medium',this)">Medium</button>
+                  <button class="rl-btn" data-len="long" onclick="setReplyLen('long',this)">Long</button>
+                </div>
+              </div>
+
+              <!-- Generation mode -->
+              <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end">
+                <div class="field" style="min-width:145px;margin:0">
+                  <label class="field-label">Generation Mode</label>
+                  <select id="genMode">
+                    <option value="">⚡ Auto (router decides)</option>
+                    <option value="template">📄 Template (offline)</option>
+                    <option value="hybrid">🔀 Hybrid (template→AI)</option>
+                    <option value="ai">🤖 AI (full generation)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Fast / Quality toggles -->
+              <div class="ctrl-row">
+                <label class="toggle-label" id="fastModeToggle">
+                  <input type="checkbox" id="fastMode" onchange="onFastModeChange()" />
+                  Fast Mode <span style="font-size:.68rem;color:var(--ink-3);font-weight:300">(1 reply, no scoring)</span>
+                </label>
+                <label class="toggle-label">
+                  <input type="checkbox" id="qualityMode" onchange="onQualityModeChange()" />
+                  Quality Mode <span style="font-size:.68rem;color:var(--ink-3);font-weight:300">(slower, more careful)</span>
+                </label>
+              </div>
+
+            </div>
+          </details>
+          <!-- /Advanced Controls -->
+
           <div style="display:flex;gap:.6rem;margin-top:.9rem;flex-wrap:wrap;align-items:center">
             <button class="btn btn-primary" id="generateBtn" onclick="generateReply()" style="flex:1;min-width:130px">
               <span id="btnText">Generate Reply</span>
@@ -397,6 +468,21 @@ Examples:
               <div id="confidenceFill" style="height:100%;border-radius:3px;transition:width .6s ease"></div>
             </div>
             <div id="confidenceReason" style="font-size:.76rem;color:var(--ink-3);margin-top:.3rem;font-style:italic"></div>
+          </div>
+
+          <!-- ── QUALITY SCORE PANEL ── -->
+          <div id="qualityPanel" class="qp-wrap" style="display:none">
+            <div class="qp-header" onclick="toggleQualityDetails()">
+              <span style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2)">✦ Quality</span>
+              <span id="qpTotal" class="qp-total"></span>
+              <span id="qpBadge" class="qp-badge"></span>
+              <span style="font-size:.65rem;color:var(--ink-3);margin-left:auto">▾ details</span>
+            </div>
+            <div id="qpDetailsBody" class="qp-details-body">
+              <div id="qpDims" class="qp-dims"></div>
+              <div id="qpFlags" class="qp-flags"></div>
+              <div id="qpRewriteTag" class="qp-rewrite-tag" style="display:none"></div>
+            </div>
           </div>
 
           <!-- Alternatives panel (3 Angles) -->
@@ -1211,7 +1297,139 @@ Examples:
     return body;
   }
 
+  /* ══════════════════════════════════════════════════════════════════
+     SMART EXTRACTION
+  ══════════════════════════════════════════════════════════════════ */
+  var _smartExtractEnabled = false;
+  var _lastExtracted       = null;   // last SmartExtractResponse from backend
+
+  function onSmartExtractToggle() {
+    _smartExtractEnabled = document.getElementById('useSmartExtract').checked;
+    var badge  = document.getElementById('extractBackendBadge');
+    var status = document.getElementById('extractStatus');
+    if (_smartExtractEnabled) {
+      badge.style.display  = 'inline-flex';
+      status.style.display = 'inline';
+      status.textContent   = 'Will extract on Generate';
+      // Check if Groq or Ollama will be used
+      fetch(API_BASE + '/generate-reply/variations/styles')
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          badge.textContent = d.groq_available ? '⚡ Groq' : '🖥 Ollama';
+        }).catch(function(){ badge.textContent = '🖥 Ollama'; });
+    } else {
+      badge.style.display  = 'none';
+      status.style.display = 'none';
+      _lastExtracted       = null;
+      document.getElementById('extractedFields').innerHTML = '';
+    }
+  }
+
+  function _renderExtractedPills(data) {
+    var container = document.getElementById('extractedFields');
+    container.innerHTML = '';
+    var pills = [];
+    if (data.intent && data.intent !== 'general')   pills.push({ label: '🎯 ' + data.intent.replace(/_/g,'\u00a0'), key: 'intent' });
+    if (data.email_preset)                          pills.push({ label: '📧 ' + data.email_preset.replace(/_/g,'\u00a0'), key: 'preset' });
+    if (data.domain_name)                           pills.push({ label: '🌐 ' + data.domain_name, key: 'domain' });
+    if (data.asking_price)                          pills.push({ label: '💰 ' + data.asking_price, key: 'price' });
+    if (data.prospect_offer)                        pills.push({ label: '📥 offer: ' + data.prospect_offer, key: 'offer' });
+    if (data.tone && data.tone !== 'professional')  pills.push({ label: '🗣 ' + data.tone, key: 'tone' });
+    if (data.goal)                                  pills.push({ label: '🎯 ' + data.goal, key: 'goal' });
+    if (data.urgency)                               pills.push({ label: '⚡ urgent', key: 'urgency' });
+    pills.forEach(function(p) {
+      var el = document.createElement('span');
+      el.className = 'extract-pill';
+      el.innerHTML = p.label + ' <span class="pill-x" onclick="dismissExtractPill(\'' + p.key + '\',this.parentElement)" title="Dismiss">✕</span>';
+      container.appendChild(el);
+    });
+    if (pills.length) {
+      var timing = document.createElement('span');
+      timing.style.cssText = 'font-size:.68rem;color:var(--ink-3);font-family:\'DM Mono\',monospace;align-self:center;margin-left:.15rem';
+      timing.textContent   = '✦ extracted in ' + data.timing_ms + 'ms via ' + data.backend_used;
+      container.appendChild(timing);
+    }
+  }
+
+  function dismissExtractPill(key, el) {
+    el.remove();
+    if (!_lastExtracted) return;
+    // Remove that field from _lastExtracted so it won't be applied on generate
+    var map = { intent:'intent', preset:'email_preset', domain:'domain_name',
+                price:'asking_price', offer:'prospect_offer', tone:'tone', goal:'goal', urgency:'urgency' };
+    if (map[key]) _lastExtracted[map[key]] = null;
+  }
+
+  async function runSmartExtraction(rawInput) {
+    var textarea = document.getElementById('customerMessage');
+    var status   = document.getElementById('extractStatus');
+    textarea.classList.add('extracting');
+    status.textContent   = 'Extracting…';
+    status.style.display = 'inline';
+
+    var body = { raw_input: rawInput };
+    // Pass lead_id if available (future: expose lead selector in UI)
+    if (window._activeLeadId) body.lead_id = window._activeLeadId;
+
+    try {
+      var res  = await fetch(API_BASE + '/smart-extract', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Extraction HTTP ' + res.status);
+
+      _lastExtracted = data;
+      _renderExtractedPills(data);
+      status.textContent = '✓ done';
+      setTimeout(function(){ status.textContent = ''; }, 2500);
+
+      // Silently populate form fields with extracted values (user can override)
+      if (data.domain_name)   { var el = document.getElementById('domainName');   if (!el.value.trim()) el.value = data.domain_name; }
+      if (data.asking_price)  { var el = document.getElementById('askingPrice');  if (!el.value.trim()) el.value = data.asking_price; }
+      if (data.prospect_name) { var el = document.getElementById('prospectName'); if (!el.value.trim()) el.value = data.prospect_name; }
+
+      // Apply preset chip if extracted
+      if (data.email_preset && data.email_preset !== _activePreset) {
+        var presetBtn = document.querySelector('.tone-chip[data-preset="' + data.email_preset + '"]');
+        if (presetBtn) { togglePreset(data.email_preset, presetBtn); }
+      }
+
+      // Apply tone chip if extracted and different from current
+      if (data.tone) {
+        var toneBtn = document.querySelector('.tone-chip[data-tone="' + data.tone + '"]');
+        if (toneBtn && !toneBtn.classList.contains('active')) { toneBtn.click(); }
+      }
+
+      // Open advanced controls panel if extraction populated anything useful
+      if (data.domain_name || data.asking_price || data.email_preset || data.prospect_name) {
+        document.getElementById('advancedControls').open = true;
+      }
+
+      return data;
+    } catch(err) {
+      status.textContent = '⚠ extraction failed — using raw input';
+      console.warn('[SmartExtract]', err.message);
+      _lastExtracted = null;
+      return null;
+    } finally {
+      textarea.classList.remove('extracting');
+    }
+  }
+
   async function generateReply() {
+    var rawInput = document.getElementById('customerMessage').value.trim();
+    if (!rawInput) return showNotif('notifGenerate', 'Please describe the situation first.', 'error');
+
+    // Run extraction if enabled — enriches form before buildGenerateBody()
+    if (_smartExtractEnabled) {
+      var extracted = await runSmartExtraction(rawInput);
+      // Use the cleaned customer_message from extraction if available
+      if (extracted && extracted.customer_message) {
+        document.getElementById('customerMessage').value = extracted.customer_message;
+      }
+    }
+
     var body = buildGenerateBody();
     if (!body.customer_message) return showNotif('notifGenerate', 'Please describe the situation first.', 'error');
     _lastSituation = body.customer_message;
@@ -1331,6 +1549,8 @@ Examples:
       t.style.color      = i === index ? 'var(--paper)' : 'var(--ink-2)';
     });
     if (v.confidence_score != null) showConfidence(v.confidence_score, v.confidence_reason);
+    if (v.quality_report)           showQualityPanel(v.quality_report);
+    else                            hideQualityPanel();
     document.getElementById('saveConfirm').style.display = 'none';
   }
 
@@ -1371,6 +1591,113 @@ Examples:
     var fill = document.getElementById('confidenceFill');
     fill.style.width      = score + '%';
     fill.style.background = score >= 80 ? '#16a34a' : score >= 60 ? '#ca8a04' : '#dc2626';
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     QUALITY SCORE PANEL
+  ══════════════════════════════════════════════════════════════════ */
+  var _qpOpen = false;
+
+  function toggleQualityDetails() {
+    _qpOpen = !_qpOpen;
+    var body = document.getElementById('qpDetailsBody');
+    if (body) {
+      if (_qpOpen) body.classList.add('open');
+      else         body.classList.remove('open');
+    }
+  }
+
+  /* Map flag prefix → CSS class for colour coding */
+  function _flagClass(flag) {
+    if (flag.startsWith('hype:'))       return 'hype';
+    if (flag.startsWith('ai:'))         return 'ai-ph';
+    if (flag.startsWith('cta:') || flag.startsWith('weak_cta:')) return 'cta';
+    if (flag.startsWith('structure:'))  return 'struct';
+    if (flag.startsWith('style:'))      return 'style';
+    if (flag.startsWith('readability:')) return 'read';
+    if (flag.startsWith('opener:'))     return 'opener';
+    return '';
+  }
+
+  /* Human-readable label from a flag key like "hype:perfect_domain" */
+  function _flagLabel(flag) {
+    var parts = flag.split(':');
+    var key   = (parts[1] || flag).replace(/_/g, ' ');
+    var prefix = parts[0];
+    var icons  = { hype:'🔥', ai:'🤖', cta:'📢', weak_cta:'📢',
+                   structure:'📐', style:'✏️', readability:'📖', opener:'🚪' };
+    return (icons[prefix] || '') + ' ' + key;
+  }
+
+  function showQualityPanel(report) {
+    if (!report) return;
+    var panel   = document.getElementById('qualityPanel');
+    var total   = report.total || 0;
+    var flags   = report.flags || [];
+    var dims    = report.dimensions || {};
+    var rewrite = report.rewrite_applied;
+
+    /* Total + badge */
+    document.getElementById('qpTotal').textContent = total + '/100';
+    var badge    = document.getElementById('qpBadge');
+    var badgeTxt = total >= 80 ? '✓ Good' : total >= 60 ? '~ OK' : '⚠ Weak';
+    badge.textContent = badgeTxt;
+    badge.className   = 'qp-badge ' + (total >= 80 ? 'good' : total >= 60 ? 'ok' : 'weak');
+
+    /* Dimension chips */
+    var dimNames = {
+      naturalness:'natural', readability:'readable', spamminess:'not spammy',
+      cta_quality:'CTA', human_tone:'human tone', personalization:'personal', structure:'structure'
+    };
+    var maxes = { naturalness:20, readability:20, spamminess:20, cta_quality:10,
+                  human_tone:15, personalization:5, structure:10 };
+    var dimsHtml = '';
+    Object.keys(dimNames).forEach(function(k) {
+      if (dims[k] !== undefined) {
+        var pct  = Math.round((dims[k] / (maxes[k] || 20)) * 100);
+        var col  = pct >= 75 ? '#16a34a' : pct >= 45 ? '#92400e' : '#dc2626';
+        dimsHtml += '<span class="qp-dim" style="color:' + col + '">'
+          + dimNames[k] + ' ' + dims[k] + '/' + (maxes[k]||20) + '</span>';
+      }
+    });
+    document.getElementById('qpDims').innerHTML = dimsHtml;
+
+    /* Flag pills */
+    var flagsHtml = '';
+    if (flags.length) {
+      flags.forEach(function(f) {
+        flagsHtml += '<span class="qp-flag ' + _flagClass(f) + '">' + _flagLabel(f) + '</span>';
+      });
+    }
+    document.getElementById('qpFlags').innerHTML = flagsHtml;
+
+    /* Rewrite tag */
+    var rewTag = document.getElementById('qpRewriteTag');
+    if (rewrite) {
+      var origScore = report.original_score;
+      rewTag.textContent = '✦ auto-humanized'
+        + (origScore !== undefined ? ' (was ' + origScore + '/100)' : '');
+      rewTag.style.display = 'block';
+    } else {
+      rewTag.style.display = 'none';
+    }
+
+    /* Auto-open details if there are flags worth seeing */
+    if (flags.length > 0 || rewrite) {
+      _qpOpen = true;
+      document.getElementById('qpDetailsBody').classList.add('open');
+    } else {
+      _qpOpen = false;
+      document.getElementById('qpDetailsBody').classList.remove('open');
+    }
+
+    panel.style.display = 'block';
+  }
+
+  function hideQualityPanel() {
+    document.getElementById('qualityPanel').style.display = 'none';
+    document.getElementById('qpDetailsBody').classList.remove('open');
+    _qpOpen = false;
   }
 
   /* ══════════════════════════════════════════════════════════════════
@@ -1486,6 +1813,12 @@ Examples:
     document.getElementById('variationPanel').style.display    = 'none';
     document.getElementById('rewriteOutput').style.display     = 'none';
     document.getElementById('rewriteBox').textContent          = '';
+    document.getElementById('extractedFields').innerHTML       = '';
+    document.getElementById('extractStatus').style.display     = 'none';
+    document.getElementById('extractStatus').textContent       = '';
+    document.getElementById('customerMessage').classList.remove('extracting');
+    _lastExtracted = null;
+    hideQualityPanel();
     var ge = document.getElementById('generateElapsed');
     if (ge) ge.textContent = '';
     clearNotif('notifGenerate');
