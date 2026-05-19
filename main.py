@@ -36,6 +36,9 @@ from intent_registry import INTENT_REGISTRY, full_pipeline, registry_for
 from pipeline import analyse, build_flow_instruction, InputAnalysis, print_analysis
 from template_engine import build_template_reply, ai_polish_reply, detect_template_intent, TEMPLATE_INTENT_KEYWORDS
 from quality_control import build_strategy_block, run_full_qc, check_variation_uniqueness, log_variation_check
+from reply_strategy import (
+    ReplyStrategy, StrategySignals, build_strategy, build_prompt_brief,
+)
 
 # Broker memory — graceful fallback if module unavailable
 try:
@@ -2028,49 +2031,71 @@ def build_reply_prompt_ai(
     lead_context: Optional[str] = None,
     stage_block: Optional[str] = None,
     offer_intel: Optional[str] = None,
+    strategy: Optional["ReplyStrategy"] = None,
 ) -> str:
     """
-    AI-mode prompt builder. Writes a fluid, natural brief rather than a
-    structured rules document. Context-aware — adapts to response frame and intent.
-    Used exclusively when effective_mode == 'ai'.
-    Does NOT change build_reply_prompt() — that remains for hybrid mode.
+    AI-mode prompt builder.
+
+    When strategy is provided (Phase 1+): uses build_prompt_brief() to produce
+    a concise, purposeful brief driven by the ReplyStrategy object.
+    The examples, lead context, offer intel, and message are still injected —
+    only the instruction section changes.
+
+    When strategy is None (fallback / backward compat): original behaviour,
+    all rule tables and inline logic as before.
     """
     if analysis is None:
         analysis = analyse(message)
 
-    response_frame = _classify_response_frame(message)
-    neg_state      = _detect_negotiation_state(message, asking_price)
-    neg_guidance   = _negotiation_guidance(neg_state, asking_price)
-
-    # ── Context: domain + price ───────────────────────────────────────────────
+    # ── Context: domain + price (shared by both paths) ────────────────────────
     context_parts = []
     if domain_name:  context_parts.append(f"Domain: {domain_name}")
     if asking_price: context_parts.append(f"Asking price: {asking_price}")
     context_line = "  ".join(context_parts) + "\n" if context_parts else ""
 
-    # ── Reference examples ────────────────────────────────────────────────────
+    # ── Reference examples (shared by both paths) ─────────────────────────────
     method_note = "by meaning" if retrieval_method == "semantic" else "by keyword"
     ex_block = ""
     if examples:
-        ex_block = f"A few past replies for style reference (retrieved {method_note} — do not copy):\n"
+        ex_block = f"Past replies for style reference (retrieved {method_note} — do not copy):\n"
         for i, ex in enumerate(examples, 1):
             ex_block += f"  {i}. [{ex.get('category','general')}] {ex['reply'][:120]}…\n"
         ex_block += "\n"
 
-    # ── Intent guidance ───────────────────────────────────────────────────────
+    lead_block    = f"LEAD HISTORY:\n{lead_context}\n\n" if lead_context else ""
+    intel_section = f"{offer_intel}\n" if offer_intel else ""
+
+    # ── STRATEGY-DRIVEN PATH ──────────────────────────────────────────────────
+    if strategy is not None:
+        print(
+            f"[STRATEGY] goal={strategy.primary_goal} buyer={strategy.buyer_state} "
+            f"posture={strategy.conversation_posture} persuasion={strategy.persuasion_level} "
+            f"urgency={strategy.urgency_level} cta={strategy.cta_style} "
+            f"length={strategy.reply_length}"
+        )
+        brief = build_prompt_brief(strategy, context_line=context_line.strip())
+        return (
+            f"{ex_block}"
+            f"{lead_block}"
+            f"{intel_section}"
+            f"Message or situation:\n\"{strip_filler(message)}\"\n\n"
+            f"{brief}"
+        )
+
+    # ── ORIGINAL PATH (fallback — strategy=None) ──────────────────────────────
+    response_frame = _classify_response_frame(message)
+    neg_state      = _detect_negotiation_state(message, asking_price)
+    neg_guidance   = _negotiation_guidance(neg_state, asking_price)
+
     intent_guidance = ""
     if intent in _AI_SALES_INTENTS:
         rule = INTENT_RULES.get(intent, "")
         if rule:
             intent_guidance = f"For this kind of message: {rule}\n\n"
 
-    # ── Negotiation guidance ──────────────────────────────────────────────────
     neg_block = f"Negotiation note: {neg_guidance}\n\n" if neg_guidance else ""
-
-    # ── Tone ─────────────────────────────────────────────────────────────────
     tone_inst = TONE_INSTRUCTIONS.get(tone, f"Tone: {tone}.")
 
-    # ── Response frame instruction ────────────────────────────────────────────
     frame_inst = {
         "strategic_advice": (
             "The broker is asking for advice, not a draft. "
@@ -2108,7 +2133,6 @@ def build_reply_prompt_ai(
         "End with one clear call to action and a sign-off."
     ))
 
-    # ── Question awareness ────────────────────────────────────────────────────
     question_note = ""
     if analysis.has_questions:
         q_count = len(analysis.questions)
@@ -2119,7 +2143,6 @@ def build_reply_prompt_ai(
         else:
             question_note = "They asked a direct question — answer it first.\n\n"
 
-    # ── Emotional signal ──────────────────────────────────────────────────────
     msg_low = message.lower()
     emotion_note = ""
     if any(w in msg_low for w in ["can't afford", "tight budget", "small business",
@@ -2131,13 +2154,11 @@ def build_reply_prompt_ai(
     elif any(w in msg_low for w in ["confused", "don't understand", "what do you mean"]):
         emotion_note = "They need clarity. Explain simply before any pitch.\n\n"
 
-    # ── Debug log ─────────────────────────────────────────────────────────────
     print(
         f"[REASONING] frame={response_frame} neg={neg_state} "
         f"intent={intent} questions={len(analysis.questions) if analysis.has_questions else 0}"
     )
 
-    # ── No-hallucination guard ────────────────────────────────────────────────
     no_invent_note = ""
     if not domain_name and not asking_price and intent in (
         "general", "general_response", "how_it_works", "domain_metrics",
@@ -2150,9 +2171,7 @@ def build_reply_prompt_ai(
         )
 
     preset_block  = _build_preset_block(email_preset)
-    lead_block    = f"LEAD HISTORY:\n{lead_context}\n\n" if lead_context else ""
     stage_section = f"{stage_block}\n" if stage_block else ""
-    intel_section = f"{offer_intel}\n" if offer_intel else ""
 
     return (
         f"{context_line}"
@@ -3475,6 +3494,27 @@ async def generate_reply(req: GenerateRequest):
                 os.getenv("VOYAGE_API_KEY", ""), TOP_K, stage=stage,
             )
 
+            # ── ReplyStrategy reasoning layer ─────────────────────────────────
+            strategy = build_strategy(StrategySignals(
+                intent            = intent,
+                message           = req.customer_message,
+                stage             = stage,
+                neg_state         = _detect_negotiation_state(req.customer_message, req.asking_price),
+                response_frame    = _classify_response_frame(req.customer_message),
+                tone_requested    = tone,
+                asking_price      = req.asking_price,
+                outreach_count    = lead_ctx["outreach_count"],
+                has_questions     = analysis.has_questions,
+                question_count    = len(analysis.questions) if analysis.has_questions else 0,
+                ambiguity_level   = getattr(analysis, "ambiguity_level", "low"),
+                has_multiple_intents = getattr(analysis, "has_multiple_intents", False),
+                secondary_intents = getattr(analysis, "secondary_intents", []),
+                intent_confidence = getattr(analysis, "primary_intent_confidence", 1.0),
+                email_preset      = getattr(req, "email_preset", None),
+                domain_name       = req.domain_name,
+                lead_stage        = lead_ctx["lead_stage"],
+            ))
+
             base_prompt = build_reply_prompt_ai(
                 req.customer_message, intent, examples, tone,
                 req.domain_name, req.asking_price, method,
@@ -3483,6 +3523,7 @@ async def generate_reply(req: GenerateRequest):
                 lead_context = lead_ctx["summary_text"],
                 stage_block  = stage_block,
                 offer_intel  = offer_intel,
+                strategy     = strategy,
             )
             variations = generate_variations_ai(
                 base_prompt,
@@ -3526,6 +3567,20 @@ async def generate_reply(req: GenerateRequest):
             "requested_mode":         req.mode if req.mode not in {None,"","auto"} else "auto",
             "effective_mode":         effective_mode,
             "router_acted":           router_acted,
+            "reply_strategy": (
+                {
+                    "goal":     strategy.primary_goal,
+                    "buyer":    strategy.buyer_state,
+                    "posture":  strategy.conversation_posture,
+                    "cta":      strategy.cta_style,
+                    "length":   strategy.reply_length,
+                    "persuasion": strategy.persuasion_level,
+                    "urgency":  strategy.urgency_level,
+                    "objective": strategy.reply_objective,
+                    "trace":    strategy.reasoning_trace,
+                }
+                if "strategy" in dir() and strategy is not None else None
+            ),
             "config": {
                 "variations":  ENABLE_VARIATIONS,
                 "ai_scoring":  ENABLE_AI_SCORING,
@@ -3615,6 +3670,28 @@ async def generate_reply_situation(req: SituationRequest):
                 req.situation, load_replies(), intent,
                 os.getenv("VOYAGE_API_KEY", ""), TOP_K, stage=stage,
             )
+
+            # ── ReplyStrategy reasoning layer ─────────────────────────────────
+            strategy = build_strategy(StrategySignals(
+                intent            = intent,
+                message           = req.situation,
+                stage             = stage,
+                neg_state         = _detect_negotiation_state(req.situation, req.asking_price),
+                response_frame    = _classify_response_frame(req.situation),
+                tone_requested    = tone,
+                asking_price      = req.asking_price,
+                outreach_count    = lead_ctx["outreach_count"],
+                has_questions     = analysis.has_questions,
+                question_count    = len(analysis.questions) if analysis.has_questions else 0,
+                ambiguity_level   = getattr(analysis, "ambiguity_level", "low"),
+                has_multiple_intents = getattr(analysis, "has_multiple_intents", False),
+                secondary_intents = getattr(analysis, "secondary_intents", []),
+                intent_confidence = getattr(analysis, "primary_intent_confidence", 1.0),
+                email_preset      = getattr(req, "email_preset", None),
+                domain_name       = req.domain_name,
+                lead_stage        = lead_ctx["lead_stage"],
+            ))
+
             base_prompt = build_reply_prompt_ai(
                 req.situation, intent, examples, tone,
                 req.domain_name, req.asking_price, method,
@@ -3623,6 +3700,7 @@ async def generate_reply_situation(req: SituationRequest):
                 lead_context = lead_ctx["summary_text"],
                 stage_block  = stage_block,
                 offer_intel  = offer_intel,
+                strategy     = strategy,
             )
             variations = generate_variations_ai(
                 base_prompt,
