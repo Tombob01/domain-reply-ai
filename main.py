@@ -39,6 +39,9 @@ from quality_control import build_strategy_block, run_full_qc, check_variation_u
 from reply_strategy import (
     ReplyStrategy, StrategySignals, build_strategy, build_prompt_brief,
 )
+from strategy_eval import (
+    evaluate_strategy_adherence, StrategyAnalytics, analytics as strategy_analytics,
+)
 
 # Broker memory — graceful fallback if module unavailable
 try:
@@ -1939,22 +1942,23 @@ def _offer_intelligence(
 def _get_lead_context_rich(lead_id: Optional[int]) -> dict:
     """
     Fetch full lead data from broker_memory for stage detection and prompt injection.
-    Returns a dict with: summary_text, outreach_count, offers, lead_stage.
+    Returns a dict with: summary_text, outreach_count, outreach, offers, lead_stage.
     Always safe to call — returns empty defaults if memory unavailable.
     """
-    empty = {"summary_text": None, "outreach_count": 0, "offers": [], "lead_stage": None}
+    empty = {"summary_text": None, "outreach_count": 0, "outreach": [], "offers": [], "lead_stage": None}
     if not lead_id or not _MEMORY_AVAILABLE or memory_db is None:
         return empty
     try:
-        history = memory_db.full_history(lead_id)
-        outreach_count = len(history.get("outreach", []))
+        history        = memory_db.full_history(lead_id)
+        outreach_list  = history.get("outreach", [])
         offers         = history.get("offers", [])
         lead           = history.get("lead", {})
         lead_stage     = lead.get("stage") if lead else None
         summary_text   = memory_db.lead_summary(lead_id)
         return {
-            "summary_text":  summary_text,
-            "outreach_count": outreach_count,
+            "summary_text":   summary_text,
+            "outreach_count": len(outreach_list),
+            "outreach":       outreach_list,
             "offers":         offers,
             "lead_stage":     lead_stage,
         }
@@ -2073,7 +2077,13 @@ def build_reply_prompt_ai(
             f"urgency={strategy.urgency_level} cta={strategy.cta_style} "
             f"length={strategy.reply_length}"
         )
-        brief = build_prompt_brief(strategy, context_line=context_line.strip())
+        brief = build_prompt_brief(
+            strategy,
+            context_line       = context_line.strip(),
+            has_questions      = analysis.has_questions if analysis else False,
+            question_count     = len(analysis.questions) if analysis and analysis.has_questions else 0,
+            no_domain_no_price = strategy.no_domain_no_price,
+        )
         return (
             f"{ex_block}"
             f"{lead_block}"
@@ -2239,6 +2249,7 @@ def generate_variations_ai(
     intent: str,
     domain_name: Optional[str],
     model: str = MODEL,
+    strategy: Optional["ReplyStrategy"] = None,
 ) -> list["ReplyResult"]:
     """
     AI-mode variation generator. Uses AI_VARIATION_STYLES instead of
@@ -2304,6 +2315,23 @@ def generate_variations_ai(
 
         elapsed = int((time.monotonic() - _t_var) * 1000)
         print(f"[TIMING] ai_variation_{style['label'].lower()}_ms={elapsed}")
+
+        # ── Strategy adherence evaluation (non-blocking) ──────────────────
+        if strategy is not None and quality_report is not None:
+            try:
+                eval_result = evaluate_strategy_adherence(final, strategy)
+                if eval_result:
+                    quality_report["strategy_adherence"]   = eval_result.get("strategy_adherence")
+                    quality_report["repetition_violations"]= eval_result.get("repetition_violations", [])
+                    quality_report["progression_result"]   = eval_result.get("progression_result")
+                    quality_report["confidence_alignment"] = eval_result.get("confidence_alignment")
+                    strategy_analytics.record(strategy, eval_result)
+                    adh_score = eval_result.get("strategy_adherence", {}).get("adherence_score", "?")
+                    prog      = eval_result.get("progression_result", {}).get("verdict", "?")
+                    print(f"[STRATEGY_EVAL] adherence={adh_score}/100 progression={prog}")
+            except Exception as _eval_err:
+                print(f"[STRATEGY_EVAL] non-blocking error: {_eval_err}")
+
         results.append(ReplyResult(
             reply=final,
             label=style["label"],
@@ -3494,6 +3522,24 @@ async def generate_reply(req: GenerateRequest):
                 os.getenv("VOYAGE_API_KEY", ""), TOP_K, stage=stage,
             )
 
+            # ── Phase 2 — prefetch angle inventory + objections ──────────────────
+            # Non-blocking: failures leave _p2_inventory=None and the strategy
+            # layer falls back to Phase 1 keyword-scan path automatically.
+            _p2_inventory  = None
+            _p2_objections = []
+            if lead_id and _MEMORY_AVAILABLE and memory_db:
+                try:
+                    from angle_memory import build_angle_inventory, ObjectionRecord
+                    _p2_inventory = build_angle_inventory(lead_id, memory_db)
+                    _p2_obj_rows  = memory_db.get_objection_history(
+                        lead_id, unresolved_only=True
+                    )
+                    _p2_objections = [
+                        ObjectionRecord.from_db_row(r) for r in _p2_obj_rows
+                    ]
+                except Exception as _p2_err:
+                    print(f"[P2] angle inventory fetch failed (non-blocking): {_p2_err}")
+
             # ── ReplyStrategy reasoning layer ─────────────────────────────────
             strategy = build_strategy(StrategySignals(
                 intent            = intent,
@@ -3513,6 +3559,20 @@ async def generate_reply(req: GenerateRequest):
                 email_preset      = getattr(req, "email_preset", None),
                 domain_name       = req.domain_name,
                 lead_stage        = lead_ctx["lead_stage"],
+                no_domain_no_price = not req.domain_name and not req.asking_price,
+                prior_outreach_bodies = [
+                    o.get("body", "") for o in lead_ctx.get("outreach", [])
+                    if o.get("body")
+                ],
+                stage_signal_strength = (
+                    "memory"  if lead_ctx["lead_stage"] else
+                    "offer"   if lead_ctx["offers"] else
+                    "intent"
+                ),
+                # Phase 2 — angle inventory + objection context
+                lead_id              = lead_id if "lead_id" in dir() else None,
+                angle_inventory      = _p2_inventory,
+                unresolved_objection_records = _p2_objections,
             ))
 
             base_prompt = build_reply_prompt_ai(
@@ -3534,9 +3594,56 @@ async def generate_reply(req: GenerateRequest):
                 intent=intent,
                 domain_name=req.domain_name,
                 model=effective_model,
+                strategy=strategy if "strategy" in dir() else None,
             )
             subject = generate_subject_ai(intent, variations[0].reply, req.domain_name,
                                           model=effective_model)
+
+            # ── Phase 1 silent memory logging ─────────────────────────────────
+            # Records which value angles were suppressed (= already used) and
+            # which objections the prospect's message contains.
+            # Non-blocking: failures are logged but never affect reply delivery.
+            # Rollback: remove this block.  Zero other changes required.
+            if lead_id and _MEMORY_AVAILABLE and memory_db:
+                try:
+                    _outreach_seq = lead_ctx["outreach_count"] + 1
+                    _sel = getattr(strategy, "selected_angle", "")
+                    if _sel:
+                        memory_db.log_angle(
+                            lead_id      = lead_id,
+                            angle_id     = _sel,
+                            outreach_seq = _outreach_seq,
+                            pitched_as   = "primary",
+                        )
+                    for _topic in getattr(strategy, "exhausted_angles", []):
+                        if _topic != _sel:
+                            memory_db.log_angle(
+                                lead_id      = lead_id,
+                                angle_id     = _topic,
+                                outreach_seq = _outreach_seq,
+                                pitched_as   = "mentioned",
+                            )
+                    print(f"[ANGLE_LOG] lead={lead_id} seq={_outreach_seq} "
+                          f"selected={_sel!r} "
+                          f"exhausted={getattr(strategy, 'exhausted_angles', [])}")
+                except Exception as _log_err:
+                    print(f"[ANGLE_LOG] silent logging failed (non-blocking): {_log_err}")
+
+                try:
+                    from angle_memory import _OBJECTION_REGISTRY
+                    _msg_low = req.customer_message.lower()
+                    for _obj_type, _obj_info in _OBJECTION_REGISTRY.items():
+                        _signals = _obj_info.get("detection_signals", [])
+                        if any(_sig in _msg_low for _sig in _signals):
+                            _snippet = req.customer_message[:200]
+                            memory_db.log_objection(
+                                lead_id        = lead_id,
+                                objection_type = _obj_type,
+                                source_snippet = _snippet,
+                            )
+                            print(f"[OBJECTION_LOG] lead={lead_id} type={_obj_type}")
+                except Exception as _obj_err:
+                    print(f"[OBJECTION_LOG] silent logging failed (non-blocking): {_obj_err}")
 
     _Timer.log("total", int((time.monotonic() - _t_total) * 1000))
 
@@ -3569,14 +3676,22 @@ async def generate_reply(req: GenerateRequest):
             "router_acted":           router_acted,
             "reply_strategy": (
                 {
-                    "goal":     strategy.primary_goal,
-                    "buyer":    strategy.buyer_state,
-                    "posture":  strategy.conversation_posture,
-                    "cta":      strategy.cta_style,
-                    "length":   strategy.reply_length,
-                    "persuasion": strategy.persuasion_level,
-                    "urgency":  strategy.urgency_level,
-                    "objective": strategy.reply_objective,
+                    "goal":             strategy.primary_goal,
+                    "buyer":            strategy.buyer_state,
+                    "posture":          strategy.conversation_posture,
+                    "cta":              strategy.cta_style,
+                    "length":           strategy.reply_length,
+                    "persuasion":       strategy.persuasion_level,
+                    "urgency":          strategy.urgency_level,
+                    "objective":        strategy.reply_objective,
+                    "progression_goal": strategy.progression_goal,
+                    "suppressed_topics": strategy.suppressed_topics,
+                    "tone_guidance":    strategy.tone_guidance,
+                    "confidence": {
+                        "stage": strategy.stage_confidence,
+                        "buyer": strategy.buyer_confidence,
+                        "goal":  strategy.goal_confidence,
+                    },
                     "trace":    strategy.reasoning_trace,
                 }
                 if "strategy" in dir() and strategy is not None else None
@@ -3671,6 +3786,24 @@ async def generate_reply_situation(req: SituationRequest):
                 os.getenv("VOYAGE_API_KEY", ""), TOP_K, stage=stage,
             )
 
+            # ── Phase 2 — prefetch angle inventory + objections ──────────────────
+            # Non-blocking: failures leave _p2_inventory=None and the strategy
+            # layer falls back to Phase 1 keyword-scan path automatically.
+            _p2_inventory  = None
+            _p2_objections = []
+            if lead_id and _MEMORY_AVAILABLE and memory_db:
+                try:
+                    from angle_memory import build_angle_inventory, ObjectionRecord
+                    _p2_inventory = build_angle_inventory(lead_id, memory_db)
+                    _p2_obj_rows  = memory_db.get_objection_history(
+                        lead_id, unresolved_only=True
+                    )
+                    _p2_objections = [
+                        ObjectionRecord.from_db_row(r) for r in _p2_obj_rows
+                    ]
+                except Exception as _p2_err:
+                    print(f"[P2] angle inventory fetch failed (non-blocking): {_p2_err}")
+
             # ── ReplyStrategy reasoning layer ─────────────────────────────────
             strategy = build_strategy(StrategySignals(
                 intent            = intent,
@@ -3690,6 +3823,20 @@ async def generate_reply_situation(req: SituationRequest):
                 email_preset      = getattr(req, "email_preset", None),
                 domain_name       = req.domain_name,
                 lead_stage        = lead_ctx["lead_stage"],
+                no_domain_no_price = not req.domain_name and not req.asking_price,
+                prior_outreach_bodies = [
+                    o.get("body", "") for o in lead_ctx.get("outreach", [])
+                    if o.get("body")
+                ],
+                stage_signal_strength = (
+                    "memory"  if lead_ctx["lead_stage"] else
+                    "offer"   if lead_ctx["offers"] else
+                    "intent"
+                ),
+                # Phase 2 — angle inventory + objection context
+                lead_id              = lead_id if "lead_id" in dir() else None,
+                angle_inventory      = _p2_inventory,
+                unresolved_objection_records = _p2_objections,
             ))
 
             base_prompt = build_reply_prompt_ai(
@@ -3711,9 +3858,55 @@ async def generate_reply_situation(req: SituationRequest):
                 intent=intent,
                 domain_name=req.domain_name,
                 model=effective_model,
+                strategy=strategy if "strategy" in dir() else None,
             )
             subject = generate_subject_ai(intent, variations[0].reply, req.domain_name,
                                           model=effective_model)
+
+            # ── Phase 1 silent memory logging ─────────────────────────────────
+            # Mirrors the same block in /generate-reply.
+            # Non-blocking: failures never affect reply delivery.
+            # Rollback: remove this block.  Zero other changes required.
+            if lead_id and _MEMORY_AVAILABLE and memory_db:
+                try:
+                    _outreach_seq = lead_ctx["outreach_count"] + 1
+                    _sel = getattr(strategy, "selected_angle", "")
+                    if _sel:
+                        memory_db.log_angle(
+                            lead_id      = lead_id,
+                            angle_id     = _sel,
+                            outreach_seq = _outreach_seq,
+                            pitched_as   = "primary",
+                        )
+                    for _topic in getattr(strategy, "exhausted_angles", []):
+                        if _topic != _sel:
+                            memory_db.log_angle(
+                                lead_id      = lead_id,
+                                angle_id     = _topic,
+                                outreach_seq = _outreach_seq,
+                                pitched_as   = "mentioned",
+                            )
+                    print(f"[ANGLE_LOG] lead={lead_id} seq={_outreach_seq} "
+                          f"selected={_sel!r} "
+                          f"exhausted={getattr(strategy, 'exhausted_angles', [])}")
+                except Exception as _log_err:
+                    print(f"[ANGLE_LOG] silent logging failed (non-blocking): {_log_err}")
+
+                try:
+                    from angle_memory import _OBJECTION_REGISTRY
+                    _msg_low = req.situation.lower()
+                    for _obj_type, _obj_info in _OBJECTION_REGISTRY.items():
+                        _signals = _obj_info.get("detection_signals", [])
+                        if any(_sig in _msg_low for _sig in _signals):
+                            _snippet = req.situation[:200]
+                            memory_db.log_objection(
+                                lead_id        = lead_id,
+                                objection_type = _obj_type,
+                                source_snippet = _snippet,
+                            )
+                            print(f"[OBJECTION_LOG] lead={lead_id} type={_obj_type}")
+                except Exception as _obj_err:
+                    print(f"[OBJECTION_LOG] silent logging failed (non-blocking): {_obj_err}")
 
     _Timer.log("total", int((time.monotonic() - _t_total) * 1000))
 
@@ -4656,7 +4849,198 @@ async def qc_score_reply(body: dict):
     return heuristic_score_reply(reply, intent=intent)
 
 
-@app.post("/qc/humanize")
+@app.post("/qc/strategy-eval")
+async def strategy_eval(body: dict):
+    """
+    Evaluate strategy selection for a given situation without generating a reply.
+    Useful for debugging, testing, and understanding how the system reasons.
+
+    Body:
+    {
+        "message":       str,   // required — the prospect message or situation
+        "intent":        str,   // optional — override detected intent
+        "stage":         str,   // optional — override detected stage
+        "tone":          str,   // optional — default "professional and persuasive"
+        "domain_name":   str,   // optional
+        "asking_price":  str,   // optional
+        "email_preset":  str,   // optional
+        "outreach_count": int,  // optional
+        "neg_state":     str,   // optional — override negotiation state
+    }
+
+    Returns:
+    {
+        "strategy":        { all strategy fields },
+        "reasoning_trace": { which signal drove each decision },
+        "prompt_brief":    str,   // the brief that would be sent to the model
+        "brief_tokens":    int,   // estimated token count
+    }
+    """
+    from reply_strategy import evaluate_strategy, StrategySignals
+
+    message      = (body.get("message") or "").strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="'message' field is required.")
+
+    domain_name  = body.get("domain_name")  or None
+    asking_price = body.get("asking_price") or None
+
+    # Detect or accept overrides
+    intent         = body.get("intent")       or detect_intent(message)
+    stage_override = body.get("stage")        or "unknown"
+    neg_override   = body.get("neg_state")    or _detect_negotiation_state(message, asking_price)
+    frame          = _classify_response_frame(message)
+
+    sig = StrategySignals(
+        intent             = intent,
+        message            = message,
+        stage              = stage_override,
+        neg_state          = neg_override,
+        response_frame     = frame,
+        tone_requested     = body.get("tone", "professional and persuasive"),
+        asking_price       = asking_price,
+        domain_name        = domain_name,
+        email_preset       = body.get("email_preset") or None,
+        outreach_count     = int(body.get("outreach_count", 0)),
+        no_domain_no_price = not domain_name and not asking_price,
+    )
+    return evaluate_strategy(sig)
+
+
+@app.get("/qc/strategy-scenarios")
+async def strategy_scenarios():
+    """
+    Run the full scenario test suite and return pass/fail results.
+    Useful for CI checks and regression testing after strategy changes.
+    """
+    from reply_strategy import run_scenario_suite
+    results = run_scenario_suite()
+    passed  = sum(1 for r in results if r.get("passed"))
+    return {
+        "total":   len(results),
+        "passed":  passed,
+        "failed":  len(results) - passed,
+        "results": results,
+    }
+
+
+@app.post("/qc/replay-strategy")
+async def replay_strategy(body: dict):
+    """
+    Evaluate an existing reply against a given strategy without regenerating.
+
+    Useful for:
+    - Debugging why a reply scored poorly
+    - Testing strategy decisions against real examples
+    - Manual calibration of the strategy layer
+
+    Body:
+    {
+        "reply":    str,       // required — the generated reply to evaluate
+        "message":  str,       // required — the original prospect message
+        "intent":   str,       // optional — detected intent
+        "stage":    str,       // optional — conversation stage
+        "goal":     str,       // optional — primary_goal override
+        "domain_name":   str,  // optional
+        "asking_price":  str,  // optional
+        "email_preset":  str,  // optional
+        "outreach_count": int, // optional
+        "suppressed_topics": list[str],  // optional — for repetition check
+        "tone":     str,       // optional
+    }
+
+    Returns:
+    {
+        "strategy":            { resolved strategy fields },
+        "evaluation":          { adherence_score, failed_dimensions, ... },
+        "repetition_violations": [...],
+        "progression_result":  { verdict, note },
+        "confidence_alignment": { verdict, note },
+        "suggested_adjustments": [...],
+    }
+    """
+    from reply_strategy import evaluate_strategy, StrategySignals
+    from strategy_eval import evaluate_strategy_adherence
+
+    reply   = (body.get("reply")   or "").strip()
+    message = (body.get("message") or "").strip()
+    if not reply:
+        raise HTTPException(400, "'reply' is required.")
+    if not message:
+        raise HTTPException(400, "'message' is required.")
+
+    domain_name  = body.get("domain_name")  or None
+    asking_price = body.get("asking_price") or None
+    intent       = body.get("intent")       or detect_intent(message)
+    stage        = body.get("stage")        or "unknown"
+    neg_state    = _detect_negotiation_state(message, asking_price)
+    frame        = _classify_response_frame(message)
+
+    sig = StrategySignals(
+        intent             = intent,
+        message            = message,
+        stage              = stage,
+        neg_state          = neg_state,
+        response_frame     = frame,
+        tone_requested     = body.get("tone", "professional and persuasive"),
+        asking_price       = asking_price,
+        domain_name        = domain_name,
+        email_preset       = body.get("email_preset") or None,
+        outreach_count     = int(body.get("outreach_count", 0)),
+        no_domain_no_price = not domain_name and not asking_price,
+    )
+
+    # Build strategy (or accept override goal for testing specific paths)
+    strategy_report = evaluate_strategy(sig)
+    strategy        = build_strategy(sig)
+
+    # Inject any manually supplied suppressed_topics for testing
+    if body.get("suppressed_topics"):
+        strategy.suppressed_topics = list(body["suppressed_topics"])
+
+    eval_result = evaluate_strategy_adherence(reply, strategy)
+
+    # Generate suggested adjustments from failures
+    suggestions: list[str] = []
+    failed = eval_result.get("strategy_adherence", {}).get("failed_dimensions", [])
+    adj_map = {
+        "cta_style":              f"Regenerate with explicit CTA instruction: '{strategy.cta_style}'",
+        "prohibited_topics":      "Prohibited topics were violated — check humanizer prohibitions list",
+        "repetition_suppression": "Prior value points re-explained — increase outreach_count or add suppressed_topics",
+        "persuasion_calibration": f"Persuasion level mismatch — expected level={strategy.persuasion_level}",
+        "progression":            "Reply regressed — consider re_engage or stalled stage for this situation",
+        "confidence_alignment":   f"Confidence mismatch — strategy confidence is low ({min(strategy.stage_confidence, strategy.buyer_confidence, strategy.goal_confidence):.2f}), check stage detection",
+    }
+    for dim in failed:
+        if dim in adj_map:
+            suggestions.append(adj_map[dim])
+
+    return {
+        "strategy":              strategy_report["strategy"],
+        "prompt_brief":          strategy_report["prompt_brief"],
+        "brief_tokens":          strategy_report["brief_tokens"],
+        "evaluation":            eval_result.get("strategy_adherence", {}),
+        "repetition_violations": eval_result.get("repetition_violations", []),
+        "progression_result":    eval_result.get("progression_result", {}),
+        "confidence_alignment":  eval_result.get("confidence_alignment", {}),
+        "suggested_adjustments": suggestions,
+    }
+
+
+@app.get("/qc/analytics")
+async def qc_analytics(days: int = 30):
+    """
+    Return strategy outcome analytics for the last N days.
+    Shows which goals, buyer states, and presets perform well or poorly.
+    """
+    summary = strategy_analytics.get_summary(limit_days=days)
+    worst   = strategy_analytics.get_worst_performing()
+    return {
+        "summary":            summary,
+        "worst_performing":   worst,
+    }
+
+
 async def qc_humanize_reply(body: dict):
     """
     On-demand humanization endpoint. Scores first, then rewrites if needed.

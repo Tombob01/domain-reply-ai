@@ -258,6 +258,70 @@
     .qp-flag.read   { background:var(--cream); color:var(--ink-2); }
     .qp-flag.opener { background:#fff0f0; color:#b45309; }
     .qp-rewrite-tag { font-size:.69rem; color:#7c3aed; font-family:'DM Mono',monospace; margin-top:.35rem; }
+
+    /* ── REVIEW TAB ── */
+    .rv-card { background:var(--paper); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:.75rem; overflow:hidden; }
+    .rv-card-header { display:flex; align-items:center; gap:.6rem; padding:.65rem .9rem; cursor:pointer; background:var(--paper); border-bottom:1px solid transparent; transition:background .12s; flex-wrap:wrap; }
+    .rv-card-header:hover { background:var(--cream); }
+    .rv-card-header.open { border-bottom-color:var(--border); }
+    .rv-card-body { padding:.75rem .9rem; display:none; }
+    .rv-card-body.open { display:block; }
+
+    .rv-score { font-family:'DM Mono',monospace; font-size:.78rem; font-weight:700; padding:.2rem .5rem; border-radius:4px; }
+    .rv-score.great { background:var(--green-lt); color:var(--green); }
+    .rv-score.ok    { background:#fef9e7; color:#92400e; }
+    .rv-score.weak  { background:var(--red-lt); color:var(--red); }
+
+    .rv-badge { font-size:.68rem; font-weight:600; padding:.15rem .45rem; border-radius:20px; white-space:nowrap; }
+    .rv-badge.green  { background:var(--green-lt); color:var(--green); }
+    .rv-badge.amber  { background:#fef9e7; color:#92400e; }
+    .rv-badge.red    { background:var(--red-lt); color:var(--red); }
+    .rv-badge.blue   { background:var(--blue-lt); color:var(--blue); }
+    .rv-badge.grey   { background:var(--cream); color:var(--ink-3); }
+    .rv-badge.purple { background:#f5f0ff; color:#6d28d9; }
+
+    .rv-section { margin-bottom:.8rem; }
+    .rv-section-title { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); margin-bottom:.35rem; }
+    .rv-pill { display:inline-flex; align-items:center; font-size:.69rem; font-family:'DM Mono',monospace; padding:.18rem .42rem; border-radius:4px; margin:.15rem .15rem 0 0; }
+    .rv-pill.fail { background:var(--red-lt); color:var(--red); }
+    .rv-pill.pass { background:var(--green-lt); color:var(--green); }
+    .rv-pill.warn { background:#fff8e1; color:#b45309; }
+    .rv-pill.info { background:var(--blue-lt); color:var(--blue); }
+    .rv-pill.mute { background:var(--cream); color:var(--ink-2); }
+
+    .rv-dim-bar { display:flex; align-items:center; gap:.5rem; margin:.25rem 0; }
+    .rv-dim-bar-label { font-size:.7rem; color:var(--ink-2); width:130px; flex-shrink:0; }
+    .rv-dim-bar-track { flex:1; height:5px; background:var(--cream); border-radius:3px; overflow:hidden; }
+    .rv-dim-bar-fill { height:100%; border-radius:3px; }
+    .rv-dim-bar-val { font-size:.68rem; font-family:'DM Mono',monospace; color:var(--ink-3); width:28px; text-align:right; flex-shrink:0; }
+
+    .rv-reply-box { background:var(--cream); border-radius:var(--radius); padding:.7rem .85rem; font-size:.84rem; line-height:1.7; color:var(--ink); white-space:pre-wrap; word-break:break-word; max-height:160px; overflow-y:auto; border:1px solid var(--border); }
+
+    .rv-trace-table { width:100%; font-size:.67rem; font-family:'DM Mono',monospace; border-collapse:collapse; }
+    .rv-trace-table td { padding:.22rem .35rem; border-bottom:1px solid var(--border); vertical-align:top; }
+    .rv-trace-table td:first-child { color:var(--ink-3); white-space:nowrap; width:42%; }
+    .rv-trace-table td:last-child { color:var(--ink); word-break:break-all; }
+
+    .rv-filter-row { display:flex; gap:.4rem; flex-wrap:wrap; margin-bottom:.75rem; align-items:center; }
+    .rv-filter-select { font-size:.74rem; padding:.3rem .55rem; border:1px solid var(--border); border-radius:4px; background:var(--paper); color:var(--ink-2); cursor:pointer; }
+    .rv-filter-select:focus { outline:none; border-color:var(--gold); }
+
+    .rv-empty { text-align:center; padding:2.5rem 1rem; color:var(--ink-3); font-size:.82rem; }
+
+    .an-grid { display:grid; grid-template-columns:1fr 1fr; gap:.55rem; margin-bottom:.8rem; }
+    @media(max-width:500px){ .an-grid { grid-template-columns:1fr; } }
+    .an-cell { background:var(--paper); border:1px solid var(--border); border-radius:var(--radius); padding:.65rem .75rem; }
+    .an-cell-title { font-size:.67rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-3); margin-bottom:.35rem; }
+    .an-row { display:flex; justify-content:space-between; align-items:center; padding:.2rem 0; border-bottom:1px solid var(--cream); }
+    .an-row:last-child { border-bottom:none; }
+    .an-row-label { font-size:.73rem; color:var(--ink-2); }
+    .an-row-val { font-family:'DM Mono',monospace; font-size:.71rem; font-weight:600; }
+    .an-row-val.hi  { color:var(--green); }
+    .an-row-val.lo  { color:var(--red); }
+    .an-row-val.mid { color:#92400e; }
+
+    .rv-ctab { font-size:.7rem; padding:.22rem .55rem; border-radius:4px; border:1px solid var(--border); background:var(--paper); color:var(--ink-2); cursor:pointer; -webkit-tap-highlight-color:transparent; }
+    .rv-ctab.active { background:var(--ink); color:var(--paper); border-color:var(--ink); }
   </style>
 </head>
 <body>
@@ -308,6 +372,7 @@
       <button class="tab" data-tab="assistant">🤖 Assistant</button>
       <button class="tab" data-tab="template">⚡ Template</button>
       <button class="tab" data-tab="knowledge">📚 KB</button>
+      <button class="tab" data-tab="review" id="reviewTabBtn">📊 Review</button>
     </div>
 
     <!-- TAB: GENERATE -->
@@ -952,6 +1017,65 @@ Examples:
         </div>
       </div>
     </div><!-- /tab-knowledge -->
+
+    <!-- ═══════════════════════════════════════════════════════════
+         TAB: REVIEW — Strategy Evaluation & Analytics Dashboard
+    ════════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" id="tab-review">
+      <div class="card" style="margin-top:1px;border-top-left-radius:0">
+
+        <!-- Header row -->
+        <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.9rem">
+          <span style="font-size:.88rem;font-weight:700;color:var(--ink)">Reply Review</span>
+          <span id="rvReplyCount" style="font-size:.72rem;font-family:'DM Mono',monospace;color:var(--ink-3)"></span>
+          <button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="rvLoadAnalytics()">↻ Analytics</button>
+          <button class="btn btn-secondary btn-sm" onclick="rvClearSession()">✕ Clear</button>
+        </div>
+
+        <!-- Filter row -->
+        <div class="rv-filter-row" id="rvFilterRow" style="display:none">
+          <select class="rv-filter-select" id="rvFiltGoal" onchange="rvApplyFilters()">
+            <option value="">All goals</option>
+          </select>
+          <select class="rv-filter-select" id="rvFiltBuyer" onchange="rvApplyFilters()">
+            <option value="">All buyer states</option>
+          </select>
+          <select class="rv-filter-select" id="rvFiltPreset" onchange="rvApplyFilters()">
+            <option value="">All presets</option>
+          </select>
+          <select class="rv-filter-select" id="rvFiltProgression" onchange="rvApplyFilters()">
+            <option value="">All progressions</option>
+            <option value="progressed">Progressed</option>
+            <option value="neutral">Neutral</option>
+            <option value="regressed">Regressed</option>
+          </select>
+          <select class="rv-filter-select" id="rvFiltAdherence" onchange="rvApplyFilters()">
+            <option value="">Any score</option>
+            <option value="80">≥ 80 (Strong)</option>
+            <option value="60">≥ 60 (OK)</option>
+            <option value="0">< 60 (Weak)</option>
+          </select>
+        </div>
+
+        <!-- Reply cards -->
+        <div id="rvCards">
+          <div class="rv-empty">
+            <div class="rv-empty-icon">📭</div>
+            Generate a reply first — it will appear here for review.
+          </div>
+        </div>
+
+        <!-- Analytics section -->
+        <div id="rvAnalytics" style="display:none;margin-top:1.2rem;border-top:1px solid var(--border);padding-top:.9rem">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.65rem">
+            <span style="font-size:.82rem;font-weight:700">Strategy Analytics</span>
+            <span id="rvAnSubtitle" style="font-size:.7rem;color:var(--ink-3);font-family:'DM Mono',monospace"></span>
+          </div>
+          <div id="rvAnBody"></div>
+        </div>
+
+      </div>
+    </div><!-- /tab-review -->
   </div>
 
 </main>
@@ -1508,6 +1632,8 @@ Examples:
 
       var usedModel = data.model_used || _activeModel;
       var dbg       = data.pipeline_debug || {};
+      window._lastPipelineDebug = dbg;   // captured for Review tab
+      if (window._onPipelineDebug) window._onPipelineDebug(dbg);
       document.getElementById('modelTag').textContent =
         usedModel + (dbg.effective_mode ? ' · ' + dbg.effective_mode : '');
 
@@ -2151,9 +2277,546 @@ Examples:
       notifAssist.className = 'notif';
     }
   })();
+
+  /* ══════════════════════════════════════════════════════════════════
+     QUALITY PANEL — strategy eval extension
+     Renders strategy_adherence, progression_result, repetition_violations,
+     confidence_alignment fields added by strategy_eval.py
+  ══════════════════════════════════════════════════════════════════ */
+
+  /* Extend the existing showQualityPanel to also render strategy eval data */
+  var _origShowQualityPanel = showQualityPanel;
+  showQualityPanel = function(report) {
+    _origShowQualityPanel(report);
+    if (!report) return;
+
+    var sa  = report.strategy_adherence;
+    var pr  = report.progression_result;
+    var rv  = report.repetition_violations;
+    var ca  = report.confidence_alignment;
+
+    var container = document.getElementById('qpDetailsBody');
+    if (!container) return;
+
+    // Remove prior strategy eval block if re-rendering
+    var old = document.getElementById('qpStratEval');
+    if (old) old.remove();
+
+    if (!sa && !pr && !rv && !ca) return;
+
+    var html = '<div id="qpStratEval" style="margin-top:.6rem;border-top:1px solid var(--border);padding-top:.55rem">';
+
+    // Adherence score
+    if (sa) {
+      var aScore = sa.adherence_score || 0;
+      var aCls   = aScore >= 80 ? 'good' : aScore >= 60 ? 'ok' : 'weak';
+      html += '<div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-bottom:.4rem">';
+      html += '<span style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)">Strategy adherence</span>';
+      html += '<span class="qp-badge ' + aCls + '">' + aScore + '/100</span>';
+      if (sa.failed_dimensions && sa.failed_dimensions.length) {
+        sa.failed_dimensions.forEach(function(d) {
+          html += '<span class="qp-flag cta">' + d.replace(/_/g, ' ') + '</span>';
+        });
+      }
+      html += '</div>';
+    }
+
+    // Progression
+    if (pr) {
+      var vCls = pr.verdict === 'progressed' ? 'struct' : pr.verdict === 'regressed' ? 'hype' : 'read';
+      var vIcon = pr.verdict === 'progressed' ? '↑' : pr.verdict === 'regressed' ? '↓' : '→';
+      html += '<div style="margin-bottom:.3rem">';
+      html += '<span class="qp-flag ' + vCls + '">' + vIcon + ' ' + pr.verdict + '</span>';
+      if (pr.note) html += '<span style="font-size:.68rem;color:var(--ink-3);margin-left:.3rem">' + pr.note + '</span>';
+      html += '</div>';
+    }
+
+    // Repetition violations
+    if (rv && rv.length) {
+      html += '<div style="margin-bottom:.3rem">';
+      rv.forEach(function(v) {
+        html += '<span class="qp-flag opener">' + v.replace(/_/g, ' ') + ' repeated</span>';
+      });
+      html += '</div>';
+    }
+
+    // Confidence alignment
+    if (ca && ca.verdict && ca.verdict !== 'unchecked' && ca.verdict !== 'aligned') {
+      html += '<span class="qp-flag ai-ph">' + ca.verdict + '</span>';
+      if (ca.note) html += '<span style="font-size:.67rem;color:var(--ink-3);margin-left:.3rem;display:block;margin-top:.2rem">' + ca.note + '</span>';
+    }
+
+    html += '</div>';
+    container.insertAdjacentHTML('beforeend', html);
+
+    // Auto-open if there are adherence failures
+    if (sa && sa.failed_dimensions && sa.failed_dimensions.length) {
+      document.getElementById('qpDetailsBody').classList.add('open');
+      _qpOpen = true;
+    }
+  };
+
+  /* ══════════════════════════════════════════════════════════════════
+     REVIEW TAB — session reply store + rendering + analytics
+  ══════════════════════════════════════════════════════════════════ */
+
+  var _rvSession     = [];   // [{reply, label, quality_report, strategy, ts}, ...]
+  var _rvFiltered    = [];   // filtered view
+  var _rvAnalyticsLoaded = false;
+
+  /* Called from _doGenerate success path — store all variations */
+  function rvIngestReplies(replies, strategyDebug) {
+    if (!replies || !replies.length) return;
+    replies.forEach(function(r) {
+      _rvSession.push({
+        reply:          r.reply || '',
+        label:          r.label || 'Reply',
+        quality_report: r.quality_report || null,
+        strategy:       strategyDebug || null,
+        ts:             Date.now(),
+      });
+    });
+    _rvFiltered = _rvSession.slice();
+    rvPopulateFilters();
+    rvRender();
+    // Badge on tab
+    document.getElementById('reviewTabBtn').textContent =
+      '📊 Review (' + _rvSession.length + ')';
+  }
+
+  function rvClearSession() {
+    _rvSession  = [];
+    _rvFiltered = [];
+    rvRender();
+    document.getElementById('reviewTabBtn').textContent = '📊 Review';
+    document.getElementById('rvReplyCount').textContent = '';
+    document.getElementById('rvFilterRow').style.display = 'none';
+  }
+
+  /* ── Filters ──────────────────────────────────────────────────── */
+  function rvPopulateFilters() {
+    var goals   = [...new Set(_rvSession.map(function(r){ return r.strategy && r.strategy.goal; }).filter(Boolean))];
+    var buyers  = [...new Set(_rvSession.map(function(r){ return r.strategy && r.strategy.buyer; }).filter(Boolean))];
+    var presets = [...new Set(_rvSession.map(function(r){ return r.strategy && r.strategy.trace && r.strategy.trace.goal_source && r.strategy.trace.goal_source.startsWith('email_preset:') ? r.strategy.trace.goal_source.split(':')[1] : null; }).filter(Boolean))];
+
+    function _repop(selId, vals) {
+      var sel = document.getElementById(selId);
+      var cur = sel.value;
+      while (sel.options.length > 1) sel.remove(1);
+      vals.forEach(function(v) {
+        var o = document.createElement('option');
+        o.value = o.textContent = v;
+        sel.appendChild(o);
+      });
+      sel.value = cur;
+    }
+    _repop('rvFiltGoal',  goals);
+    _repop('rvFiltBuyer', buyers);
+    _repop('rvFiltPreset', presets);
+    if (_rvSession.length) document.getElementById('rvFilterRow').style.display = 'flex';
+  }
+
+  function rvApplyFilters() {
+    var goal      = document.getElementById('rvFiltGoal').value;
+    var buyer     = document.getElementById('rvFiltBuyer').value;
+    var preset    = document.getElementById('rvFiltPreset').value;
+    var prog      = document.getElementById('rvFiltProgression').value;
+    var adherence = document.getElementById('rvFiltAdherence').value;
+
+    _rvFiltered = _rvSession.filter(function(r) {
+      var s  = r.strategy || {};
+      var qr = r.quality_report || {};
+      var sa = qr.strategy_adherence || {};
+      var pr = qr.progression_result || {};
+
+      if (goal   && s.goal   !== goal)  return false;
+      if (buyer  && s.buyer  !== buyer) return false;
+      if (preset && !(s.trace && s.trace.goal_source === 'email_preset:' + preset)) return false;
+      if (prog   && pr.verdict !== prog) return false;
+      if (adherence !== '') {
+        var sc = sa.adherence_score || 0;
+        var th = parseInt(adherence);
+        if (th === 0) { if (sc >= 60) return false; }
+        else          { if (sc < th)  return false; }
+      }
+      return true;
+    });
+    rvRender();
+  }
+
+  /* ── Render helpers ───────────────────────────────────────────── */
+  function _rvScoreClass(n) {
+    return n >= 80 ? 'great' : n >= 60 ? 'ok' : 'weak';
+  }
+  function _rvBadgeClass(verdict) {
+    if (!verdict) return 'grey';
+    var map = { progressed:'green', neutral:'amber', regressed:'red',
+                aligned:'green', unchecked:'grey', overconfident:'red', underconfident:'amber' };
+    return map[verdict] || 'grey';
+  }
+  function _rvConfBar(val, label) {
+    val = val || 0;
+    var pct  = Math.round(val * 100);
+    var col  = pct >= 80 ? '#16a34a' : pct >= 55 ? '#ca8a04' : '#dc2626';
+    return '<div class="rv-dim-bar">'
+      + '<div class="rv-dim-bar-label">' + label + '</div>'
+      + '<div class="rv-dim-bar-track"><div class="rv-dim-bar-fill" style="width:' + pct + '%;background:' + col + '"></div></div>'
+      + '<div class="rv-dim-bar-val">' + pct + '%</div></div>';
+  }
+  function _rvAdherenceBar(dim, passed) {
+    var col = passed ? '#16a34a' : '#dc2626';
+    var icon = passed ? '✓' : '✗';
+    return '<span class="rv-pill ' + (passed ? 'pass' : 'fail') + '" style="margin:.1rem .15rem 0 0">'
+      + icon + ' ' + dim.replace(/_/g,' ') + '</span>';
+  }
+
+  function _rvBuildCard(item, idx) {
+    var qr  = item.quality_report || {};
+    var sa  = qr.strategy_adherence || {};
+    var pr  = qr.progression_result || {};
+    var rv  = qr.repetition_violations || [];
+    var ca  = qr.confidence_alignment  || {};
+    var st  = item.strategy || {};
+    var tr  = st.trace || {};
+
+    var adScore  = sa.adherence_score != null ? sa.adherence_score : null;
+    var hqScore  = qr.total != null ? qr.total : null;
+    var progV    = pr.verdict || null;
+    var confV    = ca.verdict || null;
+    var rewrite  = qr.rewrite_applied;
+
+    var cardId = 'rvCard' + idx;
+
+    // Header
+    var header = '<div class="rv-card-header" onclick="rvToggleCard(' + idx + ')" id="' + cardId + 'H">';
+    header += '<span style="font-size:.78rem;font-weight:600;color:var(--ink)">' + (item.label || 'Reply') + '</span>';
+    if (adScore != null) {
+      header += '<span class="rv-score ' + _rvScoreClass(adScore) + '">' + adScore + '/100</span>';
+    }
+    if (hqScore != null) {
+      header += '<span style="font-size:.68rem;font-family:\'DM Mono\',monospace;color:var(--ink-3)">QC ' + hqScore + '</span>';
+    }
+    if (progV)  header += '<span class="rv-badge ' + _rvBadgeClass(progV) + '">' + progV + '</span>';
+    if (rewrite) header += '<span class="rv-badge purple">✦ humanized</span>';
+    if (rv && rv.length) header += '<span class="rv-badge red">↻ ' + rv.length + ' repeat' + (rv.length>1?'s':'') + '</span>';
+    if (confV && confV !== 'aligned' && confV !== 'unchecked') header += '<span class="rv-badge ' + _rvBadgeClass(confV) + '">' + confV + '</span>';
+    header += '<span style="font-size:.65rem;color:var(--ink-3);margin-left:auto">▾</span>';
+    header += '</div>';
+
+    // Body
+    var body = '<div class="rv-card-body" id="' + cardId + 'B">';
+
+    // Compare mode tabs
+    body += '<div style="display:flex;gap:.3rem;margin-bottom:.5rem" id="' + cardId + 'CTabs">';
+    body += '<button class="rv-ctab active" onclick="rvShowCompare(' + idx + ',\'final\',this)">Final reply</button>';
+    body += '</div>';
+    body += '<div id="' + cardId + 'CContent">';
+    body += '<div class="rv-reply-box">' + _escHtml(item.reply) + '</div>';
+    body += '</div>';
+
+    // Strategy decisions
+    if (Object.keys(st).length) {
+      body += '<div class="rv-section" style="margin-top:.65rem">';
+      body += '<div class="rv-section-title">Strategy decisions</div>';
+      body += '<div style="display:flex;flex-wrap:wrap;gap:.25rem;margin-bottom:.35rem">';
+      var stratFields = [
+        ['goal', st.goal], ['buyer', st.buyer], ['posture', st.posture],
+        ['cta', st.cta], ['length', st.length],
+        ['persuasion', st.persuasion != null ? 'P' + st.persuasion : null],
+        ['urgency', st.urgency != null ? 'U' + st.urgency : null],
+      ];
+      stratFields.forEach(function(pair) {
+        if (pair[1] != null) {
+          body += '<span class="rv-pill info">' + pair[0] + ': ' + pair[1] + '</span>';
+        }
+      });
+      body += '</div>';
+      if (st.objective) {
+        body += '<div style="font-size:.73rem;color:var(--ink-2);font-style:italic;margin-bottom:.3rem">"' + _escHtml(st.objective) + '"</div>';
+      }
+      if (st.progression_goal) {
+        body += '<div style="font-size:.7rem;color:var(--ink-3)">↪ ' + _escHtml(st.progression_goal) + '</div>';
+      }
+      body += '</div>';
+    }
+
+    // Adherence dimensions
+    if (sa.dimension_results) {
+      body += '<div class="rv-section">';
+      body += '<div class="rv-section-title">Adherence dimensions</div>';
+      var dims = sa.dimension_results;
+      Object.keys(dims).forEach(function(k) {
+        body += _rvAdherenceBar(k, dims[k].passed);
+      });
+      if (sa.explanation) {
+        body += '<div style="font-size:.7rem;color:var(--ink-3);margin-top:.35rem">' + _escHtml(sa.explanation) + '</div>';
+      }
+      body += '</div>';
+    }
+
+    // Repetition violations
+    if (rv && rv.length) {
+      body += '<div class="rv-section">';
+      body += '<div class="rv-section-title">Repetition violations</div>';
+      rv.forEach(function(v) {
+        body += '<span class="rv-pill fail">' + v.replace(/_/g,' ') + '</span>';
+      });
+      body += '</div>';
+    }
+
+    // Suppressed topics
+    if (st.suppressed_topics && st.suppressed_topics.length) {
+      body += '<div class="rv-section">';
+      body += '<div class="rv-section-title">Suppressed topics</div>';
+      st.suppressed_topics.forEach(function(t) {
+        body += '<span class="rv-pill mute">' + t.replace(/_/g,' ') + '</span>';
+      });
+      body += '</div>';
+    }
+
+    // Confidence bars
+    if (st.confidence) {
+      body += '<div class="rv-section">';
+      body += '<div class="rv-section-title">Confidence</div>';
+      body += _rvConfBar(st.confidence.stage, 'stage');
+      body += _rvConfBar(st.confidence.buyer, 'buyer');
+      body += _rvConfBar(st.confidence.goal,  'goal');
+      if (confV && confV !== 'unchecked') {
+        body += '<span class="rv-pill ' + (confV === 'aligned' ? 'pass' : 'warn') + '" style="margin-top:.3rem">'
+              + confV + (ca.note ? ' — ' + _escHtml(ca.note.substring(0, 80)) : '') + '</span>';
+      }
+      body += '</div>';
+    }
+
+    // Reasoning trace (collapsible)
+    if (Object.keys(tr).length) {
+      body += '<div class="rv-section">';
+      body += '<div class="rv-section-title" style="cursor:pointer" onclick="rvToggleTrace(\'rvTrace' + idx + '\')">'
+            + '▶ Reasoning trace</div>';
+      body += '<div id="rvTrace' + idx + '" style="display:none">';
+      body += '<table class="rv-trace-table"><tbody>';
+      Object.keys(tr).forEach(function(k) {
+        var v = tr[k];
+        if (Array.isArray(v)) v = v.join(', ');
+        body += '<tr><td>' + _escHtml(k) + '</td><td>' + _escHtml(String(v)) + '</td></tr>';
+      });
+      body += '</tbody></table></div></div>';
+    }
+
+    // Tone guidance
+    if (st.tone_guidance && st.tone_guidance.length) {
+      body += '<div class="rv-section">';
+      body += '<div class="rv-section-title" style="cursor:pointer" onclick="rvToggleTrace(\'rvTone' + idx + '\')">'
+            + '▶ Tone guidance</div>';
+      body += '<div id="rvTone' + idx + '" style="display:none">';
+      st.tone_guidance.forEach(function(g) {
+        body += '<div style="font-size:.71rem;color:var(--ink-2);padding:.15rem 0;border-bottom:1px solid var(--cream)">• ' + _escHtml(g) + '</div>';
+      });
+      body += '</div></div>';
+    }
+
+    body += '</div>'; // /rv-card-body
+    return '<div class="rv-card">' + header + body + '</div>';
+  }
+
+  function rvToggleCard(idx) {
+    var h = document.getElementById('rvCard' + idx + 'H');
+    var b = document.getElementById('rvCard' + idx + 'B');
+    if (!h || !b) return;
+    var open = b.classList.toggle('open');
+    h.classList.toggle('open', open);
+  }
+
+  function rvToggleTrace(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var vis = el.style.display !== 'none';
+    el.style.display = vis ? 'none' : 'block';
+    var title = el.previousElementSibling;
+    if (title) title.textContent = (vis ? '▶' : '▼') + title.textContent.slice(1);
+  }
+
+  function rvShowCompare(idx, mode, btn) {
+    document.querySelectorAll('#rvCard' + idx + 'CTabs .rv-ctab').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    var content = document.getElementById('rvCard' + idx + 'CContent');
+    if (!content) return;
+    var item = _rvSession[idx];
+    if (!item) return;
+    // Currently only one version stored per reply — future: original vs humanized
+    content.innerHTML = '<div class="rv-reply-box">' + _escHtml(item.reply) + '</div>';
+  }
+
+  function _escHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+
+  function rvRender() {
+    var container = document.getElementById('rvCards');
+    var countEl   = document.getElementById('rvReplyCount');
+    if (!container) return;
+
+    if (!_rvFiltered.length) {
+      container.innerHTML = '<div class="rv-empty"><div style="font-size:1.8rem;opacity:.35;margin-bottom:.5rem">📭</div>'
+        + (_rvSession.length ? 'No replies match the current filters.' : 'Generate a reply first — it will appear here for review.')
+        + '</div>';
+      if (countEl) countEl.textContent = '';
+      return;
+    }
+
+    if (countEl) countEl.textContent = _rvFiltered.length + ' of ' + _rvSession.length + ' replies';
+    container.innerHTML = _rvFiltered.map(function(item, i) {
+      // Find real index in _rvSession for card IDs
+      var realIdx = _rvSession.indexOf(item);
+      return _rvBuildCard(item, realIdx);
+    }).join('');
+  }
+
+  /* ── Analytics ────────────────────────────────────────────────── */
+  async function rvLoadAnalytics() {
+    var section = document.getElementById('rvAnalytics');
+    var body    = document.getElementById('rvAnBody');
+    var subtitle= document.getElementById('rvAnSubtitle');
+    section.style.display = 'block';
+    body.innerHTML = '<div style="font-size:.78rem;color:var(--ink-3);font-family:\'DM Mono\',monospace;padding:.5rem 0">Loading…</div>';
+
+    try {
+      var res  = await fetch(API_BASE + '/qc/analytics?days=30');
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status);
+
+      var summary = (data.summary && data.summary.by_strategy) || [];
+      var worst   = data.worst_performing || [];
+      var total   = (data.summary && data.summary.total_evals) || 0;
+
+      if (subtitle) subtitle.textContent = total + ' evaluations · last 30 days';
+
+      if (!summary.length && !worst.length) {
+        body.innerHTML = '<div style="font-size:.78rem;color:var(--ink-3);padding:.4rem 0">No analytics data yet — generate some replies first.</div>';
+        return;
+      }
+
+      // Count unique failed dims
+      var dimFreq = {};
+      summary.forEach(function(r) {
+        (r.top_failed_dims || []).forEach(function(d) {
+          dimFreq[d] = (dimFreq[d] || 0) + r.count;
+        });
+      });
+      var topDims = Object.entries(dimFreq).sort(function(a,b){ return b[1]-a[1]; }).slice(0,5);
+
+      var html = '<div class="an-grid">';
+
+      // Best performing goals
+      var bestGoals = summary.slice().sort(function(a,b){ return b.avg_adherence - a.avg_adherence; }).slice(0,5);
+      html += '<div class="an-cell"><div class="an-cell-title">Top goals (adherence)</div>';
+      bestGoals.forEach(function(r) {
+        var cls = r.avg_adherence >= 80 ? 'hi' : r.avg_adherence >= 60 ? 'mid' : 'lo';
+        html += '<div class="an-row"><span class="an-row-label">' + (r.primary_goal||'?') + '</span>'
+              + '<span class="an-row-val ' + cls + '">' + Math.round(r.avg_adherence) + '/100</span></div>';
+      });
+      html += '</div>';
+
+      // Worst performing (regression + low score)
+      html += '<div class="an-cell"><div class="an-cell-title">Needs attention</div>';
+      if (worst.length) {
+        worst.forEach(function(r) {
+          html += '<div class="an-row"><span class="an-row-label">' + (r.primary_goal||'?') + ' / ' + (r.buyer_state||'?') + '</span>'
+                + '<span class="an-row-val lo">' + Math.round(r.avg_score||0) + '/100</span></div>';
+        });
+      } else {
+        html += '<div style="font-size:.74rem;color:var(--ink-3);padding:.3rem 0">Not enough data yet</div>';
+      }
+      html += '</div>';
+
+      // Most common failed dims
+      html += '<div class="an-cell"><div class="an-cell-title">Common failures</div>';
+      if (topDims.length) {
+        topDims.forEach(function(pair) {
+          html += '<div class="an-row"><span class="an-row-label">' + pair[0].replace(/_/g,' ') + '</span>'
+                + '<span class="an-row-val lo">' + pair[1] + 'x</span></div>';
+        });
+      } else {
+        html += '<div style="font-size:.74rem;color:var(--ink-3);padding:.3rem 0">None recorded</div>';
+      }
+      html += '</div>';
+
+      // Buyer state performance
+      var buyers = {};
+      summary.forEach(function(r) {
+        if (!r.buyer_state) return;
+        if (!buyers[r.buyer_state]) buyers[r.buyer_state] = { total:0, count:0, regs:0 };
+        buyers[r.buyer_state].total += r.avg_adherence * r.count;
+        buyers[r.buyer_state].count += r.count;
+        buyers[r.buyer_state].regs  += r.regression_count;
+      });
+      html += '<div class="an-cell"><div class="an-cell-title">Buyer state performance</div>';
+      var buyerList = Object.entries(buyers).sort(function(a,b){ return (b[1].total/b[1].count) - (a[1].total/a[1].count); });
+      if (buyerList.length) {
+        buyerList.slice(0,5).forEach(function(pair) {
+          var avg = Math.round(pair[1].total / pair[1].count);
+          var cls = avg >= 80 ? 'hi' : avg >= 60 ? 'mid' : 'lo';
+          html += '<div class="an-row"><span class="an-row-label">' + pair[0] + '</span>'
+                + '<span class="an-row-val ' + cls + '">' + avg + '/100</span></div>';
+        });
+      } else {
+        html += '<div style="font-size:.74rem;color:var(--ink-3);padding:.3rem 0">Not enough data</div>';
+      }
+      html += '</div>';
+
+      html += '</div>'; // /an-grid
+
+      // Regression rate summary
+      var totalReg  = summary.reduce(function(s,r){ return s + (r.regression_count||0); }, 0);
+      var totalEval = summary.reduce(function(s,r){ return s + r.count; }, 0);
+      if (totalEval) {
+        var regPct = Math.round(totalReg / totalEval * 100);
+        var regCls = regPct <= 10 ? 'var(--green)' : regPct <= 25 ? '#92400e' : 'var(--red)';
+        html += '<div style="font-size:.73rem;color:var(--ink-2);margin-top:.4rem">'
+              + 'Progression regression rate: <span style="font-weight:700;color:' + regCls + '">' + regPct + '%</span>'
+              + ' (' + totalReg + ' of ' + totalEval + ' evaluations)</div>';
+      }
+
+      body.innerHTML = html;
+    } catch(err) {
+      body.innerHTML = '<div style="font-size:.76rem;color:var(--red);padding:.3rem 0">Failed to load analytics: ' + _escHtml(err.message) + '</div>';
+    }
+  }
+
+  /* ── Hook into _doGenerate success path ───────────────────────── */
+  /* Wrap the existing generateReply flow to capture replies + strategy */
+  var _origDoGenerate = (typeof _doGenerate !== 'undefined') ? _doGenerate : null;
+  /* We patch into the data handler directly via the existing _lastReplies mechanism */
+  /* The Review tab reads _lastReplies on tab switch, plus on each new generation */
+
+  /* Patch showVariation to also feed the review store on first load */
+  var _rvLastIngested = -1;
+  var _origShowVariation = showVariation;
+  showVariation = function(index) {
+    _origShowVariation(index);
+    // After first variation is shown, ingest whole batch if not yet done
+    if (_lastReplies && _lastReplies.length && _lastReplies.length !== _rvLastIngested) {
+      _rvLastIngested = _lastReplies.length;
+      // Extract strategy from pipeline_debug stored in window._lastPipelineDebug
+      var strategyDebug = window._lastPipelineDebug ? window._lastPipelineDebug.reply_strategy : null;
+      rvIngestReplies(_lastReplies, strategyDebug);
+    }
+  };
+
+  /* Capture pipeline_debug.reply_strategy when generate completes */
+  /* Find the _doGenerate success path and intercept dbg */
+  /* We do this by patching the assignment site via a global flag */
+  (function() {
+    var _origOnDebug = window._onPipelineDebug || null;
+    window._onPipelineDebug = function(dbg) {
+      window._lastPipelineDebug = dbg;
+      if (_origOnDebug) _origOnDebug(dbg);
+    };
+  })();
 </script>
-</body>
-</html>
 <script>
   /* ══════════════════════════════════════════════════════════════════
      TEMPLATE SYSTEM v2 — Smart, Dynamic, Component-Based
@@ -2784,3 +3447,5 @@ Examples:
     if (!visible) tplRenderSaved();
   }
 </script>
+</body>
+</html>
