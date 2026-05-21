@@ -52,6 +52,16 @@ except Exception as _mem_err:
     memory_db = None
     _MEMORY_AVAILABLE = False
 
+# Operational Reliability — adaptive safety config + replay tooling
+# Graceful fallback: if module unavailable, all adaptive flags stay False
+try:
+    from operational_reliability import safety_config as _adaptive_config
+    _OR_AVAILABLE = True
+except Exception as _or_err:
+    print(f"[OperationalReliability] Not available: {_or_err} — using safe defaults")
+    _adaptive_config = None
+    _OR_AVAILABLE    = False
+
 # ─────────────────────────────────────────────────────────────────────────────
 # CONSTANTS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -3645,6 +3655,43 @@ async def generate_reply(req: GenerateRequest):
                 except Exception as _obj_err:
                     print(f"[OBJECTION_LOG] silent logging failed (non-blocking): {_obj_err}")
 
+                # ── Phase 3a: strategy outcome + subject logging ───────────────
+                # Records what strategy decisions were made and which subject line
+                # was generated.  Outcome fields (got_reply etc.) start NULL and
+                # are populated later by backfill_angle_reply_data().
+                # Non-blocking: failures never affect reply delivery.
+                # Rollback: remove this block.
+                try:
+                    memory_db.log_strategy_outcome(
+                        lead_id          = lead_id,
+                        goal             = getattr(strategy, "primary_goal", ""),
+                        buyer_state      = getattr(strategy, "buyer_state", ""),
+                        cta_style        = getattr(strategy, "cta_style", ""),
+                        tone_posture     = getattr(strategy, "tone_posture", ""),
+                        reply_length     = getattr(strategy, "reply_length", ""),
+                        persuasion_level = getattr(strategy, "persuasion_level", 0),
+                        urgency_level    = getattr(strategy, "urgency_level", 0),
+                        outreach_seq     = lead_ctx["outreach_count"] + 1,
+                        selected_angle   = getattr(strategy, "selected_angle", None) or None,
+                        outreach_id      = None,  # Phase 3a: not yet available at generation time
+                    )
+                    print(f"[OUTCOME_LOG] lead={lead_id} "
+                          f"goal={getattr(strategy,'primary_goal','?')} "
+                          f"angle={getattr(strategy,'selected_angle','?')!r}")
+                except Exception as _out_err:
+                    print(f"[OUTCOME_LOG] silent logging failed (non-blocking): {_out_err}")
+
+                try:
+                    if "subject" in dir() and subject:
+                        memory_db.log_subject_effectiveness(
+                            lead_id    = lead_id,
+                            subject    = subject,
+                            outreach_id = None,  # Phase 3a: not yet available
+                        )
+                        print(f"[SUBJECT_LOG] lead={lead_id} subject={repr(subject)[:50]}")
+                except Exception as _subj_err:
+                    print(f"[SUBJECT_LOG] silent logging failed (non-blocking): {_subj_err}")
+
     _Timer.log("total", int((time.monotonic() - _t_total) * 1000))
 
     return GenerateResponse(
@@ -3907,6 +3954,41 @@ async def generate_reply_situation(req: SituationRequest):
                             print(f"[OBJECTION_LOG] lead={lead_id} type={_obj_type}")
                 except Exception as _obj_err:
                     print(f"[OBJECTION_LOG] silent logging failed (non-blocking): {_obj_err}")
+
+                # ── Phase 3a: strategy outcome + subject logging ───────────────
+                # Mirrors the same block in /generate-reply.
+                # Non-blocking: failures never affect reply delivery.
+                # Rollback: remove this block.
+                try:
+                    memory_db.log_strategy_outcome(
+                        lead_id          = lead_id,
+                        goal             = getattr(strategy, "primary_goal", ""),
+                        buyer_state      = getattr(strategy, "buyer_state", ""),
+                        cta_style        = getattr(strategy, "cta_style", ""),
+                        tone_posture     = getattr(strategy, "tone_posture", ""),
+                        reply_length     = getattr(strategy, "reply_length", ""),
+                        persuasion_level = getattr(strategy, "persuasion_level", 0),
+                        urgency_level    = getattr(strategy, "urgency_level", 0),
+                        outreach_seq     = lead_ctx["outreach_count"] + 1,
+                        selected_angle   = getattr(strategy, "selected_angle", None) or None,
+                        outreach_id      = None,  # Phase 3a: not yet available at generation time
+                    )
+                    print(f"[OUTCOME_LOG] lead={lead_id} "
+                          f"goal={getattr(strategy,'primary_goal','?')} "
+                          f"angle={getattr(strategy,'selected_angle','?')!r}")
+                except Exception as _out_err:
+                    print(f"[OUTCOME_LOG] silent logging failed (non-blocking): {_out_err}")
+
+                try:
+                    if "subject" in dir() and subject:
+                        memory_db.log_subject_effectiveness(
+                            lead_id    = lead_id,
+                            subject    = subject,
+                            outreach_id = None,  # Phase 3a: not yet available
+                        )
+                        print(f"[SUBJECT_LOG] lead={lead_id} subject={repr(subject)[:50]}")
+                except Exception as _subj_err:
+                    print(f"[SUBJECT_LOG] silent logging failed (non-blocking): {_subj_err}")
 
     _Timer.log("total", int((time.monotonic() - _t_total) * 1000))
 
@@ -5041,6 +5123,595 @@ async def qc_analytics(days: int = 30):
     }
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# DIAGNOSTICS + OBSERVABILITY ENDPOINTS  (Phase QC)
+# All read-only.  Zero strategy / prompt / selection modifications.
+# Rollback: remove these endpoint registrations.  analytics_qc.py is additive.
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.get("/qc/lead-attribution/{lead_id}")
+async def qc_lead_attribution(lead_id: int):
+    """
+    Full attribution chain for a single lead.
+
+    Shows every outreach, its linked strategy outcome, angles used,
+    objections detected, prospect replies, and the attribution confidence
+    of each link.  Use this to manually verify the data pipeline captured
+    events correctly for a specific lead.
+
+    Returns: lead info, outreach_chain[], objections[], offers[],
+             conversion_events[], attribution_summary
+    """
+    _memory_check()
+    from analytics_qc import get_lead_attribution
+    return get_lead_attribution(memory_db, lead_id)
+
+
+@app.get("/qc/angle-performance")
+async def qc_angle_performance(min_samples: int = 5):
+    """
+    Aggregate angle effectiveness across all leads.
+
+    For each angle_id: reply_rate, positive_rate, negative_rate,
+    weighted_score (reply*0.4 + positive*0.5 - negative*0.1), trust status.
+
+    Scores are suppressed (returned as null) when primary_uses < min_samples.
+    This is the read-only preview of what Phase 3b would materialise.
+
+    Query param: min_samples (default 5)
+    """
+    _memory_check()
+    from analytics_qc import get_angle_performance
+    return get_angle_performance(memory_db, min_samples=min_samples)
+
+
+@app.get("/qc/cta-performance")
+async def qc_cta_performance(min_samples: int = 5):
+    """
+    Aggregate CTA style × goal effectiveness from strategy_outcome_log.
+
+    Shows which cta_style + goal combinations produce the highest reply
+    and positive-sentiment rates.  Scores suppressed below min_samples.
+
+    Query param: min_samples (default 5)
+    """
+    _memory_check()
+    from analytics_qc import get_cta_performance
+    return get_cta_performance(memory_db, min_samples=min_samples)
+
+
+@app.get("/qc/conversion-funnel")
+async def qc_conversion_funnel():
+    """
+    High-level conversion funnel from first outreach to terminal outcome.
+
+    Reports: stage distribution, conversion rates, avg time-to-resolution,
+    avg outreach count before conversion, top angles in converted leads,
+    and a funnel health verdict (sparse / developing / rich).
+    """
+    _memory_check()
+    from analytics_qc import get_conversion_funnel
+    return get_conversion_funnel(memory_db)
+
+
+@app.get("/qc/reply-latency")
+async def qc_reply_latency():
+    """
+    Distribution of prospect reply latencies (time from outreach send to reply).
+
+    Buckets: <1h, 1-6h, 6-24h, 1-3d, >3d.
+    Also reports median latency by angle and by goal, and attribution coverage
+    (what % of latency values have high-confidence outreach links).
+
+    Data comes from strategy_outcome_log.reply_latency_s, populated by
+    the /leads/{id}/reply backfill endpoint.
+    """
+    _memory_check()
+    from analytics_qc import get_reply_latency
+    return get_reply_latency(memory_db)
+
+
+@app.get("/qc/attribution-integrity")
+async def qc_attribution_integrity():
+    """
+    Attribution integrity audit across all broker_memory tables.
+
+    Detects:
+      - orphaned outreach rows (no strategy_outcome linked)
+      - duplicate reply mappings (two replies → same outreach)
+      - cross-lead mismatches (reply.lead_id ≠ outreach.lead_id)
+      - missing outcome rows (leads with outreach but no strategy_outcome)
+      - unlinked reply rows (no in_reply_to_outreach_id)
+      - null event_ids (pre-Phase-QC rows — expected, not errors)
+
+    Returns a health verdict: healthy / degraded / corrupted.
+    Pre-Phase-3a orphans are reported separately and are not treated as errors.
+    """
+    _memory_check()
+    from analytics_qc import check_attribution_integrity
+    return check_attribution_integrity(memory_db)
+
+
+@app.get("/qc/score-safety")
+async def qc_score_safety(min_samples: int = 5):
+    """
+    Score safety guard — dry-run preview before Phase 3b activates.
+
+    Shows which angles and CTA combinations have sufficient data to be trusted,
+    which would be suppressed, and a go / caution / hold recommendation.
+
+    This endpoint is READ-ONLY.  Calling it does NOT activate adaptive scoring.
+
+    Query param: min_samples (default 5)
+    """
+    _memory_check()
+    from analytics_qc import score_safety_check
+    return score_safety_check(memory_db, min_samples=min_samples)
+
+
+@app.post("/qc/materialization-verify")
+async def qc_materialization_verify(body: dict = None):
+    """
+    Verify data consistency before Phase 3b score materialization.
+
+    Dry-run mode: computes what scores WOULD be written, checks data quality,
+    and optionally compares against a previous baseline (regression detection).
+
+    Body (all optional):
+    {
+      "min_samples":           int   (default 5),
+      "regression_baseline":   dict  (previous response from this endpoint)
+    }
+
+    Always runs in dry_run=True — this is a read-only verification.
+    Phase 3b materialization must be explicitly triggered separately.
+
+    Returns: data_quality_checks, score_preview, regression_report,
+             readiness_verdict (pass / warn / fail).
+    """
+    _memory_check()
+    from analytics_qc import verify_materialization_readiness
+    body         = body or {}
+    min_samples  = int(body.get("min_samples", 5))
+    baseline     = body.get("regression_baseline")
+    return verify_materialization_readiness(
+        memory_db,
+        min_samples          = min_samples,
+        dry_run              = True,
+        regression_baseline  = baseline,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OPERATIONAL RELIABILITY ENDPOINTS  (Phase OR)
+# Snapshot management, analyst corrections, replay tooling, dashboard,
+# safety config, and frontend integrity safeguards.
+# All read-only except the correction and snapshot endpoints.
+# Rollback: remove these registrations; delete operational_reliability.py.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Snapshot endpoints ────────────────────────────────────────────────────────
+
+@app.post("/qc/snapshot/create")
+async def qc_snapshot_create(body: dict = None):
+    """
+    Capture a full system analytics snapshot and persist it to the DB.
+
+    Use this to establish a named baseline before any configuration change
+    or before activating Phase 3b.  Two snapshots are required for volatility
+    monitoring.
+
+    Body (all optional):
+      { "label": "pre-Phase-3b baseline",
+        "snapshot_type": "full_system" }   # currently only full_system supported
+
+    Returns: snapshot_id, label, captured_at, size_bytes, phase3b_gate verdict.
+    """
+    _memory_check()
+    from operational_reliability import create_full_system_snapshot
+    body  = body or {}
+    label = body.get("label")
+    return create_full_system_snapshot(memory_db, label=label)
+
+
+@app.get("/qc/snapshot/list")
+async def qc_snapshot_list(snapshot_type: str = None, limit: int = 50):
+    """
+    List stored snapshots, newest first.
+
+    Query params:
+      snapshot_type  — filter by type (optional; default: all)
+      limit          — max rows returned (default 50)
+
+    Returns metadata only — snapshot_json excluded for performance.
+    Use GET /qc/snapshot/{id} to retrieve the full JSON blob.
+    """
+    _memory_check()
+    return {
+        "snapshots": memory_db.list_snapshots(
+            snapshot_type = snapshot_type,
+            limit         = limit,
+        )
+    }
+
+
+@app.get("/qc/snapshot/{snapshot_id}")
+async def qc_snapshot_get(snapshot_id: int):
+    """
+    Retrieve a full snapshot including the analytics JSON blob.
+
+    Use this to inspect the exact system state at the time the snapshot
+    was taken, or to supply as regression_baseline to
+    POST /qc/materialization-verify.
+    """
+    _memory_check()
+    snap = memory_db.get_snapshot(snapshot_id)
+    if snap is None:
+        raise HTTPException(404, f"Snapshot {snapshot_id} not found")
+    # Parse snapshot_json so it's returned as a nested object, not a string
+    try:
+        snap["snapshot_data"] = json.loads(snap["snapshot_json"])
+        del snap["snapshot_json"]
+    except Exception:
+        pass  # leave as string if unparseable
+    return snap
+
+
+# ── Analyst correction endpoints ──────────────────────────────────────────────
+
+@app.post("/qc/corrections/relink-reply")
+async def qc_relink_reply(body: dict):
+    """
+    Relink a prospect reply to a different outreach.
+
+    Use when a reply was logged without in_reply_to_outreach_id, or when
+    the frontend linked it to the wrong outreach.
+
+    Body:
+      {
+        "reply_id":         int  (required)
+        "new_outreach_id":  int | null  (null = remove link, set conf=0.5)
+        "reason":           str  (required — written to audit trail)
+      }
+
+    Logs the correction to analyst_correction_log before applying.
+    Recalculates attribution_confidence automatically.
+    Returns: { "success": bool, "correction_logged": bool }
+    """
+    _memory_check()
+    reply_id       = body.get("reply_id")
+    new_outreach   = body.get("new_outreach_id")
+    reason         = (body.get("reason") or "").strip()
+    if not reply_id:
+        raise HTTPException(422, "reply_id is required")
+    if not reason:
+        raise HTTPException(422, "reason is required for audit trail")
+    ok = memory_db.relink_reply(
+        reply_id        = int(reply_id),
+        new_outreach_id = int(new_outreach) if new_outreach is not None else None,
+        reason          = reason,
+    )
+    return {"success": ok, "reply_id": reply_id, "new_outreach_id": new_outreach}
+
+
+@app.post("/qc/corrections/override-confidence")
+async def qc_override_confidence(body: dict):
+    """
+    Override the attribution_confidence on a specific row.
+
+    Body:
+      {
+        "table":    "prospect_reply_log" | "strategy_outcome_log"
+        "row_id":   int
+        "new_conf": float  (0.0–1.0)
+        "reason":   str    (required)
+      }
+
+    Returns: { "success": bool }
+    """
+    _memory_check()
+    table   = body.get("table", "")
+    row_id  = body.get("row_id")
+    conf    = body.get("new_conf")
+    reason  = (body.get("reason") or "").strip()
+    if not table or row_id is None or conf is None:
+        raise HTTPException(422, "table, row_id, and new_conf are required")
+    if not reason:
+        raise HTTPException(422, "reason is required for audit trail")
+    ok = memory_db.override_attribution_confidence(
+        table    = table,
+        row_id   = int(row_id),
+        new_conf = float(conf),
+        reason   = reason,
+    )
+    return {"success": ok}
+
+
+@app.post("/qc/corrections/invalidate-mapping")
+async def qc_invalidate_mapping(body: dict):
+    """
+    Mark a reply, outcome, or angle row as invalidated.
+
+    Sets attribution_confidence=0.0 (or prospect_replied=0 for angle_log).
+    The row is preserved but excluded from Phase 3b score materialization.
+
+    Body:
+      {
+        "table":   "prospect_reply_log" | "strategy_outcome_log" | "angle_log"
+        "row_id":  int
+        "reason":  str  (required)
+      }
+
+    Returns: { "success": bool }
+    """
+    _memory_check()
+    table  = body.get("table", "")
+    row_id = body.get("row_id")
+    reason = (body.get("reason") or "").strip()
+    if not table or row_id is None:
+        raise HTTPException(422, "table and row_id are required")
+    if not reason:
+        raise HTTPException(422, "reason is required for audit trail")
+    ok = memory_db.invalidate_mapping(
+        table   = table,
+        row_id  = int(row_id),
+        reason  = reason,
+    )
+    return {"success": ok}
+
+
+@app.post("/qc/corrections/merge-reply-chains")
+async def qc_merge_reply_chains(body: dict):
+    """
+    Merge two reply records into one canonical record.
+
+    Use when a prospect sent two messages in quick succession that both
+    pertain to the same outreach — e.g. a follow-up message sent one
+    minute after a first reply.
+
+    Body:
+      {
+        "keep_reply_id":    int  (the reply to keep as canonical)
+        "discard_reply_id": int  (the reply to invalidate)
+        "reason":           str  (required)
+      }
+
+    Transfers the outreach link from discard → keep if keep has no link.
+    Invalidates the discard reply.
+    Logs both corrections to audit trail.
+    Returns: { "success": bool }
+    """
+    _memory_check()
+    keep    = body.get("keep_reply_id")
+    discard = body.get("discard_reply_id")
+    reason  = (body.get("reason") or "").strip()
+    if not keep or not discard:
+        raise HTTPException(422, "keep_reply_id and discard_reply_id are required")
+    if keep == discard:
+        raise HTTPException(422, "keep and discard must be different rows")
+    if not reason:
+        raise HTTPException(422, "reason is required for audit trail")
+    ok = memory_db.merge_reply_chains(
+        keep_reply_id    = int(keep),
+        discard_reply_id = int(discard),
+        reason           = reason,
+    )
+    return {"success": ok}
+
+
+@app.get("/qc/corrections/history")
+async def qc_correction_history(
+    target_table: str  = None,
+    row_id:       int  = None,
+    limit:        int  = 100,
+):
+    """
+    Retrieve the analyst correction audit trail.
+
+    Query params:
+      target_table  — filter by table name (optional)
+      row_id        — filter by specific row (optional; requires target_table)
+      limit         — max rows returned (default 100)
+
+    Returns corrections newest-first with before/after JSON snapshots.
+    """
+    _memory_check()
+    return {
+        "corrections": memory_db.get_correction_history(
+            target_table  = target_table,
+            target_row_id = row_id,
+            limit         = limit,
+        )
+    }
+
+
+# ── Replay + drift tooling ────────────────────────────────────────────────────
+
+@app.get("/qc/replay/{lead_id}")
+async def qc_replay_lead(lead_id: int):
+    """
+    Replay a lead's full outreach history through the CURRENT strategy logic.
+
+    For each historical outreach:
+      - Reconstructs what StrategySignals would have been at that point
+      - Runs build_strategy() with current logic
+      - Compares current output vs the recorded historical outcome
+      - Reports drift in: goal, buyer_state, cta_style, selected_angle, tone
+
+    READ-ONLY.  Does not affect live reply generation.
+
+    Returns: replay_chain, drift_summary, phase3b_safety verdict.
+
+    Use this before activating Phase 3b to verify that current strategy
+    logic is consistent with historical decisions.
+    """
+    _memory_check()
+    from operational_reliability import replay_lead_history
+    return replay_lead_history(memory_db, lead_id)
+
+
+# ── Safety configuration endpoint ─────────────────────────────────────────────
+
+@app.get("/qc/adaptive-config")
+async def qc_adaptive_config():
+    """
+    Return the current adaptive safety configuration.
+
+    Shows all flags, their current values, and a plain-English explanation
+    of what each flag controls.
+
+    The 'adaptive_selection_active' field is the authoritative answer to
+    whether Phase 3b score-driven selection is currently active.
+
+    Currently: ENABLE_ADAPTIVE_SELECTION=False, FORCE_STATIC_SELECTION=True
+    → adaptive selection is NOT active. System uses static position order.
+    """
+    from operational_reliability import safety_config
+    return safety_config.safety_status()
+
+
+# ── QC Dashboard endpoint ─────────────────────────────────────────────────────
+
+@app.get("/qc/dashboard")
+async def qc_dashboard():
+    """
+    Consolidated operational health dashboard.
+
+    Returns all key health indicators in a single call:
+      - Attribution confidence distribution
+      - Unresolved mapping counts (cross-lead errors, duplicates, orphans)
+      - Staleness detection (outcome data age, reply data age)
+      - Score volatility between last two snapshots
+      - Correction activity (audit trail summary)
+      - Idempotency health
+      - Overall health score (0–100) and verdict
+      - Phase 3b gate recommendation
+
+    Read-only. Zero strategy or prompt influence.
+    """
+    _memory_check()
+    from operational_reliability import get_dashboard_metrics
+    return get_dashboard_metrics(memory_db)
+
+
+# ── Frontend integrity safeguard endpoints ────────────────────────────────────
+
+@app.post("/qc/idempotency/check")
+async def qc_idempotency_check(body: dict):
+    """
+    Check whether a client idempotency_key has been used before.
+
+    Call this BEFORE submitting an outreach or reply log to prevent
+    duplicate submissions on frontend retry.
+
+    Body:
+      {
+        "idempotency_key": str   (required — client-generated UUID)
+        "operation_type":  str   (optional — "outreach" | "reply" | "offer")
+        "lead_id":         int   (optional)
+      }
+
+    Returns:
+      {"duplicate": false, "message": "proceed"}
+      {"duplicate": true,  "result_row_id": int, "message": "already processed"}
+    """
+    _memory_check()
+    from operational_reliability import check_and_register_idempotency
+    key    = (body.get("idempotency_key") or "").strip()
+    op     = body.get("operation_type", "outreach")
+    lead   = body.get("lead_id")
+    if not key:
+        raise HTTPException(422, "idempotency_key is required")
+    return check_and_register_idempotency(
+        memory_db, idempotency_key=key, operation_type=op, lead_id=lead
+    )
+
+
+@app.post("/qc/idempotency/register")
+async def qc_idempotency_register(body: dict):
+    """
+    Register a completed operation against an idempotency key.
+
+    Call this AFTER successfully completing an outreach or reply log
+    to mark the key as used.
+
+    Body:
+      {
+        "idempotency_key": str   (required)
+        "operation_type":  str   (optional)
+        "lead_id":         int   (optional)
+        "result_row_id":   int   (optional — the DB row ID that was created)
+      }
+
+    Returns: { "registered": bool }
+    """
+    _memory_check()
+    key       = (body.get("idempotency_key") or "").strip()
+    op        = body.get("operation_type", "outreach")
+    lead      = body.get("lead_id")
+    result_id = body.get("result_row_id")
+    if not key:
+        raise HTTPException(422, "idempotency_key is required")
+    ok = memory_db.register_idempotency(
+        idempotency_key = key,
+        operation_type  = op,
+        lead_id         = lead,
+        result_row_id   = result_id,
+    )
+    return {"registered": ok}
+
+
+@app.post("/qc/idempotency/invalidate")
+async def qc_idempotency_invalidate(body: dict):
+    """
+    Invalidate an idempotency key so it can be reused.
+
+    Use when an operation was registered but the downstream action failed
+    and the client needs to retry with the same key.
+
+    Body: { "idempotency_key": str }
+    Returns: { "invalidated": bool }
+    """
+    _memory_check()
+    key = (body.get("idempotency_key") or "").strip()
+    if not key:
+        raise HTTPException(422, "idempotency_key is required")
+    return {"invalidated": memory_db.invalidate_idempotency_key(key)}
+
+
+@app.post("/qc/threading/validate")
+async def qc_threading_validate(body: dict):
+    """
+    Validate that an outreach_id / event_id pair is consistent with lead_id.
+
+    Call before accepting a frontend submission that references an
+    outreach_id to prevent cross-lead threading errors on retry.
+
+    Body:
+      {
+        "lead_id":      int   (required)
+        "outreach_id":  int   (optional)
+        "event_id":     str   (optional)
+      }
+
+    Returns:
+      {"valid": true}
+      {"valid": false, "reason": str}
+    """
+    _memory_check()
+    from operational_reliability import validate_outreach_threading
+    lead_id     = body.get("lead_id")
+    outreach_id = body.get("outreach_id")
+    event_id    = body.get("event_id")
+    if not lead_id:
+        raise HTTPException(422, "lead_id is required")
+    return validate_outreach_threading(
+        memory_db, lead_id=int(lead_id),
+        outreach_id = int(outreach_id) if outreach_id else None,
+        event_id    = event_id,
+    )
+
+
 async def qc_humanize_reply(body: dict):
     """
     On-demand humanization endpoint. Scores first, then rewrites if needed.
@@ -5170,6 +5841,62 @@ async def log_outreach(lead_id: int, body: dict):
     return {"logged": ok}
 
 
+@app.post("/leads/{lead_id}/reply")
+async def log_prospect_reply_endpoint(lead_id: int, body: dict):
+    """
+    Log a prospect's inbound reply message.
+
+    Phase 3a insertion point: this endpoint triggers backfill_angle_reply_data()
+    when in_reply_to_outreach_id is supplied, linking reply outcome back to the
+    specific outreach that prompted it.
+
+    Body: {
+        body (str, required)            — raw prospect message text
+        sentiment? (str)                — positive|neutral|negative|no_reply
+        has_questions? (bool)           — did the prospect ask questions?
+        in_reply_to_outreach_id? (int)  — outreach_log.id this replies to
+        reply_latency_s? (float)        — seconds since outreach was sent
+    }
+    Returns: { logged: bool, reply_id: int|null, backfilled: bool }
+    """
+    _memory_check()
+    message_body = body.get("body", "").strip()
+    if not message_body:
+        from fastapi import HTTPException
+        raise HTTPException(422, "body is required")
+
+    sentiment    = body.get("sentiment")
+    has_q        = bool(body.get("has_questions", "?" in message_body))
+    outreach_id  = body.get("in_reply_to_outreach_id")
+    latency_s    = body.get("reply_latency_s")
+
+    reply_id = memory_db.log_prospect_reply(
+        lead_id                  = lead_id,
+        body                     = message_body,
+        sentiment                = sentiment,
+        has_questions            = has_q,
+        in_reply_to_outreach_id  = outreach_id,
+    )
+
+    backfilled = False
+    # ── Phase 3a: trigger backfill when outreach_id is known ─────────────────
+    # Non-blocking: backfill failure does not affect the reply log response.
+    if reply_id and outreach_id:
+        try:
+            backfilled = memory_db.backfill_angle_reply_data(
+                outreach_id     = int(outreach_id),
+                got_reply       = True,
+                reply_sentiment = sentiment,
+                reply_latency_s = float(latency_s) if latency_s is not None else None,
+            )
+            print(f"[BACKFILL] lead={lead_id} outreach={outreach_id} "
+                  f"sentiment={sentiment!r} backfilled={backfilled}")
+        except Exception as _bf_err:
+            print(f"[BACKFILL] silent logging failed (non-blocking): {_bf_err}")
+
+    return {"logged": reply_id is not None, "reply_id": reply_id, "backfilled": backfilled}
+
+
 @app.post("/leads/{lead_id}/offer")
 async def log_offer(lead_id: int, body: dict):
     """
@@ -5200,6 +5927,24 @@ async def update_stage(lead_id: int, body: dict):
         from fastapi import HTTPException
         raise HTTPException(422, "stage is required")
     ok = memory_db.update_lead_stage(lead_id, stage)
+
+    # ── Phase 3a: conversion event logging ────────────────────────────────────
+    # Records terminal outcomes so we can compute time-to-resolution and
+    # attribute conversion to prior strategy decisions.
+    # Non-blocking: failure does not affect the stage update response.
+    # Rollback: remove this block.
+    _TERMINAL_STAGES = {"accepted", "rejected", "unsubscribed", "stalled_closed"}
+    if ok and stage in _TERMINAL_STAGES:
+        try:
+            memory_db.log_conversion_event(
+                lead_id    = lead_id,
+                event_type = stage,
+                notes      = body.get("notes") if isinstance(body, dict) else None,
+            )
+            print(f"[CONVERSION_LOG] lead={lead_id} event={stage!r}")
+        except Exception as _conv_err:
+            print(f"[CONVERSION_LOG] silent logging failed (non-blocking): {_conv_err}")
+
     return {"updated": ok}
 
 
